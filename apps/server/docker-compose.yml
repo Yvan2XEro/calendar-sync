@@ -2,14 +2,14 @@ name: calendar-sync
 
 services:
   postgres:
-    image: postgres
+    image: postgres:16.2-alpine
     container_name: calendar-sync-postgres
     environment:
       POSTGRES_DB: calendar-sync
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
     ports:
-      - "5432:5432"
+      - "54322:5432"
     volumes:
       - calendar-sync_postgres_data:/var/lib/postgresql/data
     healthcheck:
