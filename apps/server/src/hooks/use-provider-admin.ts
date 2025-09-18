@@ -16,6 +16,41 @@ type OrgListResponse = ProvidersRouterOutputs["org"]["list"];
 type LinkVariables = Omit<ProvidersRouterInputs["org"]["link"], "slug">;
 type LinkResponse = ProvidersRouterOutputs["org"]["link"];
 
+type SaveVariables = Omit<ProvidersRouterInputs["save"], "slug">;
+type SaveResponse = ProvidersRouterOutputs["save"];
+
+export function useProviderList(slug: string, params?: ListParams) {
+  return useQuery<ListResponse>({
+    queryKey: providerKeys.list(slug, params),
+    queryFn: () => trpcClient.providers.list.query({ slug, ...(params ?? {}) }),
+    enabled: Boolean(slug),
+  });
+}
+
+export function useProviderDetail(slug: string, providerId: string) {
+  return useQuery<ProviderDetailResponse>({
+    queryKey: providerKeys.detail(slug, providerId),
+    queryFn: () => trpcClient.providers.get.query({ slug, providerId }),
+    enabled: Boolean(slug && providerId),
+  });
+}
+
+export function useProviderConnection(slug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<SaveResponse, Error, SaveVariables>({
+    mutationFn: (variables) =>
+      trpcClient.providers.save.mutate({ slug, ...variables }),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: providerKeys.listRoot(slug) });
+
+      if (result?.providerId) {
+        queryClient.invalidateQueries({
+          queryKey: providerKeys.detail(slug, result.providerId),
+        });
+      }
+    },
+  });
 export function useOrgProviderList(slug: string) {
         return useQuery<OrgListResponse>({
                 queryKey: providerKeys.orgList(slug),
