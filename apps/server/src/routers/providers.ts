@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { TRPCError } from "@trpc/server";
-import { and, eq, ilike, or, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { ImapFlow } from "imapflow";
+import nodemailer from "nodemailer";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -74,6 +76,24 @@ const listInput = slugInput.extend({
   offset: z.number().int().min(0).optional(),
 });
 
+const orgLinkInput = slugInput.extend({
+  providerIds: z
+    .array(z.string().min(1, "Provider id is required"))
+    .max(100)
+    .default([]),
+});
+
+const saveInput = slugAndProviderInput.extend({
+  draft: providerDraftSchema,
+});
+
+const testInput = slugAndProviderInput.extend({
+  target: z.enum(TEST_TARGETS),
+  imap: imapPartialSchema.optional(),
+  smtp: smtpPartialSchema.optional(),
+});
+
+type StoredConfigRow = typeof organizationProvider.$inferSelect;
 type ProviderCatalogRow = typeof providerCatalog.$inferSelect;
 
 type CatalogProviderStatus = (typeof PROVIDER_STATUSES)[number];
@@ -85,6 +105,24 @@ type ProviderListItem = {
   category: string;
   providerStatus: CatalogProviderStatus;
   isConnected: boolean;
+};
+
+type OrgProviderListItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  status: CatalogProviderStatus;
+  linked: boolean;
+};
+
+type OrgProviderListResponse = {
+  items: OrgProviderListItem[];
+};
+
+type OrgProviderLinkResponse = {
+  providerIds: string[];
+  added: string[];
+  removed: string[];
 };
 
 type ProviderListResponse = {
@@ -161,6 +199,130 @@ async function buildProviderDetail(
 }
 
 export const providersRouter = router({
+  org: router({
+    list: protectedProcedure
+      .input(slugInput)
+      .query(async ({ ctx, input }) => {
+        const session = ctx.session;
+        if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+        const { organization: org } = await resolveOrganizationMembership({
+          slug: input.slug,
+          userId: session.user.id,
+          requireElevated: true,
+        });
+
+        const joinCondition = and(
+          eq(organizationProvider.providerId, providerCatalog.id),
+          eq(organizationProvider.organizationId, org.id),
+        );
+
+        const rows = await db
+          .select({
+            id: providerCatalog.id,
+            name: providerCatalog.name,
+            description: providerCatalog.description,
+            status: providerCatalog.status,
+            organizationProviderId: organizationProvider.id,
+          })
+          .from(providerCatalog)
+          .leftJoin(organizationProvider, joinCondition)
+          .orderBy(providerCatalog.name);
+
+        const items: OrgProviderListItem[] = rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description ?? null,
+          status: row.status as CatalogProviderStatus,
+          linked: Boolean(row.organizationProviderId),
+        }));
+
+        return {
+          items,
+        } satisfies OrgProviderListResponse;
+      }),
+    link: protectedProcedure
+      .input(orgLinkInput)
+      .mutation(async ({ ctx, input }) => {
+        const session = ctx.session;
+        if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+        const { organization: org } = await resolveOrganizationMembership({
+          slug: input.slug,
+          userId: session.user.id,
+          requireElevated: true,
+        });
+
+        const requestedIds = Array.from(new Set(input.providerIds));
+        const requestedSet = new Set(requestedIds);
+
+        if (requestedIds.length > 0) {
+          const catalogRows = await db
+            .select({ id: providerCatalog.id })
+            .from(providerCatalog)
+            .where(inArray(providerCatalog.id, requestedIds));
+
+          if (catalogRows.length !== requestedIds.length) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "One or more providers do not exist",
+            });
+          }
+        }
+
+        const existingLinks = await db.query.organizationProvider.findMany({
+          where: eq(organizationProvider.organizationId, org.id),
+        });
+
+        const existingByProvider = new Map(
+          existingLinks.map((row) => [row.providerId, row]),
+        );
+
+        const additions = requestedIds.filter(
+          (providerId) => !existingByProvider.has(providerId),
+        );
+        const removals = existingLinks.filter(
+          (row) => !requestedSet.has(row.providerId),
+        );
+
+        const now = new Date();
+
+        if (additions.length > 0) {
+          await db.insert(organizationProvider).values(
+            additions.map((providerId) => ({
+              id: randomUUID(),
+              organizationId: org.id,
+              providerId,
+              status: "pending",
+              imapTestOk: false,
+              lastTestedAt: null,
+              config: {} as Record<string, unknown>,
+              secretsRef: null,
+              createdAt: now,
+              updatedAt: now,
+            })),
+          );
+        }
+
+        if (removals.length > 0) {
+          await db
+            .delete(organizationProvider)
+            .where(
+              inArray(
+                organizationProvider.id,
+                removals.map((row) => row.id),
+              ),
+            );
+        }
+
+        return {
+          providerIds: requestedIds,
+          added: additions,
+          removed: removals.map((row) => row.providerId),
+        } satisfies OrgProviderLinkResponse;
+      }),
+  }),
+  // Liste admin avec recherche/filtrage/pagination, join sur organizationProvider
   list: protectedProcedure
     .input(listInput)
     .query(async ({ ctx, input }) => {
@@ -317,3 +479,15 @@ export const providersRouter = router({
 });
 
 export type { ProviderDetail, ProviderListItem, ProviderListResponse };
+
+export type {
+  ProviderDetail,
+  ProviderDraft,
+  ProviderListItem,
+  ProviderListResponse,
+  OrgProviderLinkResponse,
+  OrgProviderListItem,
+  OrgProviderListResponse,
+  ProviderTestResult,
+  ProviderTestTarget,
+};
