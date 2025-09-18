@@ -3,7 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "next dev --turbopack",
+	  "dev": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",
 		"db:push": "drizzle-kit push",
@@ -14,6 +14,7 @@
 		"db:watch": "docker compose up",
 		"db:stop": "docker compose stop",
 		"db:down": "docker compose down",
+		"db:seed": "bun ./src/db/seeds/providers.ts"
 		"db:seed": "bun ./src/db/seeds/providers.ts"
 	},
 	"dependencies": {
