@@ -1,11 +1,10 @@
 {
   "name": "calendar-sync",
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0"
+  },
+  "packageManager": "bun@1.2.21",
   "private": true,
-  "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "check": "biome check --write .",
     "dev": "bun run --filter '*' dev",
@@ -23,9 +22,9 @@
     "db:stop": "bun run --filter server db:stop",
     "db:down": "bun run --filter server db:down"
   },
-  "dependencies": {},
-  "devDependencies": {
-    "@biomejs/biome": "^2.2.0"
-  },
-  "packageManager": "bun@1.2.21"
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

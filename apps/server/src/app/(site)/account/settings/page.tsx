@@ -1,4 +1,5 @@
 import AppShell from "@/components/layout/AppShell";
+import { auth } from "@/lib/auth";
 import {
   AccountSettingsCards,
   AccountView,

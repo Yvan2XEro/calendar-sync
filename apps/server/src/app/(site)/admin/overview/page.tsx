@@ -13,8 +13,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { RedirectToSignIn, UserAvatar } from "@daveyplate/better-auth-ui";
+import { useQuery } from "@tanstack/react-query";
+import { trpcClient } from "@/lib/trpc-client";
 
 export default function HomePage() {
+  const query = useQuery({
+    queryKey: ["health"],
+    queryFn: () => trpcClient.healthCheck.query(),
+  });
   return (
     <AppShell
       breadcrumbs={[
@@ -28,7 +34,7 @@ export default function HomePage() {
         <Card className="bg-gradient-to-br from-primary/15 via-background to-background">
           <CardHeader>
             <Badge variant="secondary" className="w-fit text-xs uppercase">
-              Powered by Better Auth
+              {query.data}
             </Badge>
             <CardTitle className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
               Welcome to your calendar operations hub
