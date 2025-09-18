@@ -23,26 +23,14 @@ const baselineProviders: ProviderSeed[] = [
     category: "email",
     name: "Generic IMAP Email",
     description: "Connect any IMAP-compatible email inbox.",
-    config: {
-      protocol: "imap",
-      authentication: "password",
-    },
-    secretsRef: null,
     status: "active",
-    lastTestedAt: null,
   },
   {
     id: "google.gmail",
     category: "google",
     name: "Google Gmail",
     description: "Connect a Gmail account managed by Google.",
-    config: {
-      protocol: "gmail",
-      authentication: "oauth",
-    },
-    secretsRef: null,
     status: "beta",
-    lastTestedAt: null,
   },
 ];
 
