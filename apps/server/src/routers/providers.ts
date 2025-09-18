@@ -221,6 +221,7 @@ export const providers = router({
         id: providerCatalog.id,
         category: providerCatalog.category,
         name: providerCatalog.name,
+        status: providerCatalog.status,
         description: providerCatalog.description,
       })
       .from(providerCatalog)
