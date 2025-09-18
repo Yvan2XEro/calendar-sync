@@ -1,6 +1,8 @@
 export const providerKeys = {
-	all: ["providers"] as const,
-	listRoot: (slug: string) => [...providerKeys.all, slug, "list"] as const,
+        all: ["providers"] as const,
+        orgRoot: (slug: string) => [...providerKeys.all, "org", slug] as const,
+        orgList: (slug: string) => [...providerKeys.orgRoot(slug), "list"] as const,
+        listRoot: (slug: string) => [...providerKeys.all, slug, "list"] as const,
 	list: (
 		slug: string,
 		params?: {
