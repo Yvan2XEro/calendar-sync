@@ -8,9 +8,11 @@ import {
 } from "@daveyplate/better-auth-ui";
 import React from "react";
 
+type SettingsPageParams = Promise<{ slug: string }>;
+
 export default async function Page({
   params,
-}: PageProps<"/admin/cals/[slug]/settings">) {
+}: { params: SettingsPageParams }) {
   const { slug } = await params;
 
   return (
