@@ -3,6 +3,7 @@ import {
 	CalendarDays,
 	LayoutDashboard,
 	MessageSquare,
+	Network,
 	Settings,
 	ShieldCheck,
 	Users,
@@ -19,9 +20,10 @@ export const defaultNavigation: NavGroup[] = [
 		],
 	},
 	{
-		label: "Management",
+		label: "Admin",
 		items: [
 			{ title: "Users", href: "#users", icon: Users },
+			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Security", href: "#security", icon: ShieldCheck },
 			{ title: "Reports", href: "#reports", icon: BarChart3 },
 			{ title: "Settings", href: "#settings", icon: Settings },
