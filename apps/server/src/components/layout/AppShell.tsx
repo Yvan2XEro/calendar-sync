@@ -28,6 +28,8 @@ import {
 } from "@/components/ui/sidebar";
 import { defaultNavigation } from "@/config/ui";
 import { HeaderNavWrapper } from "./HeaderNavWrapper";
+import { OrganizationSwitcher } from "@daveyplate/better-auth-ui";
+import { usePathname } from "next/navigation";
 
 export type NavItem = {
   title: string;
@@ -60,6 +62,7 @@ export default function AppShell({
   headerRight?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   return (
     <SidebarProvider>
       <div className="bg-muted/30 flex min-h-screen w-full">
@@ -83,7 +86,10 @@ export default function AppShell({
                   <SidebarMenu>
                     {group.items.map((item) => (
                       <SidebarMenuItem key={item.title}>
-                        <SidebarMenuButton asChild isActive={item.href === "/"}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname.startsWith(item.href)}
+                        >
                           <Link
                             href={item.href as any}
                             className="flex items-center gap-2"
@@ -102,9 +108,7 @@ export default function AppShell({
             ))}
           </SidebarContent>
           <SidebarFooter>
-            <div className="rounded-lg border border-dashed p-3 text-xs text-sidebar-foreground/80">
-              Secure authentication powered by Better Auth.
-            </div>
+            <OrganizationSwitcher className="bg-primary-foreground text-accent-primary hover:bg-accent-primary-foreground/80 hover:text-primary" />
           </SidebarFooter>
         </Sidebar>
 

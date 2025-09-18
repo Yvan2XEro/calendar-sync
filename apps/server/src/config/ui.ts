@@ -13,8 +13,8 @@ export const defaultNavigation: NavGroup[] = [
   {
     label: "Workspace",
     items: [
-      { title: "Dashboard", href: "/", icon: LayoutDashboard },
-      { title: "Calendar", href: "#calendar", icon: CalendarDays },
+      { title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
+      { title: "Calendar", href: "/admin/cals", icon: CalendarDays },
       { title: "Messages", href: "#messages", icon: MessageSquare },
     ],
   },

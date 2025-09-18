@@ -40,7 +40,8 @@ const testimonials = [
     avatar: "/file.svg",
   },
   {
-    quote: "Our team finally has a single source of truth for every event we host.",
+    quote:
+      "Our team finally has a single source of truth for every event we host.",
     name: "Sasha L.",
     role: "Operations Lead",
     avatar: "/file.svg",
@@ -79,7 +80,7 @@ export default function HomePage() {
       </HeaderNavWrapper>
 
       <main className="flex-1">
-        <section className="relative overflow-hidden bg-gradient-to-b from-[var(--primary)] via-[color-mix(in_oklch,var(--primary)_65%,_white)] to-white">
+        <section className="relative overflow-hidden hero-gradient">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-24 pt-20 md:flex-row md:items-center md:gap-16 lg:px-10">
             <div className="flex-1 space-y-8 text-white">
               <span
@@ -99,7 +100,8 @@ export default function HomePage() {
                   className="max-w-xl text-base text-white/80 sm:text-lg"
                   style={bodyFont}
                 >
-                  CalendarSync helps you aggregate events from emails, curate them with ease, and sync directly to your calendar.
+                  CalendarSync helps you aggregate events from emails, curate
+                  them with ease, and sync directly to your calendar.
                 </p>
               </div>
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -121,7 +123,10 @@ export default function HomePage() {
             </div>
             <div className="flex-1">
               <div className="relative mx-auto max-w-md rounded-3xl bg-white/10 p-6 shadow-2xl backdrop-blur-lg md:max-w-lg">
-                <div className="absolute inset-0 rounded-3xl border border-white/20" aria-hidden />
+                <div
+                  className="absolute inset-0 rounded-3xl border border-white/20"
+                  aria-hidden
+                />
                 <div className="relative flex flex-col items-center gap-6 text-center">
                   <Image
                     src="/globe.svg"
@@ -135,17 +140,25 @@ export default function HomePage() {
                       Your events, perfectly orchestrated
                     </h2>
                     <p className="text-sm text-white/80" style={bodyFont}>
-                      Import, curate, and distribute events effortlessly with CalendarSync.
+                      Import, curate, and distribute events effortlessly with
+                      CalendarSync.
                     </p>
                   </div>
                   <div className="flex w-full items-center justify-between rounded-2xl bg-white/10 p-4">
                     <div className="text-left">
-                      <p className="text-xs uppercase tracking-wide text-white/60">Next up</p>
-                      <p className="text-base font-medium text-white" style={bodyFont}>
+                      <p className="text-xs uppercase tracking-wide text-white/60">
+                        Next up
+                      </p>
+                      <p
+                        className="text-base font-medium text-white"
+                        style={bodyFont}
+                      >
                         Creative Meetup
                       </p>
                     </div>
-                    <span className="rounded-full bg-[var(--accent)] px-4 py-1 text-xs font-semibold text-white">Live</span>
+                    <span className="rounded-full bg-[var(--accent)] px-4 py-1 text-xs font-semibold text-white">
+                      Live
+                    </span>
                   </div>
                 </div>
               </div>
@@ -153,7 +166,10 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section id="features" className="mx-auto w-full max-w-6xl px-6 py-20 lg:px-10">
+        <section
+          id="features"
+          className="mx-auto w-full max-w-6xl px-6 py-20 lg:px-10"
+        >
           <div className="mb-14 text-center">
             <p
               className="text-sm font-semibold uppercase tracking-[0.3em] text-[var(--secondary)]"
@@ -176,12 +192,24 @@ export default function HomePage() {
               >
                 <div
                   className="inline-flex h-12 w-12 items-center justify-center rounded-2xl"
-                  style={{ backgroundColor: "color-mix(in oklch, var(--muted) 60%, transparent)" }}
+                  style={{
+                    backgroundColor:
+                      "color-mix(in oklch, var(--muted) 60%, transparent)",
+                  }}
                 >
-                  <Image src={feature.icon} alt="" width={28} height={28} className="h-7 w-7" />
+                  <Image
+                    src={feature.icon}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="h-7 w-7"
+                  />
                 </div>
                 <div className="space-y-3">
-                  <h3 className="text-xl font-semibold text-[var(--primary)]" style={headingFont}>
+                  <h3
+                    className="text-xl font-semibold text-[var(--primary)]"
+                    style={headingFont}
+                  >
                     {feature.title}
                   </h3>
                   <p className="text-sm text-slate-600" style={bodyFont}>
@@ -227,7 +255,10 @@ export default function HomePage() {
                       className="h-12 w-12 rounded-full border border-slate-200 bg-slate-100"
                     />
                     <div>
-                      <p className="text-sm font-semibold text-[var(--primary)]" style={headingFont}>
+                      <p
+                        className="text-sm font-semibold text-[var(--primary)]"
+                        style={headingFont}
+                      >
                         {testimonial.name}
                       </p>
                       <p className="text-xs text-slate-500" style={bodyFont}>
@@ -246,8 +277,12 @@ export default function HomePage() {
             <h2 className="text-3xl font-bold sm:text-4xl" style={headingFont}>
               Ready to Sync Smarter?
             </h2>
-            <p className="mt-4 text-base text-white/80 sm:text-lg" style={bodyFont}>
-              Join teams who trust CalendarSync to keep every stakeholder on the same page.
+            <p
+              className="mt-4 text-base text-white/80 sm:text-lg"
+              style={bodyFont}
+            >
+              Join teams who trust CalendarSync to keep every stakeholder on the
+              same page.
             </p>
             <div className="mt-8 flex justify-center">
               <Link
@@ -265,25 +300,67 @@ export default function HomePage() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-6 py-10 text-sm text-slate-600 md:flex-row md:items-center md:justify-between lg:px-10">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:gap-8">
-            <Link href="/privacy" className="hover:text-[var(--secondary)]" style={bodyFont}>
+            <Link
+              href="/privacy"
+              className="hover:text-[var(--secondary)]"
+              style={bodyFont}
+            >
               Privacy Policy
             </Link>
-            <Link href="/terms" className="hover:text-[var(--secondary)]" style={bodyFont}>
+            <Link
+              href="/terms"
+              className="hover:text-[var(--secondary)]"
+              style={bodyFont}
+            >
               Terms of Service
             </Link>
-            <Link href="/contact" className="hover:text-[var(--secondary)]" style={bodyFont}>
+            <Link
+              href="/contact"
+              className="hover:text-[var(--secondary)]"
+              style={bodyFont}
+            >
               Contact
             </Link>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="#" className="text-slate-400 transition hover:text-[var(--secondary)]" aria-label="Twitter">
-              <Image src="/globe.svg" alt="" width={20} height={20} className="h-5 w-5" />
+            <Link
+              href="#"
+              className="text-slate-400 transition hover:text-[var(--secondary)]"
+              aria-label="Twitter"
+            >
+              <Image
+                src="/globe.svg"
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
             </Link>
-            <Link href="#" className="text-slate-400 transition hover:text-[var(--secondary)]" aria-label="LinkedIn">
-              <Image src="/window.svg" alt="" width={20} height={20} className="h-5 w-5" />
+            <Link
+              href="#"
+              className="text-slate-400 transition hover:text-[var(--secondary)]"
+              aria-label="LinkedIn"
+            >
+              <Image
+                src="/window.svg"
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
             </Link>
-            <Link href="#" className="text-slate-400 transition hover:text-[var(--secondary)]" aria-label="Instagram">
-              <Image src="/next.svg" alt="" width={20} height={20} className="h-5 w-5" />
+            <Link
+              href="#"
+              className="text-slate-400 transition hover:text-[var(--secondary)]"
+              aria-label="Instagram"
+            >
+              <Image
+                src="/next.svg"
+                alt=""
+                width={20}
+                height={20}
+                className="h-5 w-5"
+              />
             </Link>
           </div>
         </div>

@@ -28,6 +28,9 @@
   --color-warning-foreground: var(--warning-foreground);
 }
 
+.hero-gradient {
+  @apply bg-gradient-to-b from-[var(--primary)] via-[color-mix(in_oklch,var(--primary)_65%,_white)] to-white;
+}
 /** iOS Dynamic System Font Scaling */
 /* @supports (-webkit-touch-callout:none) {
 	html {
