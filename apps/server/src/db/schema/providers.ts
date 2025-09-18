@@ -4,6 +4,7 @@ import { organization, user } from "./auth";
 export const providers = pgTable("provider", {
         id: text("id").primaryKey(),
         name: text("name").notNull(),
+        category: text("category").notNull(),
         description: text("description"),
         createdAt: timestamp("created_at", { withTimezone: true })
                 .notNull()
