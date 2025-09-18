@@ -1,27 +1,13 @@
 {
-	"version": "7",
-	"dialect": "postgresql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1758044190915,
-			"tag": "0000_early_betty_ross",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "7",
-			"when": 1758118425068,
-			"tag": "0001_tired_onslaught",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "7",
-			"when": 1758197486342,
-			"tag": "0002_add_provider_tables",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1758199590829,
+      "tag": "0000_tearful_bug",
+      "breakpoints": true
+    }
+  ]
 }

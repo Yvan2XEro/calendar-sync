@@ -3,17 +3,18 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
-		"dev": "next dev --turbopack",
+	  "dev": "next dev --turbopack",
 		"build": "next build",
 		"start": "next start",
-		"db:push": "drizzle-kit push && bun ./src/db/seeds/providers.ts",
+		"db:push": "drizzle-kit push",
 		"db:studio": "drizzle-kit studio",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate && bun ./src/db/seeds/providers.ts",
+		"db:migrate": "drizzle-kit migrate",
 		"db:start": "docker compose up -d",
 		"db:watch": "docker compose up",
 		"db:stop": "docker compose stop",
 		"db:down": "docker compose down",
+		"db:seed": "bun ./src/db/seeds/providers.ts"
 		"db:seed": "bun ./src/db/seeds/providers.ts"
 	},
 	"dependencies": {
