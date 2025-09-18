@@ -5,16 +5,9 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1758200756246,
-      "tag": "0000_hesitant_dracula",
+      "when": 1758206526781,
+      "tag": "0000_gorgeous_wiccan",
       "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1758200756247,
-      "tag": "0001_provider_config",
-      "breakpoints": false
     }
   ]
 }

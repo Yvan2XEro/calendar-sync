@@ -5,6 +5,8 @@ import { Pool } from "pg";
 
 import { provider } from "../schema/app";
 
+type ProviderSeed = typeof provider.$inferInsert;
+
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
@@ -15,34 +17,40 @@ if (!connectionString) {
 const pool = new Pool({ connectionString });
 const db = drizzle(pool);
 
-const baselineProviders = [
+const baselineProviders: ProviderSeed[] = [
   {
     id: "email.imap",
     category: "email",
     name: "Generic IMAP Email",
     description: "Connect any IMAP-compatible email inbox.",
+    config: {
+      protocol: "imap",
+      authentication: "password",
+    },
+    secretsRef: null,
+    status: "active",
+    lastTestedAt: null,
   },
   {
     id: "google.gmail",
     category: "google",
     name: "Google Gmail",
     description: "Connect a Gmail account managed by Google.",
+    config: {
+      protocol: "gmail",
+      authentication: "oauth",
+    },
+    secretsRef: null,
+    status: "beta",
+    lastTestedAt: null,
   },
 ];
 
-const now = new Date();
-
-const records = baselineProviders.map((item) => ({
-  ...item,
-  createdAt: now,
-  updatedAt: now,
-}));
-
 await db
   .insert(provider)
-  .values(records)
+  .values(baselineProviders)
   .onConflictDoNothing({ target: provider.id });
 
 await pool.end();
 
-console.log(`Seeded ${records.length} provider records.`);
+console.log(`Seeded ${baselineProviders.length} provider records.`);

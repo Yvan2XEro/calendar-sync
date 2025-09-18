@@ -1,7 +1,13 @@
+CREATE TYPE "public"."provider_status" AS ENUM('draft', 'beta', 'active', 'deprecated');--> statement-breakpoint
 CREATE TABLE "organization_provider" (
 	"id" text PRIMARY KEY NOT NULL,
 	"organization_id" text NOT NULL,
 	"provider_id" text NOT NULL,
+	"config" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"secrets_ref" text,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"imap_test_ok" boolean DEFAULT false NOT NULL,
+	"last_tested_at" timestamp,
 	"created_at" timestamp NOT NULL,
 	"updated_at" timestamp NOT NULL
 );
@@ -11,6 +17,18 @@ CREATE TABLE "provider" (
 	"category" text NOT NULL,
 	"name" text NOT NULL,
 	"description" text,
+	"config" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"secrets_ref" text,
+	"status" "provider_status" DEFAULT 'draft' NOT NULL,
+	"last_tested_at" timestamp with time zone,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "provider_secret" (
+	"id" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"data" jsonb NOT NULL,
 	"created_at" timestamp NOT NULL,
 	"updated_at" timestamp NOT NULL
 );
@@ -94,6 +112,7 @@ CREATE TABLE "verification" (
 --> statement-breakpoint
 ALTER TABLE "organization_provider" ADD CONSTRAINT "organization_provider_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "organization_provider" ADD CONSTRAINT "organization_provider_provider_id_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."provider"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "provider_secret" ADD CONSTRAINT "provider_secret_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_inviter_id_user_id_fk" FOREIGN KEY ("inviter_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "invitation" ADD CONSTRAINT "invitation_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
