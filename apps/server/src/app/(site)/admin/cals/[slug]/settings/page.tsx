@@ -1,8 +1,8 @@
 import AppShell from "@/components/layout/AppShell";
+import { CalendarProvidersCard } from "@/components/admin/CalendarProvidersCard";
 import {
   OrganizationMembersCard,
   OrganizationSettingsCards,
-  OrganizationView,
   RedirectToSignIn,
   UserAvatar,
 } from "@daveyplate/better-auth-ui";
@@ -25,8 +25,8 @@ export default async function Page({
       <RedirectToSignIn />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <OrganizationSettingsCards slug={slug} />
-        <div className="md:col-span-2">
-          {/*  A card to manage providers herer */}
+        <div className="md:col-span-2 space-y-6">
+          <CalendarProvidersCard slug={slug} />
           <OrganizationMembersCard slug={slug} />
         </div>
       </div>
