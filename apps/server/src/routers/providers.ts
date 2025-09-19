@@ -69,7 +69,10 @@ function redactConfig(config: ProviderRow["config"]) {
       return Object.fromEntries(
         Object.entries(value as Record<string, unknown>).map(([key, val]) => {
           if (secretKeys.has(key)) {
-            return [key, typeof val === "string" && val.length > 0 ? "••••••" : val];
+            return [
+              key,
+              typeof val === "string" && val.length > 0 ? "••••••" : val,
+            ];
           }
 
           return [key, redact(val)];
@@ -181,6 +184,7 @@ async function testImapConnection(config: ProviderConfig) {
     await client.connect();
     await client.logout();
   } catch (error) {
+    console.error(error);
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "IMAP connection failed",
@@ -188,7 +192,7 @@ async function testImapConnection(config: ProviderConfig) {
     });
   } finally {
     await client.logout().catch(() => undefined);
-    await client.close().catch(() => undefined);
+    await client.close();
   }
 }
 
@@ -390,20 +394,28 @@ export const providersRouter = router({
   }),
   org: router({
     list: protectedProcedure
-      .input(z.object({ slug: z.string().min(1, "Organization slug is required") }))
+      .input(
+        z.object({ slug: z.string().min(1, "Organization slug is required") }),
+      )
       .query(async ({ ctx, input }) => {
         if (!ctx.session) {
           throw new TRPCError({ code: "UNAUTHORIZED" });
         }
 
-        const org = await ensureOrganizationAdmin(input.slug, ctx.session.user.id);
+        const org = await ensureOrganizationAdmin(
+          input.slug,
+          ctx.session.user.id,
+        );
 
         const [linkedRows, catalogRows] = await Promise.all([
           db
             .select({ providerId: organizationProvider.providerId })
             .from(organizationProvider)
             .where(eq(organizationProvider.organizationId, org.id)),
-          db.select(catalogSummarySelection).from(provider).orderBy(provider.name),
+          db
+            .select(catalogSummarySelection)
+            .from(provider)
+            .orderBy(provider.name),
         ]);
 
         return {
@@ -429,7 +441,10 @@ export const providersRouter = router({
           throw new TRPCError({ code: "UNAUTHORIZED" });
         }
 
-        const org = await ensureOrganizationAdmin(input.slug, ctx.session.user.id);
+        const org = await ensureOrganizationAdmin(
+          input.slug,
+          ctx.session.user.id,
+        );
 
         const uniqueIds = Array.from(new Set(input.providerIds));
         const requestedSet = new Set(uniqueIds);
@@ -449,7 +464,10 @@ export const providersRouter = router({
         }
 
         const existingLinks = await db
-          .select({ id: organizationProvider.id, providerId: organizationProvider.providerId })
+          .select({
+            id: organizationProvider.id,
+            providerId: organizationProvider.providerId,
+          })
           .from(organizationProvider)
           .where(eq(organizationProvider.organizationId, org.id));
 
@@ -477,7 +495,10 @@ export const providersRouter = router({
               })),
             )
             .onConflictDoNothing({
-              target: [organizationProvider.organizationId, organizationProvider.providerId],
+              target: [
+                organizationProvider.organizationId,
+                organizationProvider.providerId,
+              ],
             });
         }
 
