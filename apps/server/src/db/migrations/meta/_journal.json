@@ -15,6 +15,13 @@
       "when": 1758205641419,
       "tag": "0001_purple_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1758273382838,
+      "tag": "0002_wakeful_vertigo",
+      "breakpoints": true
     }
   ]
 }
