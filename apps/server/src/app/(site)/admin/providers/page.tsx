@@ -1,11 +1,8 @@
 "use client";
 
-import {
-  RedirectToSignIn,
-  UserAvatar,
-  useCurrentOrganization,
-} from "@daveyplate/better-auth-ui";
-import { useMemo } from "react";
+import { RedirectToSignIn, UserAvatar } from "@daveyplate/better-auth-ui";
+import { formatDistanceToNow } from "date-fns";
+import { useRouter } from "next/navigation";
 
 import AppShell from "@/components/layout/AppShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,34 +24,32 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProviderList, useProviderConnection } from "@/hooks/use-provider-admin";
+import {
+  useCatalogList,
+  useDeleteCatalogProvider,
+  useTestCatalogImap,
+  useTestCatalogSmtp,
+} from "@/hooks/use-provider-admin";
 
 export default function ProvidersAdminPage() {
-  const { data: organization } = useCurrentOrganization();
-  const slug = useMemo(() => organization?.slug ?? "", [organization?.slug]);
+  const router = useRouter();
+  const providersQuery = useCatalogList();
+  const imapTestMutation = useTestCatalogImap();
+  const smtpTestMutation = useTestCatalogSmtp();
+  const deleteMutation = useDeleteCatalogProvider();
 
-  const providersQuery = useProviderList(slug, { limit: 100 });
-  const connectionMutation = useProviderConnection(slug);
+  const rows = providersQuery.data ?? [];
 
-  const rows = providersQuery.data?.items ?? [];
-
-  const renderStatusBadge = (status?: string | null) => {
-    if (!status) {
-      return <Badge variant="secondary">Unknown</Badge>;
-    }
-
-    const normalized = status as string;
-    const variant = normalized === "active" ? "default" : "secondary";
-    const label = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-
-    return <Badge variant={variant}>{label}</Badge>;
+  const renderStatusBadge = (status: string) => {
+    const normalized = status.toLowerCase();
+    const variant = normalized === "active" ? "default" : normalized === "beta" ? "outline" : "secondary";
+    return <Badge variant={variant}>{normalized.charAt(0).toUpperCase() + normalized.slice(1)}</Badge>;
   };
 
-  const handleToggleConnection = (providerId: string, isConnected: boolean) => {
-    connectionMutation.mutate({
-      providerId,
-      connect: !isConnected,
-    });
+  const renderLastTestedAt = (value: Date | string | null | undefined) => {
+    if (!value) return "Never";
+    const date = value instanceof Date ? value : new Date(value);
+    return `${formatDistanceToNow(date, { addSuffix: true })}`;
   };
 
   return (
@@ -67,42 +62,38 @@ export default function ProvidersAdminPage() {
     >
       <RedirectToSignIn />
       <Card>
-        <CardHeader>
-          <CardTitle>Provider catalog</CardTitle>
-          <CardDescription>
-            Connect providers to your organization so the team can use them.
-          </CardDescription>
+        <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Provider catalog</CardTitle>
+            <CardDescription>Manage global providers for every organization.</CardDescription>
+          </div>
+          <Button onClick={() => router.push("/admin/providers/new")}>New provider</Button>
         </CardHeader>
         <CardContent>
-          {!slug ? (
-            <Alert>
-              <AlertTitle>Select an organization</AlertTitle>
-              <AlertDescription>
-                Choose an organization to manage the available providers.
-              </AlertDescription>
-            </Alert>
-          ) : providersQuery.isError ? (
+          {providersQuery.isError ? (
             <Alert variant="destructive">
               <AlertTitle>Unable to load providers</AlertTitle>
               <AlertDescription>
-                {(providersQuery.error as Error)?.message ??
-                  "Something went wrong while fetching providers."}
+                {providersQuery.error instanceof Error
+                  ? providersQuery.error.message
+                  : "Something went wrong while fetching providers."}
               </AlertDescription>
             </Alert>
           ) : providersQuery.isLoading ? (
             <div className="space-y-3">
-              {[0, 1, 2].map((item) => (
-                <div key={item} className="flex items-center justify-between">
+              {[0, 1, 2].map((index) => (
+                <div key={index} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Skeleton className="h-10 w-10 rounded-full" />
                     <div className="space-y-2">
                       <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-60" />
+                      <Skeleton className="h-4 w-56" />
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Skeleton className="h-8 w-16" />
-                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-8 w-20" />
                   </div>
                 </div>
               ))}
@@ -111,7 +102,7 @@ export default function ProvidersAdminPage() {
             <Alert>
               <AlertTitle>No providers found</AlertTitle>
               <AlertDescription>
-                Configure providers to make them available to your organization.
+                Create a provider to make it available to calendars across organizations.
               </AlertDescription>
             </Alert>
           ) : (
@@ -121,43 +112,67 @@ export default function ProvidersAdminPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Connection</TableHead>
+                  <TableHead>Last tested</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((row) => {
-                  const isMutating =
-                    connectionMutation.isPending &&
-                    connectionMutation.variables?.providerId === row.id;
-                  const actionLabel = row.isConnected ? "Disconnect" : "Connect";
+                  const isImapTesting =
+                    imapTestMutation.isPending && imapTestMutation.variables?.providerId === row.id;
+                  const isSmtpTesting =
+                    smtpTestMutation.isPending && smtpTestMutation.variables?.providerId === row.id;
+                  const isDeleting =
+                    deleteMutation.isPending && deleteMutation.variables?.providerId === row.id;
 
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-foreground text-sm">
-                            {row.name}
-                          </span>
-                          {row.description ? (
-                            <span className="text-muted-foreground text-xs">
-                              {row.description}
-                            </span>
-                          ) : null}
+                          <span className="font-medium text-sm text-foreground">{row.name}</span>
+                          <span className="text-xs text-muted-foreground">ID: {row.id}</span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {row.category}
-                      </TableCell>
-                      <TableCell>{renderStatusBadge(row.providerStatus)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant={row.isConnected ? "outline" : "default"}
-                          size="sm"
-                          disabled={isMutating}
-                          onClick={() => handleToggleConnection(row.id, row.isConnected)}
-                        >
-                          {actionLabel}
-                        </Button>
+                      <TableCell className="text-sm text-muted-foreground">{row.category}</TableCell>
+                      <TableCell>{renderStatusBadge(row.status)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{renderLastTestedAt(row.lastTestedAt)}</TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isImapTesting || isDeleting}
+                            onClick={() => imapTestMutation.mutate({ providerId: row.id })}
+                            aria-busy={isImapTesting}
+                          >
+                            Test IMAP
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isSmtpTesting || isDeleting}
+                            onClick={() => smtpTestMutation.mutate({ providerId: row.id })}
+                            aria-busy={isSmtpTesting}
+                          >
+                            Test SMTP
+                          </Button>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => router.push(`/admin/providers/${row.id}`)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={isDeleting || isImapTesting || isSmtpTesting}
+                            onClick={() => deleteMutation.mutate({ providerId: row.id })}
+                            aria-busy={isDeleting}
+                          >
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );

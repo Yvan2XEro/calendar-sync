@@ -1,4 +1,5 @@
-import { pgEnum, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 
 import { organization } from "./auth";
 
@@ -14,7 +15,18 @@ export const provider = pgTable("provider", {
   category: text("category").notNull(),
   name: text("name").notNull(),
   description: text("description"),
+  config: jsonb("config")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
   status: providerStatus("status").notNull().default("draft"),
+  lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const organizationProvider = pgTable(

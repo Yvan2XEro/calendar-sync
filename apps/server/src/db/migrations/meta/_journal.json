@@ -12,8 +12,6 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1758219648188,
-      "tag": "0001_wild_lizard",
       "when": 1758205641419,
       "tag": "0001_purple_blizzard",
       "breakpoints": true
