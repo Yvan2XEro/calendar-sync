@@ -18,9 +18,14 @@ export const defaultNavigation: NavGroup[] = [
       { title: "Calendars", href: "/admin/cals", icon: CalendarDays },
       { title: "Users", href: "/admin/users", icon: Users },
       { title: "Providers", href: "/admin/providers", icon: Network },
-      // { title: "Security", href: "#security", icon: ShieldCheck },
-      // { title: "Reports", href: "#reports", icon: BarChart3 },
-      // { title: "Settings", href: "#settings", icon: Settings },
+    ],
+  },
+  {
+    label: "Activities",
+    items: [
+      { title: "Background", href: "/admin/background", icon: ShieldCheck },
+      { title: "Jobs", href: "/admin/background/jobs", icon: BarChart3 },
+      { title: "Logs", href: "/admin/background/logs", icon: MessageSquare },
     ],
   },
 ];
