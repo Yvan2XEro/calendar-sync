@@ -1,5 +1,6 @@
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
 import { providersRouter } from "./providers";
+import { adminUsersRouter } from "./admin-users";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -11,6 +12,7 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-	providers: providersRouter,
+        providers: providersRouter,
+        adminUsers: adminUsersRouter,
 });
 export type AppRouter = typeof appRouter;
