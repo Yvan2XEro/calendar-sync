@@ -37,6 +37,10 @@ import {
 } from "@/hooks/use-provider-admin";
 
 const providerStatuses = ["draft", "beta", "active", "deprecated"] as const;
+const providerCategories = [
+  { label: "Email", value: "email" },
+  { label: "Google", value: "google" },
+] as const;
 
 type ProviderFormValues = {
   id?: string;
@@ -300,9 +304,20 @@ export default function ProviderDetailPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <FormControl>
-                          <Input placeholder="email" {...field} />
-                        </FormControl>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {providerCategories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
