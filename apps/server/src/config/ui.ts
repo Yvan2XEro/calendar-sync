@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarDays,
+  FlagIcon,
   LayoutDashboard,
   MessageSquare,
   Network,
@@ -18,6 +19,8 @@ export const defaultNavigation: NavGroup[] = [
       { title: "Calendars", href: "/admin/cals", icon: CalendarDays },
       { title: "Users", href: "/admin/users", icon: Users },
       { title: "Providers", href: "/admin/providers", icon: Network },
+      //Implement the page
+      { title: "Flags", href: "/admin/flags", icon: FlagIcon },
     ],
   },
   {
