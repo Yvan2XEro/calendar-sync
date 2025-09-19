@@ -9,7 +9,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { organizationProvider, provider } from "@/db/schema/app";
 import { member, organization } from "@/db/schema/auth";
-import { protectedProcedure, router } from "@/lib/trpc";
+import { adminProcedure, router } from "@/lib/trpc";
 
 const providerStatuses = ["draft", "beta", "active", "deprecated"] as const;
 
@@ -226,7 +226,7 @@ const providerIdInput = z.object({
 
 export const providersRouter = router({
   catalog: router({
-    list: protectedProcedure.query(async ({ ctx }) => {
+  list: adminProcedure.query(async ({ ctx }) => {
       if (!ctx.session) {
         throw new TRPCError({ code: "UNAUTHORIZED" });
       }
@@ -244,7 +244,7 @@ export const providersRouter = router({
         lastTestedAt: row.lastTestedAt ?? null,
       }));
     }),
-    get: protectedProcedure
+  get: adminProcedure
       .input(providerIdInput)
       .query(async ({ ctx, input }) => {
         if (!ctx.session) {
@@ -265,7 +265,7 @@ export const providersRouter = router({
           config: redactConfig(record.config),
         };
       }),
-    upsert: protectedProcedure
+  upsert: adminProcedure
       .input(
         z.object({
           id: z.string().min(1).optional(),
@@ -322,7 +322,7 @@ export const providersRouter = router({
 
         return { id: providerId };
       }),
-    delete: protectedProcedure
+  delete: adminProcedure
       .input(providerIdInput)
       .mutation(async ({ ctx, input }) => {
         if (!ctx.session) {
@@ -335,7 +335,7 @@ export const providersRouter = router({
 
         return { ok: true } as const;
       }),
-    testImap: protectedProcedure
+  testImap: adminProcedure
       .input(
         z.object({
           providerId: z.string().min(1).optional(),
@@ -363,7 +363,7 @@ export const providersRouter = router({
 
         return { ok: true } as const;
       }),
-    testSmtp: protectedProcedure
+  testSmtp: adminProcedure
       .input(
         z.object({
           providerId: z.string().min(1).optional(),
@@ -393,7 +393,7 @@ export const providersRouter = router({
       }),
   }),
   org: router({
-    list: protectedProcedure
+  list: adminProcedure
       .input(
         z.object({ slug: z.string().min(1, "Organization slug is required") }),
       )
@@ -429,7 +429,7 @@ export const providersRouter = router({
           })),
         };
       }),
-    link: protectedProcedure
+  link: adminProcedure
       .input(
         z.object({
           slug: z.string().min(1, "Organization slug is required"),
