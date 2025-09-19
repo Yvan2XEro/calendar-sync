@@ -27,122 +27,138 @@ type CatalogUpsertOutput = ProvidersRouterOutputs["catalog"]["upsert"];
 type OrgLinkOutput = ProvidersRouterOutputs["org"]["link"];
 
 export function useCatalogList() {
-  return useQuery<CatalogListOutput>({
-    queryKey: providerKeys.catalog.list(),
-    queryFn: () => trpcClient.providers.catalog.list.query(),
-  });
+	return useQuery<CatalogListOutput>({
+		queryKey: providerKeys.catalog.list(),
+		queryFn: () => trpcClient.providers.catalog.list.query(),
+	});
 }
 
 export function useCatalogProvider(providerId: string | undefined) {
-  return useQuery<CatalogGetOutput>({
-    queryKey: providerId ? providerKeys.catalog.detail(providerId) : providerKeys.catalog.detail("new"),
-    queryFn: () => trpcClient.providers.catalog.get.query({ providerId: providerId! }),
-    enabled: Boolean(providerId),
-  });
+	return useQuery<CatalogGetOutput>({
+		queryKey: providerId
+			? providerKeys.catalog.detail(providerId)
+			: providerKeys.catalog.detail("new"),
+		queryFn: () =>
+			trpcClient.providers.catalog.get.query({ providerId: providerId! }),
+		enabled: Boolean(providerId),
+	});
 }
 
 export function useUpsertCatalogProvider() {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  return useMutation<CatalogUpsertOutput, Error, CatalogUpsertInput>({
-    mutationFn: (variables) => trpcClient.providers.catalog.upsert.mutate(variables),
-    onSuccess: async (result, variables) => {
-      toast.success("Provider saved");
+	return useMutation<CatalogUpsertOutput, Error, CatalogUpsertInput>({
+		mutationFn: (variables) =>
+			trpcClient.providers.catalog.upsert.mutate(variables),
+		onSuccess: async (result, variables) => {
+			toast.success("Provider saved");
 
-      const tasks: Promise<unknown>[] = [
-        queryClient.invalidateQueries({ queryKey: providerKeys.catalog.list() }),
-      ];
+			const tasks: Promise<unknown>[] = [
+				queryClient.invalidateQueries({
+					queryKey: providerKeys.catalog.list(),
+				}),
+			];
 
-      if (variables.id) {
-        tasks.push(
-          queryClient.invalidateQueries({
-            queryKey: providerKeys.catalog.detail(variables.id),
-          }),
-        );
-      }
+			if (variables.id) {
+				tasks.push(
+					queryClient.invalidateQueries({
+						queryKey: providerKeys.catalog.detail(variables.id),
+					}),
+				);
+			}
 
-      if (!variables.id && result?.id) {
-        tasks.push(
-          queryClient.invalidateQueries({
-            queryKey: providerKeys.catalog.detail(result.id),
-          }),
-        );
-      }
+			if (!variables.id && result?.id) {
+				tasks.push(
+					queryClient.invalidateQueries({
+						queryKey: providerKeys.catalog.detail(result.id),
+					}),
+				);
+			}
 
-      await Promise.all(tasks);
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "Unable to save provider");
-    },
-  });
+			await Promise.all(tasks);
+		},
+		onError: (error) => {
+			toast.error(error.message ?? "Unable to save provider");
+		},
+	});
 }
 
 export function useDeleteCatalogProvider() {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  return useMutation<CatalogDeleteOutput, Error, CatalogDeleteInput>({
-    mutationFn: (variables) => trpcClient.providers.catalog.delete.mutate(variables),
-    onSuccess: async (_, variables) => {
-      toast.success("Provider deleted");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: providerKeys.catalog.list() }),
-        queryClient.invalidateQueries({
-          queryKey: providerKeys.catalog.detail(variables.providerId),
-        }),
-      ]);
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "Unable to delete provider");
-    },
-  });
+	return useMutation<CatalogDeleteOutput, Error, CatalogDeleteInput>({
+		mutationFn: (variables) =>
+			trpcClient.providers.catalog.delete.mutate(variables),
+		onSuccess: async (_, variables) => {
+			toast.success("Provider deleted");
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: providerKeys.catalog.list(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: providerKeys.catalog.detail(variables.providerId),
+				}),
+			]);
+		},
+		onError: (error) => {
+			toast.error(error.message ?? "Unable to delete provider");
+		},
+	});
 }
 
 export function useTestCatalogImap() {
-  return useMutation<CatalogTestOutput, Error, CatalogTestInput>({
-    mutationFn: (variables) => trpcClient.providers.catalog.testImap.mutate(variables),
-    onSuccess: () => {
-      toast.success("IMAP connection successful");
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "IMAP test failed");
-    },
-  });
+	return useMutation<CatalogTestOutput, Error, CatalogTestInput>({
+		mutationFn: (variables) =>
+			trpcClient.providers.catalog.testImap.mutate(variables),
+		onSuccess: () => {
+			toast.success("IMAP connection successful");
+		},
+		onError: (error) => {
+			toast.error(error.message ?? "IMAP test failed");
+		},
+	});
 }
 
 export function useTestCatalogSmtp() {
-  return useMutation<CatalogTestOutput, Error, CatalogTestInput>({
-    mutationFn: (variables) => trpcClient.providers.catalog.testSmtp.mutate(variables),
-    onSuccess: () => {
-      toast.success("SMTP connection successful");
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "SMTP test failed");
-    },
-  });
+	return useMutation<CatalogTestOutput, Error, CatalogTestInput>({
+		mutationFn: (variables) =>
+			trpcClient.providers.catalog.testSmtp.mutate(variables),
+		onSuccess: () => {
+			toast.success("SMTP connection successful");
+		},
+		onError: (error) => {
+			toast.error(error.message ?? "SMTP test failed");
+		},
+	});
 }
 
 export function useOrgProviderList(slug: string) {
-  return useQuery<OrgListOutput>({
-    queryKey: providerKeys.org.list(slug),
-    queryFn: () => trpcClient.providers.org.list.query({ slug }),
-    enabled: Boolean(slug),
-  });
+	return useQuery<OrgListOutput>({
+		queryKey: providerKeys.org.list(slug),
+		queryFn: () => trpcClient.providers.org.list.query({ slug }),
+		enabled: Boolean(slug),
+	});
 }
 
 export function useLinkOrgProviders(slug: string) {
-  const queryClient = useQueryClient();
+	const queryClient = useQueryClient();
 
-  return useMutation<OrgLinkOutput, Error, Omit<OrgLinkInput, "slug">>({
-    mutationFn: (variables) => trpcClient.providers.org.link.mutate({ slug, ...variables }),
-    onSuccess: async () => {
-      toast.success("Updated providers for this calendar");
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: providerKeys.org.root(slug) }),
-        queryClient.invalidateQueries({ queryKey: providerKeys.catalog.list() }),
-      ]);
-    },
-    onError: (error) => {
-      toast.error(error.message ?? "Unable to update providers");
-    },
-  });
+	return useMutation<OrgLinkOutput, Error, Omit<OrgLinkInput, "slug">>({
+		mutationFn: (variables) =>
+			trpcClient.providers.org.link.mutate({ slug, ...variables }),
+		onSuccess: async () => {
+			toast.success("Updated providers for this calendar");
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: providerKeys.org.root(slug),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: providerKeys.catalog.list(),
+				}),
+			]);
+		},
+		onError: (error) => {
+			toast.error(error.message ?? "Unable to update providers");
+		},
+	});
 }

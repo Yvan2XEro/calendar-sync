@@ -8,9 +8,9 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
-        if (!ctx.session) {
-                throw new TRPCError({
-                        code: "UNAUTHORIZED",
+	if (!ctx.session) {
+		throw new TRPCError({
+			code: "UNAUTHORIZED",
 			message: "Authentication required",
 			cause: "No session",
 		});
@@ -20,22 +20,22 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 			...ctx,
 			session: ctx.session,
 		},
-        });
+	});
 });
 
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-        const roleCandidates = Array.isArray(ctx.session.user?.roles)
-                ? ctx.session.user.roles
-                : ctx.session.user?.role
-                        ? [ctx.session.user.role]
-                        : [];
+	const roleCandidates = Array.isArray(ctx.session.user?.roles)
+		? ctx.session.user.roles
+		: ctx.session.user?.role
+			? [ctx.session.user.role]
+			: [];
 
-        if (!roleCandidates?.includes("admin")) {
-                throw new TRPCError({
-                        code: "FORBIDDEN",
-                        message: "Administrator permissions are required",
-                });
-        }
+	if (!roleCandidates?.includes("admin")) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Administrator permissions are required",
+		});
+	}
 
-        return next();
+	return next();
 });

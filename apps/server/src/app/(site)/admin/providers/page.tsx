@@ -1,6 +1,6 @@
 "use client";
 
-import { RedirectToSignIn, UserAvatar } from "@daveyplate/better-auth-ui";
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 
@@ -30,6 +30,7 @@ import {
   useTestCatalogImap,
   useTestCatalogSmtp,
 } from "@/hooks/use-provider-admin";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export default function ProvidersAdminPage() {
   const router = useRouter();
@@ -42,8 +43,17 @@ export default function ProvidersAdminPage() {
 
   const renderStatusBadge = (status: string) => {
     const normalized = status.toLowerCase();
-    const variant = normalized === "active" ? "default" : normalized === "beta" ? "outline" : "secondary";
-    return <Badge variant={variant}>{normalized.charAt(0).toUpperCase() + normalized.slice(1)}</Badge>;
+    const variant =
+      normalized === "active"
+        ? "default"
+        : normalized === "beta"
+          ? "outline"
+          : "secondary";
+    return (
+      <Badge variant={variant}>
+        {normalized.charAt(0).toUpperCase() + normalized.slice(1)}
+      </Badge>
+    );
   };
 
   const renderLastTestedAt = (value: Date | string | null | undefined) => {
@@ -65,9 +75,13 @@ export default function ProvidersAdminPage() {
         <CardHeader className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <CardTitle>Provider catalog</CardTitle>
-            <CardDescription>Manage global providers for every organization.</CardDescription>
+            <CardDescription>
+              Manage global providers for every organization.
+            </CardDescription>
           </div>
-          <Button onClick={() => router.push("/admin/providers/new")}>New provider</Button>
+          <Button onClick={() => router.push("/admin/providers/new")}>
+            New provider
+          </Button>
         </CardHeader>
         <CardContent>
           {providersQuery.isError ? (
@@ -102,7 +116,8 @@ export default function ProvidersAdminPage() {
             <Alert>
               <AlertTitle>No providers found</AlertTitle>
               <AlertDescription>
-                Create a provider to make it available to calendars across organizations.
+                Create a provider to make it available to calendars across
+                organizations.
               </AlertDescription>
             </Alert>
           ) : (
@@ -119,30 +134,43 @@ export default function ProvidersAdminPage() {
               <TableBody>
                 {rows.map((row) => {
                   const isImapTesting =
-                    imapTestMutation.isPending && imapTestMutation.variables?.providerId === row.id;
+                    imapTestMutation.isPending &&
+                    imapTestMutation.variables?.providerId === row.id;
                   const isSmtpTesting =
-                    smtpTestMutation.isPending && smtpTestMutation.variables?.providerId === row.id;
+                    smtpTestMutation.isPending &&
+                    smtpTestMutation.variables?.providerId === row.id;
                   const isDeleting =
-                    deleteMutation.isPending && deleteMutation.variables?.providerId === row.id;
+                    deleteMutation.isPending &&
+                    deleteMutation.variables?.providerId === row.id;
 
                   return (
                     <TableRow key={row.id}>
                       <TableCell>
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-sm text-foreground">{row.name}</span>
-                          <span className="text-xs text-muted-foreground">ID: {row.id}</span>
+                          <span className="font-medium text-foreground text-sm">
+                            {row.name}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            ID: {row.id}
+                          </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{row.category}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {row.category}
+                      </TableCell>
                       <TableCell>{renderStatusBadge(row.status)}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{renderLastTestedAt(row.lastTestedAt)}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {renderLastTestedAt(row.lastTestedAt)}
+                      </TableCell>
                       <TableCell>
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
                             disabled={isImapTesting || isDeleting}
-                            onClick={() => imapTestMutation.mutate({ providerId: row.id })}
+                            onClick={() =>
+                              imapTestMutation.mutate({ providerId: row.id })
+                            }
                             aria-busy={isImapTesting}
                           >
                             Test IMAP
@@ -151,7 +179,9 @@ export default function ProvidersAdminPage() {
                             variant="outline"
                             size="sm"
                             disabled={isSmtpTesting || isDeleting}
-                            onClick={() => smtpTestMutation.mutate({ providerId: row.id })}
+                            onClick={() =>
+                              smtpTestMutation.mutate({ providerId: row.id })
+                            }
                             aria-busy={isSmtpTesting}
                           >
                             Test SMTP
@@ -159,15 +189,21 @@ export default function ProvidersAdminPage() {
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => router.push(`/admin/providers/${row.id}`)}
+                            onClick={() =>
+                              router.push(`/admin/providers/${row.id}`)
+                            }
                           >
                             Edit
                           </Button>
                           <Button
                             variant="destructive"
                             size="sm"
-                            disabled={isDeleting || isImapTesting || isSmtpTesting}
-                            onClick={() => deleteMutation.mutate({ providerId: row.id })}
+                            disabled={
+                              isDeleting || isImapTesting || isSmtpTesting
+                            }
+                            onClick={() =>
+                              deleteMutation.mutate({ providerId: row.id })
+                            }
                             aria-busy={isDeleting}
                           >
                             Delete

@@ -1,6 +1,6 @@
 "use client";
 
-import { RedirectToSignIn, UserAvatar } from "@daveyplate/better-auth-ui";
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { formatDistanceToNow } from "date-fns";
 import { useParams, useRouter } from "next/navigation";
 import * as React from "react";
@@ -41,6 +41,7 @@ import {
   useTestCatalogSmtp,
   useUpsertCatalogProvider,
 } from "@/hooks/use-provider-admin";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const providerStatuses = ["draft", "beta", "active", "deprecated"] as const;
 const providerCategories = [
@@ -451,10 +452,10 @@ export default function ProviderDetailPage() {
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm text-foreground">
+                  <h3 className="font-semibold text-foreground text-sm">
                     IMAP
                   </h3>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     Last tested: {lastTestedLabel}
                   </span>
                 </div>
@@ -543,7 +544,7 @@ export default function ProviderDetailPage() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="font-semibold text-sm text-foreground">SMTP</h3>
+                <h3 className="font-semibold text-foreground text-sm">SMTP</h3>
                 <div className="grid gap-6 md:grid-cols-2">
                   <FormField
                     control={form.control}
@@ -670,7 +671,7 @@ export default function ProviderDetailPage() {
                   Test SMTP
                 </Button>
                 {!imapTestPassed ? (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     Run an IMAP test to enable saving.
                   </span>
                 ) : null}
