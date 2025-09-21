@@ -1,13 +1,8 @@
 import { ImapFlow } from "imapflow";
 import type { AddressObject } from "mailparser";
 import { simpleParser } from "mailparser";
-
-const HOST = process.env.IMAP_HOST!;
-const PORT = Number(process.env.IMAP_PORT ?? 993);
-const SECURE = (process.env.IMAP_SECURE ?? "true").toLowerCase() === "true";
-const USER = process.env.IMAP_USER!;
-const PASS = process.env.IMAP_PASS!;
-const MAILBOX = process.env.IMAP_MAILBOX ?? "INBOX";
+import type { Provider, Event } from "../server/src/db/schema/app";
+import { sql } from "bun";
 
 function formatAddrList(input?: AddressObject | AddressObject[] | null) {
   const values = !input
@@ -27,6 +22,28 @@ function fmtAddr(addr?: { name?: string; address?: string } | null) {
 }
 
 async function main() {
+  const providers = await sql<Provider[]>`
+  SELECT *
+  FROM provider
+  WHERE status = 'active'`;
+  const credentiasl = providers?.[0];
+
+  if (!credentiasl) {
+    console.error("No active provider found.");
+    return;
+  }
+  const {
+    config: {
+      imap: {
+        host: HOST,
+        port: PORT,
+        secure: SECURE,
+        auth: { user: USER, pass: PASS },
+      },
+    },
+  } = credentiasl;
+
+  const MAILBOX = "INBOX";
   const client = new ImapFlow({
     host: HOST,
     port: PORT,
@@ -71,7 +88,6 @@ async function main() {
       )) {
         lastSeenUid = Math.max(lastSeenUid, msg.uid!);
 
-        // Parse le flux MIME (msg.source est un AsyncIterable<Buffer>)
         const parsed = await simpleParser(msg.source!);
 
         const subject = parsed.subject || "(no subject)";
@@ -82,9 +98,7 @@ async function main() {
               .slice(0, 200)
           : "";
 
-        const from = parsed.from
-          ? formatAddrList(parsed.from) // renvoie "Name <email>" (peut contenir 1+ entrées)
-          : "Unknown";
+        const from = parsed.from ? formatAddrList(parsed.from) : "Unknown";
 
         const toList = formatAddrList(parsed.to);
         const ccList = formatAddrList(parsed.cc);

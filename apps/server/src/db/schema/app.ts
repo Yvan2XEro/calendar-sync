@@ -4,6 +4,7 @@ import {
   integer,
   jsonb,
   pgEnum,
+  boolean,
   pgTable,
   text,
   timestamp,
@@ -80,3 +81,37 @@ export const flag = pgTable(
     ),
   ],
 );
+
+export const event = pgTable("event", {
+  id: text("id").primaryKey(),
+  provider: text("provider_id")
+    .notNull()
+    .references(() => provider.id, { onDelete: "set null" }),
+  flag: text("flag_id").references(() => flag.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  location: text("location"),
+  url: text("url"),
+  startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }),
+  isAllDay: boolean("is_all_day").default(false).notNull(),
+  isPublished: boolean("is_published").default(false).notNull(),
+  externalId: text("external_id"),
+  metadata: jsonb("metadata")
+    .$type<Record<string, unknown>>()
+    .default(sql`'{}'::jsonb`)
+    .notNull(),
+
+  priority: integer("priority").notNull().default(3),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date()),
+});
+
+export type Provider = typeof provider.$inferSelect;
+export type Event = typeof event.$inferSelect;
