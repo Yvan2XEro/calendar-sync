@@ -1,30 +1,36 @@
-# Worker App
+# Calendar Worker
 
-This worker polls IMAP mailboxes and extracts event data into the calendar database.
+This worker discovers active providers from the database, connects to their IMAP mailboxes, extracts event data from inbound messages, and persists normalized `event` rows.
 
-## Project layout
+## Directory layout
 
 ```
 apps/worker/
 └─ src/
-   ├─ config/      # runtime configuration helpers (placeholder)
-   ├─ db/          # database access utilities (placeholder)
-   ├─ dev/         # local-only scripts (e.g. src/dev/test.ts)
-   ├─ imap/        # IMAP client helpers (placeholder)
-   ├─ ingest/      # ingestion pipelines (placeholder)
-   ├─ services/    # higher-level business logic (placeholder)
-   ├─ types/       # shared TypeScript types (placeholder)
-   └─ utils/       # general-purpose utilities (e.g. mailparser)
+   ├─ config/       # environment and runtime configuration helpers
+   ├─ db/           # database helpers built on Bun SQL (providers, events)
+   ├─ dev/          # optional ad-hoc development scripts
+   ├─ imap/         # per-provider IMAP session orchestration
+   ├─ ingest/       # (reserved) message ingestion pipelines
+   ├─ services/     # shared infrastructure (logging, backoff, concurrency)
+   ├─ types/        # TypeScript types shared across modules
+   └─ utils/        # utilities including the AI extraction helper
 ```
 
-## Scripts
+## Running the worker
 
-All commands are run from `apps/worker/`.
+The worker uses the same Postgres connection environment variables as the Next.js server. Additional knobs:
 
-- `bun run start` – execute the worker entry point (`src/index.ts`).
-- `bun run dev` – run the worker in development mode (same entry point).
-- `bun run dev:test` – optional ad-hoc extraction test (`src/dev/test.ts`).
+- `WORKER_MAX_CONCURRENT_PROVIDERS` (default `5`)
+- `WORKER_POLL_INTERVAL_MS` (default `300000` / 5 minutes)
+- `WORKER_IDLE_KEEPALIVE_MS` (default `15000`)
+- `WORKER_BACKOFF_MIN_MS` (default `1000`)
+- `WORKER_BACKOFF_MAX_MS` (default `60000`)
 
-Install dependencies with `bun install`.
+Scripts (run from `apps/worker/`):
 
-This project was created using `bun init` in bun v1.2.21. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+- `bun run start` — run the worker once.
+- `bun run dev` — run with hot-reload for development.
+- `bun run dev:test` — execute the optional development script under `src/dev/test.ts`.
+
+Install dependencies with `bun install` at the repository root.

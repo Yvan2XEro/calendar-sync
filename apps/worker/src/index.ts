@@ -1,154 +1,95 @@
-import { ImapFlow } from "imapflow";
-import type { AddressObject } from "mailparser";
-import { simpleParser } from "mailparser";
-import type { Provider, Event } from "../../server/src/db/schema/app";
-import { sql } from "bun";
-
-function formatAddrList(input?: AddressObject | AddressObject[] | null) {
-  const values = !input
-    ? []
-    : Array.isArray(input)
-      ? input.flatMap((obj) => obj?.value ?? [])
-      : (input.value ?? []);
-
-  return values
-    .map((a) => `${a?.name ?? ""}${a?.name ? " " : ""}<${a?.address ?? "?"}>`)
-    .join(", ");
-}
-function fmtAddr(addr?: { name?: string; address?: string } | null) {
-  if (!addr) return "Unknown";
-  if (addr.name && addr.address) return `${addr.name} <${addr.address}>`;
-  return addr.address ?? addr.name ?? "Unknown";
-}
+import { getWorkerConfig } from "./config/env";
+import { getActiveProviders } from "./db/providers";
+import { runProviderSession } from "./imap/session";
+import { createSemaphore } from "./services/concurrency";
+import { logger } from "./services/log";
 
 async function main() {
-  const providers = await sql<Provider[]>`
-  SELECT *
-  FROM provider
-  WHERE status = 'active'`;
-  const credentiasl = providers?.[0];
+  const workerConfig = getWorkerConfig();
+  logger.info(
+    `Worker starting with max ${workerConfig.maxConcurrentProviders} concurrent provider(s).`,
+  );
 
-  if (!credentiasl) {
-    console.error("No active provider found.");
+  const providers = await getActiveProviders();
+  if (providers.length === 0) {
+    logger.warn("No active providers found. Worker will remain idle.");
     return;
   }
-  const {
-    config: {
-      imap: {
-        host: HOST,
-        port: PORT,
-        secure: SECURE,
-        auth: { user: USER, pass: PASS },
-      },
-    },
-  } = credentiasl;
 
-  const MAILBOX = "INBOX";
-  const client = new ImapFlow({
-    host: HOST,
-    port: PORT,
-    secure: SECURE,
-    auth: { user: USER, pass: PASS },
-    // logger: true,
-  });
+  const allowed = providers.slice(0, workerConfig.maxConcurrentProviders);
+  if (allowed.length < providers.length) {
+    logger.warn(
+      `Active providers (${providers.length}) exceed concurrency limit (${workerConfig.maxConcurrentProviders}). Only the first ${allowed.length} will start.`,
+    );
+  }
 
-  client.on("error", (err) => {
-    console.error("[IMAP] Error:", err);
-  });
-  client.on("close", () => {
-    console.warn("[IMAP] Connection closed");
-  });
+  const semaphore = createSemaphore(workerConfig.maxConcurrentProviders);
+  const controllers = new Map<string, AbortController>();
 
-  console.log(
-    `[IMAP] Connecting to ${HOST}:${PORT} (secure=${SECURE}) as ${USER} ...`,
-  );
-  await client.connect();
+  let shuttingDown = false;
 
-  const mailboxInfo = await client.mailboxOpen(MAILBOX);
-  console.log(
-    `[IMAP] Mailbox "${MAILBOX}" opened. Exists=${mailboxInfo.exists}, UIDNEXT=${mailboxInfo.uidNext}`,
-  );
+  const sessionPromises = allowed.map(async (provider) => {
+    const release = await semaphore.acquire();
+    const controller = new AbortController();
+    controllers.set(provider.id, controller);
 
-  let lastSeenUid = (mailboxInfo.uidNext ?? 1) - 1;
+    logger.info(`[${provider.id}] Session starting.`);
 
-  client.on("exists", async (newExists) => {
     try {
-      const range = `${lastSeenUid + 1}:*`;
-      let gotNew = false;
-
-      for await (const msg of client.fetch(
-        { uid: range },
-        {
-          envelope: true,
-          internalDate: true,
-          uid: true,
-          source: true,
-          bodyStructure: true,
-        },
-      )) {
-        lastSeenUid = Math.max(lastSeenUid, msg.uid!);
-
-        const parsed = await simpleParser(msg.source!);
-
-        const subject = parsed.subject || "(no subject)";
-        const text = (parsed.text || "").trim();
-        const htmlSnippet = parsed.html
-          ? String(parsed.html)
-              .replace(/<[^>]+>/g, "")
-              .slice(0, 200)
-          : "";
-
-        const from = parsed.from ? formatAddrList(parsed.from) : "Unknown";
-
-        const toList = formatAddrList(parsed.to);
-        const ccList = formatAddrList(parsed.cc);
-        const bccList = formatAddrList(parsed.bcc);
-        console.log("---- New mail ----");
-        console.log("UID:", msg.uid);
-        console.log("Subject:", subject);
-        console.log("cc:", ccList);
-        console.log("From:", from);
-        console.log("To:", toList);
-        console.log("Bcc:", bccList);
-        console.log(
-          "Date:",
-          msg.internalDate
-            ? new Date(msg.internalDate).toISOString()
-            : "unknown date",
+      await runProviderSession(provider, {
+        workerConfig,
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        logger.error(
+          `[${provider.id}] Session terminated unexpectedly.`,
+          error,
         );
-        if (text) {
-          console.log("Text:\n" + text);
-        } else if (htmlSnippet) {
-          console.log("HTML (snippet):\n" + htmlSnippet);
-        } else {
-          console.log("(No text/plain or html body found)");
-        }
-        console.log("------------------");
       }
-
-      if (!gotNew) {
-      }
-    } catch (err) {
-      console.error("[IMAP] exists-handler error:", err);
+    } finally {
+      controllers.delete(provider.id);
+      release();
+      logger.info(`[${provider.id}] Session stopped.`);
     }
   });
 
-  console.log("[IMAP] Listening for new messages… (CTRL+C to exit)");
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
 
-  const shutdown = async () => {
-    try {
-      console.log("\n[IMAP] Shutting down…");
-      await client.logout();
-    } catch (e) {
-    } finally {
-      process.exit(0);
+    logger.info(`Received ${signal}. Shutting down worker…`);
+
+    for (const controller of controllers.values()) {
+      controller.abort();
     }
+
+    await Promise.allSettled(sessionPromises);
+
+    logger.info("All provider sessions stopped. Goodbye.");
   };
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
+
+  const handleSigint = () => void shutdown("SIGINT");
+  const handleSigterm = () => void shutdown("SIGTERM");
+
+  process.on("SIGINT", handleSigint);
+  process.on("SIGTERM", handleSigterm);
+
+  const onUnhandledRejection = (reason: unknown) => {
+    logger.error("Unhandled rejection detected", reason);
+  };
+  process.on("unhandledRejection", onUnhandledRejection);
+
+  await Promise.allSettled(sessionPromises);
+
+  process.off("SIGINT", handleSigint);
+  process.off("SIGTERM", handleSigterm);
+  process.off("unhandledRejection", onUnhandledRejection);
 }
 
-main().catch((err) => {
-  console.error("[IMAP] Fatal:", err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((error) => {
+    logger.error("Worker failed", error);
+    process.exitCode = 1;
+  });
+}

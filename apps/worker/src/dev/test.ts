@@ -1,9 +1,18 @@
-import type { Provider, Event } from "../../../server/src/db/schema/app";
+// @ts-nocheck
 import { v4 as uuid } from "uuid";
 import { extractEventFromEmail } from "../utils/mailparser";
 import { sql } from "bun";
 
-const providers = await sql<Provider[]>`
+type ProviderRow = {
+  id: string;
+  config: Record<string, unknown>;
+};
+
+type EventRow = {
+  id: string;
+};
+
+const providers = await sql<ProviderRow[]>`
   SELECT *
   FROM provider
   WHERE status = 'active'`;
@@ -20,7 +29,7 @@ const result = await extractEventFromEmail({
 });
 
 if (result) {
-  const [event] = await sql<Event[]>`
+  const [event] = await sql<EventRow[]>`
     INSERT INTO event ${sql({
       ...result,
       id: uuid(),
