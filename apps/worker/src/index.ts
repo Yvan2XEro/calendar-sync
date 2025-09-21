@@ -1,7 +1,7 @@
 import { ImapFlow } from "imapflow";
 import type { AddressObject } from "mailparser";
 import { simpleParser } from "mailparser";
-import type { Provider, Event } from "../server/src/db/schema/app";
+import type { Provider, Event } from "../../server/src/db/schema/app";
 import { sql } from "bun";
 
 function formatAddrList(input?: AddressObject | AddressObject[] | null) {

@@ -1,6 +1,6 @@
-import type { Provider, Event } from "../server/src/db/schema/app";
+import type { Provider, Event } from "../../../server/src/db/schema/app";
 import { v4 as uuid } from "uuid";
-import { extractEventFromEmail } from "./utils/mailparser";
+import { extractEventFromEmail } from "../utils/mailparser";
 import { sql } from "bun";
 
 const providers = await sql<Provider[]>`
