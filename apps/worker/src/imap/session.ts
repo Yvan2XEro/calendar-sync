@@ -215,13 +215,13 @@ export async function runProviderSession(
         let fetchRequested = true;
         let lastPollAt = 0;
 
-        client.on("exists", () => {
-          fetchRequested = true;
-        });
-
-        const processNewMessages = async () => {
+        const processNewMessages = async (options?: { force?: boolean }) => {
           if (!client.mailbox) return;
-          if (!fetchRequested && Date.now() - lastPollAt < workerConfig.pollIntervalMs) {
+          if (
+            !options?.force &&
+            !fetchRequested &&
+            Date.now() - lastPollAt < workerConfig.pollIntervalMs
+          ) {
             return;
           }
           fetchRequested = false;
@@ -255,6 +255,24 @@ export async function runProviderSession(
           }
           lastPollAt = Date.now();
         };
+
+        client.on("exists", () => {
+          fetchRequested = true;
+        });
+
+        client.on("mail", (newMessages = 0) => {
+          fetchRequested = true;
+          logger.info(
+            `[${provider.id}] Mail notification received (${newMessages} new message(s)).`,
+          );
+          void processNewMessages({ force: true }).catch((error) => {
+            logger.error(
+              `[${provider.id}] Error processing messages after mail notification.`,
+              error,
+            );
+            fetchRequested = true;
+          });
+        });
 
         await processNewMessages();
 
