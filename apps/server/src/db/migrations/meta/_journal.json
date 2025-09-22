@@ -43,6 +43,13 @@
       "when": 1758479079995,
       "tag": "0005_fixed_moonstone",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1758545475863,
+      "tag": "0006_fast_unus",
+      "breakpoints": true
     }
   ]
 }
