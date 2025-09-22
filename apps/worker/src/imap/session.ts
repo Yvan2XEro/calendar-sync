@@ -1,15 +1,19 @@
-import { ImapFlow } from "imapflow";
 import type { FetchMessageObject } from "imapflow";
+import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
-
+import type { WorkerConfig } from "../config/env";
 import { insertEvent } from "../db/events";
 import { getProviderCursor, setProviderCursor } from "../db/providers";
-import type { WorkerConfig } from "../config/env";
 import { createBackoff } from "../services/backoff";
 import { logger } from "../services/log";
-import type { ProviderRecord, ImapConfig } from "../types/provider";
+import type { ImapConfig, ProviderRecord } from "../types/provider";
 import { extractEventFromEmail } from "../utils/mailparser";
+import { extractEventFromEmailFake } from "../utils/mailparser-test";
 
+const IS_DEV = true;
+const extractEvent = !IS_DEV
+  ? extractEventFromEmail
+  : extractEventFromEmailFake;
 export interface ProviderSessionOptions {
   workerConfig: WorkerConfig;
   signal: AbortSignal;
@@ -26,9 +30,7 @@ const FETCH_OPTIONS = {
 
 function resolveMailbox(config: ImapConfig | undefined): string {
   const value = config?.mailbox;
-  if (!value || typeof value !== "string") {
-    return "INBOX";
-  }
+  if (!value || typeof value !== "string") return "INBOX";
   return value;
 }
 
@@ -47,7 +49,9 @@ function safeHtmlToString(html: unknown): string | undefined {
   return undefined;
 }
 
-function normalizeInternalDate(value: Date | string | null | undefined): Date | null {
+function normalizeInternalDate(
+  value: Date | string | null | undefined,
+): Date | null {
   if (!value) return null;
   if (value instanceof Date) return value;
   const timestamp = Date.parse(value);
@@ -89,10 +93,7 @@ async function handleMessage(
   try {
     parsed = await simpleParser(source as Buffer);
   } catch (error) {
-    logger.error(
-      `[${provider.id}] Failed to parse message UID ${uid}.`,
-      error,
-    );
+    logger.error(`[${provider.id}] Failed to parse message UID ${uid}.`, error);
     return false;
   }
 
@@ -102,7 +103,7 @@ async function handleMessage(
   const html = safeHtmlToString(parsed.html ?? undefined);
   const internalDate = normalizeInternalDate(message.internalDate);
 
-  const extraction = await extractEventFromEmail({
+  const extraction = await extractEvent({
     provider_id: provider.id,
     text,
     html,
@@ -117,7 +118,8 @@ async function handleMessage(
   }
 
   const externalId =
-    extraction.external_id || messageId ||
+    extraction.external_id ||
+    messageId ||
     synthesizeExternalId({
       providerId: provider.id,
       mailbox,
@@ -214,11 +216,12 @@ export async function runProviderSession(
 
         let fetchRequested = true;
         let lastPollAt = 0;
+        let processing = false;
 
-        const processNewMessages = async (options?: { force?: boolean }) => {
+        const processNewMessages = async (opts?: { force?: boolean }) => {
           if (!client.mailbox) return;
           if (
-            !options?.force &&
+            !opts?.force &&
             !fetchRequested &&
             Date.now() - lastPollAt < workerConfig.pollIntervalMs
           ) {
@@ -230,15 +233,16 @@ export async function runProviderSession(
           const range = `${startUid}:*`;
           let processed = 0;
 
-          for await (const message of client.fetch({ uid: range }, FETCH_OPTIONS)) {
+          for await (const message of client.fetch(
+            { uid: range },
+            FETCH_OPTIONS,
+          )) {
             if (stopRequested) break;
             if (!message.uid) continue;
 
             try {
               const inserted = await handleMessage(provider, mailbox, message);
-              if (inserted) {
-                processed += 1;
-              }
+              if (inserted) processed += 1;
             } catch (error) {
               fetchRequested = true;
               throw error;
@@ -256,25 +260,23 @@ export async function runProviderSession(
           lastPollAt = Date.now();
         };
 
-        client.on("exists", () => {
-          fetchRequested = true;
-        });
+        const triggerProcess = async (force = false) => {
+          if (processing) return;
+          processing = true;
+          try {
+            await processNewMessages({ force });
+          } finally {
+            processing = false;
+          }
+        };
 
-        client.on("mail", (newMessages = 0) => {
-          fetchRequested = true;
-          logger.info(
-            `[${provider.id}] Mail notification received (${newMessages} new message(s)).`,
-          );
-          void processNewMessages({ force: true }).catch((error) => {
-            logger.error(
-              `[${provider.id}] Error processing messages after mail notification.`,
-              error,
-            );
-            fetchRequested = true;
+        client.on("exists", () => {
+          void triggerProcess(true).catch((error) => {
+            logger.error(`[${provider.id}] Error on exists->process`, error);
           });
         });
 
-        await processNewMessages();
+        await triggerProcess(true);
 
         while (!stopRequested && client.usable) {
           try {
@@ -287,11 +289,10 @@ export async function runProviderSession(
             );
           }
 
-          await processNewMessages();
+          await triggerProcess(false);
 
-          if (!fetchRequested && Date.now() - lastPollAt >= workerConfig.pollIntervalMs) {
-            fetchRequested = true;
-            await processNewMessages();
+          if (Date.now() - lastPollAt >= workerConfig.pollIntervalMs) {
+            await triggerProcess(true);
           }
         }
 
@@ -310,27 +311,19 @@ export async function runProviderSession(
           );
           try {
             await client.logout();
-          } catch {
-            // ignore
-          }
+          } catch {}
           try {
             client.close();
-          } catch {
-            // ignore
-          }
+          } catch {}
           continue;
         }
       } finally {
         try {
           await client.logout();
-        } catch {
-          // ignore
-        }
+        } catch {}
         try {
           client.close();
-        } catch {
-          // ignore
-        }
+        } catch {}
       }
 
       if (!stopRequested) {
@@ -338,7 +331,6 @@ export async function runProviderSession(
         logger.info(
           `[${provider.id}] Connection closed. Reconnecting after ${delay}ms.`,
         );
-        continue;
       }
     }
   } finally {

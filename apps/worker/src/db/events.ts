@@ -5,15 +5,15 @@ import { sql } from "bun";
 import type { EventSqlInsert } from "../utils/mailparser";
 
 type EventRow = {
-  id: string;
+	id: string;
 };
 
 export async function insertEvent(
-  values: EventSqlInsert & { id?: string },
+	values: EventSqlInsert & { id?: string },
 ): Promise<EventRow | null> {
-  const id = values.id ?? randomUUID();
+	const id = values.id ?? randomUUID();
 
-  const [row] = await sql<EventRow[]>`
+	const [row] = await sql<EventRow[]>`
     INSERT INTO event (
       id,
       provider_id,
@@ -49,5 +49,5 @@ export async function insertEvent(
     RETURNING id
   `;
 
-  return row ?? null;
+	return row ?? null;
 }

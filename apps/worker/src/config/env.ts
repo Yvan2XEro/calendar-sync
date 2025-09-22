@@ -1,50 +1,53 @@
 import { logger } from "../services/log";
 
 function parseIntEnv(name: string, defaultValue: number): number {
-  const raw = process.env[name];
-  if (!raw) return defaultValue;
-  const parsed = Number.parseInt(raw, 10);
-  if (Number.isNaN(parsed)) {
-    logger.warn(
-      `[config] Invalid numeric value for ${name}: ${raw}. Falling back to ${defaultValue}.`,
-    );
-    return defaultValue;
-  }
-  return parsed;
+	const raw = process.env[name];
+	if (!raw) return defaultValue;
+	const parsed = Number.parseInt(raw, 10);
+	if (Number.isNaN(parsed)) {
+		logger.warn(
+			`[config] Invalid numeric value for ${name}: ${raw}. Falling back to ${defaultValue}.`,
+		);
+		return defaultValue;
+	}
+	return parsed;
 }
 
 export interface WorkerConfig {
-  maxConcurrentProviders: number;
-  pollIntervalMs: number;
-  idleKeepaliveMs: number;
-  backoffMinMs: number;
-  backoffMaxMs: number;
+	maxConcurrentProviders: number;
+	pollIntervalMs: number;
+	idleKeepaliveMs: number;
+	backoffMinMs: number;
+	backoffMaxMs: number;
 }
 
 let cached: WorkerConfig | null = null;
 
 export function getWorkerConfig(): WorkerConfig {
-  if (cached) {
-    return cached;
-  }
+	if (cached) {
+		return cached;
+	}
 
-  cached = {
-    maxConcurrentProviders: Math.max(
-      1,
-      parseIntEnv("WORKER_MAX_CONCURRENT_PROVIDERS", 5),
-    ),
-    pollIntervalMs: Math.max(1_000, parseIntEnv("WORKER_POLL_INTERVAL_MS", 300_000)),
-    idleKeepaliveMs: Math.max(
-      1_000,
-      parseIntEnv("WORKER_IDLE_KEEPALIVE_MS", 15_000),
-    ),
-    backoffMinMs: Math.max(100, parseIntEnv("WORKER_BACKOFF_MIN_MS", 1_000)),
-    backoffMaxMs: Math.max(100, parseIntEnv("WORKER_BACKOFF_MAX_MS", 60_000)),
-  };
+	cached = {
+		maxConcurrentProviders: Math.max(
+			1,
+			parseIntEnv("WORKER_MAX_CONCURRENT_PROVIDERS", 5),
+		),
+		pollIntervalMs: Math.max(
+			1_000,
+			parseIntEnv("WORKER_POLL_INTERVAL_MS", 300_000),
+		),
+		idleKeepaliveMs: Math.max(
+			1_000,
+			parseIntEnv("WORKER_IDLE_KEEPALIVE_MS", 15_000),
+		),
+		backoffMinMs: Math.max(100, parseIntEnv("WORKER_BACKOFF_MIN_MS", 1_000)),
+		backoffMaxMs: Math.max(100, parseIntEnv("WORKER_BACKOFF_MAX_MS", 60_000)),
+	};
 
-  if (cached.backoffMaxMs < cached.backoffMinMs) {
-    cached.backoffMaxMs = cached.backoffMinMs;
-  }
+	if (cached.backoffMaxMs < cached.backoffMinMs) {
+		cached.backoffMaxMs = cached.backoffMinMs;
+	}
 
-  return cached;
+	return cached;
 }

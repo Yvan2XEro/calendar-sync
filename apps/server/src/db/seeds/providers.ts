@@ -19,7 +19,7 @@ const db = drizzle(pool);
 
 const baselineProviders: ProviderSeed[] = [
   {
-    id: "email.imap",
+    id: "1e66cd0e-9683-4caf-afcb-c7d55da5e6b9",
     category: "email",
     name: "Generic IMAP Email",
     description: "Connect any IMAP-compatible email inbox.",
@@ -49,7 +49,7 @@ const baselineProviders: ProviderSeed[] = [
     },
   },
   {
-    id: "google.gmail",
+    id: "afa8902b-d05f-4171-b206-370d5234e13d",
     category: "google",
     name: "Google Gmail",
     description: "Connect a Gmail account managed by Google.",

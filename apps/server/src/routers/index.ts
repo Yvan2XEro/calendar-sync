@@ -13,8 +13,8 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-        providers: providersRouter,
-        adminUsers: adminUsersRouter,
-        adminFlags: adminFlagsRouter,
+	providers: providersRouter,
+	adminUsers: adminUsersRouter,
+	adminFlags: adminFlagsRouter,
 });
 export type AppRouter = typeof appRouter;
