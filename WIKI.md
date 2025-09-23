@@ -44,15 +44,15 @@ CalendarSync streamlines how organizations curate events from inbound email, app
 
 ## 4. Architecture
 ```mermaid
-graph TD
-    Browser[Admin UI (Next.js 15)] -->|tRPC| TRPC[App Router]
-    Browser -->|Auth flows| AuthUI[Better Auth Hosted Views]
-    TRPC -->|Session-aware ctx| AuthService[Better Auth Service]
+flowchart TD
+    Browser["Admin UI (Next.js 15)"] -->|tRPC| TRPC["App Router"]
+    Browser -->|Auth flows| AuthUI["Better Auth Hosted Views"]
+    TRPC -->|Session-aware ctx| AuthService["Better Auth Service"]
     TRPC -->|ORM| DB[(PostgreSQL + Drizzle)]
-    Worker[Bun Worker] -->|CRUD| DB
-    Worker -->|IMAP sessions| Mailbox[Provider Mailboxes]
-    Worker -->|AI prompt| Gemini[Google Gemini 1.5 Flash]
-    DB -->|Seeds| Catalog[Provider Catalog]
+    Worker["Bun Worker"] -->|CRUD| DB
+    Worker -->|IMAP sessions| Mailbox["Provider Mailboxes"]
+    Worker -->|AI prompt| Gemini["Google Gemini 1.5 Flash"]
+    DB -->|Seeds| Catalog["Provider Catalog"]
 ```
 
 **Runtime responsibilities**:
