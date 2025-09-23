@@ -5,9 +5,12 @@ function parseIntEnv(name: string, defaultValue: number): number {
 	if (!raw) return defaultValue;
 	const parsed = Number.parseInt(raw, 10);
 	if (Number.isNaN(parsed)) {
-		logger.warn(
-			`[config] Invalid numeric value for ${name}: ${raw}. Falling back to ${defaultValue}.`,
-		);
+		logger.warn("Invalid numeric environment value", {
+			source: "config",
+			name,
+			rawValue: raw,
+			defaultValue,
+		});
 		return defaultValue;
 	}
 	return parsed;
