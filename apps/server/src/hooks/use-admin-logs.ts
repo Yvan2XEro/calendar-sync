@@ -1,0 +1,194 @@
+"use client";
+
+import { useEffect, useMemo, useRef } from "react";
+import {
+        type InfiniteData,
+        useInfiniteQuery,
+        useQueryClient,
+} from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
+
+import { logsKeys, type LogFilterParams } from "@/lib/query-keys/logs";
+import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
+
+export type LogFilters = {
+        providerId?: string | null;
+        level?: string | null;
+};
+
+type LogsRouterOutputs = inferRouterOutputs<AppRouter>["adminLogs"];
+export type LogListResult = LogsRouterOutputs["list"];
+export type LogEntry = LogListResult["logs"][number];
+
+type StreamLogPayload = {
+        id: number;
+        ts: string;
+        level: string;
+        providerId: string | null;
+        sessionId: string | null;
+        msg: string;
+        data: unknown;
+};
+
+export function useAdminLogs(filters: LogFilters) {
+        const queryFilters = useMemo<LogFilterParams>(
+                () => ({
+                        providerId: filters.providerId ?? null,
+                        level: filters.level ?? null,
+                        since: null,
+                }),
+                [filters.providerId, filters.level],
+        );
+
+        return useInfiniteQuery<LogListResult>({
+                queryKey: logsKeys.list(queryFilters),
+                initialPageParam: undefined as number | undefined,
+                getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+                queryFn: ({ pageParam }) =>
+                        trpcClient.adminLogs.list.query({
+                                providerId: queryFilters.providerId ?? undefined,
+                                level: queryFilters.level ?? undefined,
+                                cursor: pageParam ?? undefined,
+                        }),
+        });
+}
+
+export function useAdminLogStream(filters: LogFilters, latest?: LogEntry) {
+        const queryClient = useQueryClient();
+
+        const queryFilters = useMemo<LogFilterParams>(
+                () => ({
+                        providerId: filters.providerId ?? null,
+                        level: filters.level ?? null,
+                        since: null,
+                }),
+                [filters.providerId, filters.level],
+        );
+
+        const queryKey = useMemo(() => logsKeys.list(queryFilters), [queryFilters]);
+
+        const sinceRef = useRef<string | undefined>();
+
+        useEffect(() => {
+                        if (!latest?.ts) {
+                                sinceRef.current = undefined;
+                                return;
+                        }
+
+                        const value = latest.ts instanceof Date ? latest.ts : new Date(latest.ts);
+
+                        if (Number.isNaN(value.valueOf())) {
+                                sinceRef.current = undefined;
+                                return;
+                        }
+
+                        sinceRef.current = value.toISOString();
+                },
+                [latest],
+        );
+
+        useEffect(() => {
+                if (typeof window === "undefined") {
+                        return;
+                }
+
+                let stop = false;
+                let source: EventSource | null = null;
+                let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+
+                const connect = () => {
+                        if (stop) return;
+
+                        const url = new URL("/admin/logs/stream", window.location.origin);
+
+                        if (queryFilters.providerId) {
+                                url.searchParams.set("providerId", queryFilters.providerId);
+                        }
+
+                        if (queryFilters.level) {
+                                url.searchParams.set("level", queryFilters.level);
+                        }
+
+                        if (sinceRef.current) {
+                                url.searchParams.set("since", sinceRef.current);
+                        }
+
+                        source = new EventSource(url.toString(), { withCredentials: true });
+
+                        source.addEventListener("log", (event) => {
+                                const message = event as MessageEvent<string>;
+
+                                try {
+                                        const payload = JSON.parse(message.data) as StreamLogPayload;
+
+                                        const normalized: LogEntry = {
+                                                ...payload,
+                                                ts: new Date(payload.ts),
+                                                data: payload.data ?? null,
+                                        };
+
+                                        queryClient.setQueryData<InfiniteData<LogListResult>>(
+                                                queryKey,
+                                                (existing) => {
+                                                        if (!existing) {
+                                                                return {
+                                                                        pageParams: [undefined],
+                                                                        pages: [
+                                                                                {
+                                                                                        logs: [normalized],
+                                                                                        nextCursor: null,
+                                                                                },
+                                                                        ],
+                                                                } satisfies InfiniteData<LogListResult>;
+                                                        }
+
+                                                        const alreadyExists = existing.pages.some((page) =>
+                                                                page.logs.some((log) => log.id === normalized.id),
+                                                        );
+
+                                                        if (alreadyExists) {
+                                                                return existing;
+                                                        }
+
+                                                        const [firstPage, ...rest] = existing.pages;
+
+                                                        return {
+                                                                pageParams: existing.pageParams,
+                                                                pages: [
+                                                                        {
+                                                                                ...firstPage,
+                                                                                logs: [normalized, ...firstPage.logs],
+                                                                        },
+                                                                        ...rest,
+                                                                ],
+                                                        } satisfies InfiniteData<LogListResult>;
+                                                },
+                                        );
+                                } catch (error) {
+                                        console.error("Failed to process log event", error);
+                                }
+                        });
+
+                        source.onerror = () => {
+                                source?.close();
+
+                                if (stop) return;
+
+                                reconnectTimeout = setTimeout(connect, 3000);
+                        };
+                };
+
+                connect();
+
+                return () => {
+                        stop = true;
+
+                        if (reconnectTimeout) {
+                                clearTimeout(reconnectTimeout);
+                        }
+
+                        source?.close();
+                };
+        }, [queryClient, queryFilters, queryKey]);
+}

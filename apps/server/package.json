@@ -47,6 +47,7 @@
 		"date-fns": "^4.1.0",
 		"dotenv": "^17.2.1",
 		"drizzle-orm": "^0.44.2",
+		"hono": "^4.9.8",
 		"imapflow": "^1.0.0",
 		"input-otp": "^1.4.2",
 		"lucide-react": "^0.544.0",
