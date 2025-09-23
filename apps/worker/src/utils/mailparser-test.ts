@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { z } from "zod";
+import type { WorkerLogger } from "../services/log";
 import { type EventSqlInsert, EventSqlInsertSchema } from "./mailparser";
 
 type ExtractEventInput = {
@@ -20,6 +20,7 @@ function hashStringToInt(s: string): number {
 
 export async function extractEventFromEmailFake(
 	input: ExtractEventInput,
+	_options?: { logger?: WorkerLogger },
 ): Promise<EventSqlInsert | null> {
 	const { provider_id, messageId } = input;
 
@@ -84,8 +85,10 @@ export async function extractEventFromEmailFake(
 
 	const parsed = EventSqlInsertSchema.safeParse(payload);
 	if (!parsed.success) return null;
-	if (new Date(parsed.data.end_at!) < new Date(parsed.data.start_at))
-		return null;
+	if (parsed.data.end_at) {
+		const endAt = new Date(parsed.data.end_at);
+		if (endAt < new Date(parsed.data.start_at)) return null;
+	}
 
 	return parsed.data;
 }
