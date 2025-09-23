@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
 import {
-        type InfiniteData,
-        useInfiniteQuery,
-        useQueryClient,
+	type InfiniteData,
+	useInfiniteQuery,
+	useQueryClient,
 } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { logsKeys, type LogFilterParams } from "@/lib/query-keys/logs";
+import { type LogFilterParams, logsKeys } from "@/lib/query-keys/logs";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
 export type LogFilters = {
-        providerId?: string | null;
-        level?: string | null;
+	providerId?: string | null;
+	level?: string | null;
 };
 
 type LogsRouterOutputs = inferRouterOutputs<AppRouter>["adminLogs"];
@@ -22,173 +22,249 @@ export type LogListResult = LogsRouterOutputs["list"];
 export type LogEntry = LogListResult["logs"][number];
 
 type StreamLogPayload = {
-        id: number;
-        ts: string;
-        level: string;
-        providerId: string | null;
-        sessionId: string | null;
-        msg: string;
-        data: unknown;
+	id: number;
+	ts: string;
+	level: string;
+	providerId: string | null;
+	sessionId: string | null;
+	msg: string;
+	data: unknown;
 };
 
 export function useAdminLogs(filters: LogFilters) {
-        const queryFilters = useMemo<LogFilterParams>(
-                () => ({
-                        providerId: filters.providerId ?? null,
-                        level: filters.level ?? null,
-                        since: null,
-                }),
-                [filters.providerId, filters.level],
-        );
+	const queryFilters = useMemo<LogFilterParams>(
+		() => ({
+			providerId: filters.providerId ?? null,
+			level: filters.level ?? null,
+			since: null,
+		}),
+		[filters.providerId, filters.level],
+	);
 
-        return useInfiniteQuery<LogListResult>({
-                queryKey: logsKeys.list(queryFilters),
-                initialPageParam: undefined as number | undefined,
-                getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-                queryFn: ({ pageParam }) =>
-                        trpcClient.adminLogs.list.query({
-                                providerId: queryFilters.providerId ?? undefined,
-                                level: queryFilters.level ?? undefined,
-                                cursor: pageParam ?? undefined,
-                        }),
-        });
+	return useInfiniteQuery<LogListResult>({
+		queryKey: logsKeys.list(queryFilters),
+		initialPageParam: undefined as number | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+		queryFn: ({ pageParam }) =>
+			trpcClient.adminLogs.list.query({
+				providerId: queryFilters.providerId ?? undefined,
+				level: queryFilters.level ?? undefined,
+				cursor: pageParam ?? undefined,
+			}),
+	});
 }
 
-export function useAdminLogStream(filters: LogFilters, latest?: LogEntry) {
-        const queryClient = useQueryClient();
+export function mergeLogsIntoPages(
+	existing: InfiniteData<LogListResult> | undefined,
+	incoming: LogEntry[],
+): InfiniteData<LogListResult> {
+	if (incoming.length === 0) {
+		return (
+			existing ?? {
+				pageParams: [undefined],
+				pages: [
+					{
+						logs: [],
+						nextCursor: null,
+					},
+				],
+			}
+		);
+	}
 
-        const queryFilters = useMemo<LogFilterParams>(
-                () => ({
-                        providerId: filters.providerId ?? null,
-                        level: filters.level ?? null,
-                        since: null,
-                }),
-                [filters.providerId, filters.level],
-        );
+	const uniqueIncoming: LogEntry[] = [];
+	const seenIncoming = new Set<number>();
 
-        const queryKey = useMemo(() => logsKeys.list(queryFilters), [queryFilters]);
+	for (const entry of incoming) {
+		if (seenIncoming.has(entry.id)) {
+			continue;
+		}
 
-        const sinceRef = useRef<string | undefined>();
+		uniqueIncoming.push(entry);
+		seenIncoming.add(entry.id);
+	}
 
-        useEffect(() => {
-                        if (!latest?.ts) {
-                                sinceRef.current = undefined;
-                                return;
-                        }
+	if (!existing || existing.pages.length === 0) {
+		return {
+			pageParams: existing?.pageParams ?? [undefined],
+			pages: [
+				{
+					logs: uniqueIncoming,
+					nextCursor: existing?.pages[0]?.nextCursor ?? null,
+				},
+				...(existing?.pages?.slice(1) ?? []),
+			],
+		} satisfies InfiniteData<LogListResult>;
+	}
 
-                        const value = latest.ts instanceof Date ? latest.ts : new Date(latest.ts);
+	const dedupeIds = new Set<number>(uniqueIncoming.map((log) => log.id));
+	const [firstPage, ...rest] = existing.pages;
 
-                        if (Number.isNaN(value.valueOf())) {
-                                sinceRef.current = undefined;
-                                return;
-                        }
+	return {
+		pageParams: existing.pageParams,
+		pages: [
+			{
+				...firstPage,
+				logs: [
+					...uniqueIncoming,
+					...firstPage.logs.filter((log) => !dedupeIds.has(log.id)),
+				],
+			},
+			...rest.map((page) => ({
+				...page,
+				logs: page.logs.filter((log) => !dedupeIds.has(log.id)),
+			})),
+		],
+	} satisfies InfiniteData<LogListResult>;
+}
 
-                        sinceRef.current = value.toISOString();
-                },
-                [latest],
-        );
+export function useAdminLogStream(
+	filters: LogFilters,
+	latest?: LogEntry,
+	isInitialLoading?: boolean,
+) {
+	const queryClient = useQueryClient();
 
-        useEffect(() => {
-                if (typeof window === "undefined") {
-                        return;
-                }
+	const queryFilters = useMemo<LogFilterParams>(
+		() => ({
+			providerId: filters.providerId ?? null,
+			level: filters.level ?? null,
+			since: null,
+		}),
+		[filters.providerId, filters.level],
+	);
 
-                let stop = false;
-                let source: EventSource | null = null;
-                let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
+	const queryKey = useMemo(() => logsKeys.list(queryFilters), [queryFilters]);
 
-                const connect = () => {
-                        if (stop) return;
+	const sinceRef = useRef<string | undefined>();
+	const isInitialLoadingRef = useRef(Boolean(isInitialLoading));
+	const bufferRef = useRef<LogEntry[]>([]);
 
-                        const url = new URL("/admin/logs/stream", window.location.origin);
+	const applyLogs = useCallback(
+		(entries: LogEntry[]) => {
+			if (entries.length === 0) {
+				return;
+			}
 
-                        if (queryFilters.providerId) {
-                                url.searchParams.set("providerId", queryFilters.providerId);
-                        }
+			queryClient.setQueryData<InfiniteData<LogListResult>>(
+				queryKey,
+				(existing) => mergeLogsIntoPages(existing, entries),
+			);
+		},
+		[queryClient, queryKey],
+	);
 
-                        if (queryFilters.level) {
-                                url.searchParams.set("level", queryFilters.level);
-                        }
+	const flushBuffer = useCallback(() => {
+		if (bufferRef.current.length === 0) {
+			return;
+		}
 
-                        if (sinceRef.current) {
-                                url.searchParams.set("since", sinceRef.current);
-                        }
+		const entries = bufferRef.current;
+		bufferRef.current = [];
+		applyLogs(entries);
+	}, [applyLogs]);
 
-                        source = new EventSource(url.toString(), { withCredentials: true });
+	useEffect(() => {
+		isInitialLoadingRef.current = Boolean(isInitialLoading);
 
-                        source.addEventListener("log", (event) => {
-                                const message = event as MessageEvent<string>;
+		if (!isInitialLoading) {
+			flushBuffer();
+		}
+	}, [flushBuffer, isInitialLoading]);
 
-                                try {
-                                        const payload = JSON.parse(message.data) as StreamLogPayload;
+	useEffect(() => {
+		if (!latest?.ts) {
+			sinceRef.current = undefined;
+			return;
+		}
 
-                                        const normalized: LogEntry = {
-                                                ...payload,
-                                                ts: new Date(payload.ts),
-                                                data: payload.data ?? null,
-                                        };
+		const value = latest.ts instanceof Date ? latest.ts : new Date(latest.ts);
 
-                                        queryClient.setQueryData<InfiniteData<LogListResult>>(
-                                                queryKey,
-                                                (existing) => {
-                                                        if (!existing) {
-                                                                return {
-                                                                        pageParams: [undefined],
-                                                                        pages: [
-                                                                                {
-                                                                                        logs: [normalized],
-                                                                                        nextCursor: null,
-                                                                                },
-                                                                        ],
-                                                                } satisfies InfiniteData<LogListResult>;
-                                                        }
+		if (Number.isNaN(value.valueOf())) {
+			sinceRef.current = undefined;
+			return;
+		}
 
-                                                        const alreadyExists = existing.pages.some((page) =>
-                                                                page.logs.some((log) => log.id === normalized.id),
-                                                        );
+		sinceRef.current = value.toISOString();
+	}, [latest]);
 
-                                                        if (alreadyExists) {
-                                                                return existing;
-                                                        }
+	useEffect(() => {
+		bufferRef.current = [];
 
-                                                        const [firstPage, ...rest] = existing.pages;
+		if (typeof window === "undefined") {
+			return;
+		}
 
-                                                        return {
-                                                                pageParams: existing.pageParams,
-                                                                pages: [
-                                                                        {
-                                                                                ...firstPage,
-                                                                                logs: [normalized, ...firstPage.logs],
-                                                                        },
-                                                                        ...rest,
-                                                                ],
-                                                        } satisfies InfiniteData<LogListResult>;
-                                                },
-                                        );
-                                } catch (error) {
-                                        console.error("Failed to process log event", error);
-                                }
-                        });
+		let stop = false;
+		let source: EventSource | null = null;
+		let reconnectTimeout: ReturnType<typeof setTimeout> | undefined;
 
-                        source.onerror = () => {
-                                source?.close();
+		const connect = () => {
+			if (stop) return;
 
-                                if (stop) return;
+			const url = new URL("/admin/logs/stream", window.location.origin);
 
-                                reconnectTimeout = setTimeout(connect, 3000);
-                        };
-                };
+			if (queryFilters.providerId) {
+				url.searchParams.set("providerId", queryFilters.providerId);
+			}
 
-                connect();
+			if (queryFilters.level) {
+				url.searchParams.set("level", queryFilters.level);
+			}
 
-                return () => {
-                        stop = true;
+			if (sinceRef.current) {
+				url.searchParams.set("since", sinceRef.current);
+			}
 
-                        if (reconnectTimeout) {
-                                clearTimeout(reconnectTimeout);
-                        }
+			source = new EventSource(url.toString(), { withCredentials: true });
 
-                        source?.close();
-                };
-        }, [queryClient, queryFilters, queryKey]);
+			source.addEventListener("log", (event) => {
+				const message = event as MessageEvent<string>;
+
+				try {
+					const payload = JSON.parse(message.data) as StreamLogPayload;
+
+					const normalized: LogEntry = {
+						...payload,
+						ts: new Date(payload.ts),
+						data: payload.data ?? null,
+					};
+
+					if (isInitialLoadingRef.current) {
+						bufferRef.current = [
+							normalized,
+							...bufferRef.current.filter(
+								(entry) => entry.id !== normalized.id,
+							),
+						];
+						return;
+					}
+
+					applyLogs([normalized]);
+				} catch (error) {
+					console.error("Failed to process log event", error);
+				}
+			});
+
+			source.onerror = () => {
+				source?.close();
+
+				if (stop) return;
+
+				reconnectTimeout = setTimeout(connect, 3000);
+			};
+		};
+
+		connect();
+
+		return () => {
+			stop = true;
+
+			if (reconnectTimeout) {
+				clearTimeout(reconnectTimeout);
+			}
+
+			source?.close();
+		};
+	}, [applyLogs, queryFilters]);
 }
