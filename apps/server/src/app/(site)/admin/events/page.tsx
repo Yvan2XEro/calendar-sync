@@ -2,16 +2,13 @@
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import {
-        type InfiniteData,
         type QueryClient,
-        useInfiniteQuery,
         useMutation,
         useQuery,
         useQueryClient,
 } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-        Calendar,
         CalendarClock,
         CalendarDays,
         Clock,
@@ -85,6 +82,14 @@ import {
         SelectValue,
 } from "@/components/ui/select";
 import {
+        Pagination,
+        PaginationContent,
+        PaginationItem,
+        PaginationLink,
+        PaginationNext,
+        PaginationPrevious,
+} from "@/components/ui/pagination";
+import {
         Sheet,
         SheetContent,
         SheetDescription,
@@ -133,18 +138,23 @@ const statusActions: Array<{
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 
-type EventsListInput = NonNullable<RouterInputs["events"]["list"]>;
+const DEFAULT_PAGE_SIZE = 25;
+
+type EventsListInput = RouterInputs["events"]["list"];
+type EventsListFilters = Omit<NonNullable<EventsListInput>, "page" | "limit">;
 type EventsListOutput = RouterOutputs["events"]["list"];
 type EventListItem = EventsListOutput["items"][number];
-type EventsInfiniteData = InfiniteData<EventsListOutput>;
 type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
 type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
 
 const adminEventKeys = {
         all: ["adminEvents"] as const,
-        list: (input: RouterInputs["events"]["list"]) =>
-                [...adminEventKeys.all, "list", input ?? null] as const,
+        list: (params: {
+                filters: EventsListFilters | null;
+                page: number;
+                limit: number;
+        }) => [...adminEventKeys.all, "list", params] as const,
 } as const;
 
 type Filters = {
@@ -276,8 +286,8 @@ function formatDisplayDate(value: string | Date | null | undefined) {
         return format(date, "MMM d, yyyy p");
 }
 
-function buildListInput(filters: Filters): RouterInputs["events"]["list"] {
-        const input: EventsListInput = {};
+function buildListInput(filters: Filters): EventsListFilters | undefined {
+        const input: EventsListFilters = {};
         if (filters.q.trim()) input.q = filters.q.trim();
         if (filters.status !== "all") input.status = filters.status;
         if (filters.providerId) input.providerId = filters.providerId;
@@ -306,17 +316,14 @@ function patchEventsInCache(
         patch: Partial<EventListItem>,
 ) {
         const idSet = new Set(ids);
-        queryClient.setQueryData<EventsInfiniteData>(queryKey, (previous) => {
+        queryClient.setQueryData<EventsListOutput>(queryKey, (previous) => {
                 if (!previous) return previous;
                 return {
                         ...previous,
-                        pages: previous.pages.map((page) => ({
-                                ...page,
-                                items: page.items.map((item) =>
-                                        idSet.has(item.id) ? { ...item, ...patch } : item,
-                                ),
-                        })),
-                } satisfies EventsInfiniteData;
+                        items: previous.items.map((item) =>
+                                idSet.has(item.id) ? { ...item, ...patch } : item,
+                        ),
+                } satisfies EventsListOutput;
         });
 }
 
@@ -325,17 +332,14 @@ function replaceEventInCache(
         queryKey: unknown,
         updated: EventListItem,
 ) {
-        queryClient.setQueryData<EventsInfiniteData>(queryKey, (previous) => {
+        queryClient.setQueryData<EventsListOutput>(queryKey, (previous) => {
                 if (!previous) return previous;
                 return {
                         ...previous,
-                        pages: previous.pages.map((page) => ({
-                                ...page,
-                                items: page.items.map((item) =>
-                                        item.id === updated.id ? updated : item,
-                                ),
-                        })),
-                } satisfies EventsInfiniteData;
+                        items: previous.items.map((item) =>
+                                item.id === updated.id ? updated : item,
+                        ),
+                } satisfies EventsListOutput;
         });
 }
 
@@ -384,7 +388,19 @@ export default function AdminEventsPage() {
                 );
         }, [filters]);
 
-        const listInput = useMemo(() => buildListInput(filters), [filters]);
+        const listFilters = useMemo(() => buildListInput(filters), [filters]);
+
+        const [page, setPage] = useState(1);
+        const [limit, setLimit] = useState(DEFAULT_PAGE_SIZE);
+
+        const listParams = useMemo(
+                () => ({
+                        ...((listFilters ?? {}) as EventsListFilters),
+                        page,
+                        limit,
+                }),
+                [limit, listFilters, page],
+        );
 
         useEffect(() => {
                 if (skipSearchSyncRef.current) {
@@ -421,45 +437,53 @@ export default function AdminEventsPage() {
         });
 
         const listQueryKey = useMemo(
-                () => adminEventKeys.list(listInput),
-                [listInput],
+                () => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
+                [limit, listFilters, page],
         );
 
-        const eventsQuery = useInfiniteQuery({
+        const eventsQuery = useQuery({
                 queryKey: listQueryKey,
-                initialPageParam: undefined as EventsListInput["cursor"],
-                getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-                queryFn: ({ pageParam }) => {
-                        const queryInput: RouterInputs["events"]["list"] = {
-                                ...(listInput ?? {}),
-                                cursor: pageParam ?? undefined,
-                        };
-
-                        return trpcClient.events.list.query(queryInput);
-                },
+                queryFn: () => trpcClient.events.list.query(listParams),
+                keepPreviousData: true,
         });
 
-        const events = useMemo(
-                () =>
-                        eventsQuery.data?.pages.flatMap((page) => page.items) ??
-                        [],
-                [eventsQuery.data?.pages],
-        );
+        const events = eventsQuery.data?.items ?? [];
+        const total = eventsQuery.data?.total ?? 0;
+        const currentPage = eventsQuery.data?.page ?? page;
+        const currentLimit = eventsQuery.data?.limit ?? limit;
+        const safeLimit = currentLimit > 0 ? currentLimit : DEFAULT_PAGE_SIZE;
+        const totalPages = total > 0 ? Math.max(1, Math.ceil(total / safeLimit)) : 1;
+        const summaryStart =
+                total === 0 || events.length === 0
+                        ? 0
+                        : (currentPage - 1) * safeLimit + 1;
+        const summaryEnd =
+                total === 0 || events.length === 0
+                        ? 0
+                        : Math.min(total, summaryStart + events.length - 1);
+
+        useEffect(() => {
+                if (!eventsQuery.data) return;
+                if (eventsQuery.data.limit !== limit) {
+                        setLimit(eventsQuery.data.limit);
+                }
+        }, [eventsQuery.data, limit]);
+
+        const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+        useEffect(() => {
+                setPage(1);
+                setSelectedIds([]);
+        }, [listFilters]);
 
         const eventIdSet = useMemo(
                 () => new Set(events.map((event) => event.id)),
                 [events],
         );
 
-        const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
         useEffect(() => {
                 setSelectedIds((prev) => prev.filter((id) => eventIdSet.has(id)));
         }, [eventIdSet]);
-
-        useEffect(() => {
-                setSelectedIds([]);
-        }, [listInput]);
 
         const [detailId, setDetailId] = useState<string | null>(null);
         const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -470,30 +494,6 @@ export default function AdminEventsPage() {
                 () => events.find((event) => event.id === detailId) ?? null,
                 [detailId, events],
         );
-
-        const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-        useEffect(() => {
-                const sentinel = sentinelRef.current;
-                if (!sentinel) return undefined;
-                if (!eventsQuery.hasNextPage) return undefined;
-
-                const observer = new IntersectionObserver((entries) => {
-                        const entry = entries[0];
-                        if (
-                                entry?.isIntersecting &&
-                                eventsQuery.hasNextPage &&
-                                !eventsQuery.isFetchingNextPage
-                        ) {
-                                eventsQuery.fetchNextPage().catch(() => {
-                                        /* handled by react-query */
-                                });
-                        }
-                });
-
-                observer.observe(sentinel);
-                return () => observer.disconnect();
-        }, [eventsQuery]);
 
         const handleSearchChange = useCallback(
                 (event: ChangeEvent<HTMLInputElement>) => {
@@ -632,7 +632,7 @@ export default function AdminEventsPage() {
                         trpcClient.events.updateStatus.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
                         patchEventsInCache(queryClient, listQueryKey, [variables.id], {
                                 status: variables.status,
                                 updatedAt: new Date().toISOString() as unknown as Date,
@@ -664,7 +664,7 @@ export default function AdminEventsPage() {
                         trpcClient.events.bulkUpdateStatus.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
                         patchEventsInCache(queryClient, listQueryKey, variables.ids, {
                                 status: variables.status,
                                 updatedAt: new Date().toISOString() as unknown as Date,
@@ -701,7 +701,7 @@ export default function AdminEventsPage() {
                         trpcClient.events.update.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
                         const patch: Partial<EventListItem> = {
                                 updatedAt: new Date().toISOString() as unknown as Date,
                         };
@@ -1081,8 +1081,9 @@ export default function AdminEventsPage() {
                                                                                         aria-label="Select all events"
                                                                                 />
                                                                         </TableHead>
-                                                                        <TableHead>Event</TableHead>
-                                                                        <TableHead>Schedule</TableHead>
+                                                                        <TableHead className="min-w-[260px]">
+                                                                                Event
+                                                                        </TableHead>
                                                                         <TableHead>Provider</TableHead>
                                                                         <TableHead>Status</TableHead>
                                                                         <TableHead>Priority</TableHead>
@@ -1109,10 +1110,10 @@ export default function AdminEventsPage() {
                                                                                                         aria-label={`Select event ${event.title}`}
                                                                                                 />
                                                                                         </TableCell>
-                                                                                        <TableCell>
-                                                                                                <div className="flex flex-col gap-1">
-                                                                                                        <div className="flex items-center gap-2">
-                                                                                                                <span className="font-medium">
+                                                                                        <TableCell className="max-w-[420px]">
+                                                                                                <div className="flex flex-col gap-2">
+                                                                                                        <div className="flex flex-wrap items-center gap-2">
+                                                                                                                <span className="font-medium leading-tight text-sm sm:text-base line-clamp-2 break-words">
                                                                                                                         {event.title}
                                                                                                                 </span>
                                                                                                                 {event.isAllDay ? (
@@ -1129,34 +1130,40 @@ export default function AdminEventsPage() {
                                                                                                                                 className="gap-1"
                                                                                                                         >
                                                                                                                                 <Tag className="size-3" />
-                                                                                                                                {event.flag.label}
+                                                                                                                                <span className="min-w-0 break-words">
+                                                                                                                                        {event.flag.label}
+                                                                                                                                </span>
                                                                                                                         </Badge>
                                                                                                                 ) : null}
                                                                                                         </div>
                                                                                                         {event.description ? (
-                                                                                                                <p className="line-clamp-2 text-muted-foreground text-sm">
+                                                                                                                <p className="line-clamp-2 text-muted-foreground text-sm leading-snug break-words">
                                                                                                                         {event.description}
                                                                                                                 </p>
                                                                                                         ) : null}
-                                                                                                        {event.location ? (
-                                                                                                                <p className="flex items-center gap-1 text-muted-foreground text-xs">
-                                                                                                                        <MapPin className="size-3" />
-                                                                                                                        {event.location}
-                                                                                                                </p>
-                                                                                                        ) : null}
-                                                                                                </div>
-                                                                                        </TableCell>
-                                                                                        <TableCell>
-                                                                                                <div className="flex flex-col gap-1 text-sm">
-                                                                                                        <span className="flex items-center gap-1">
-                                                                                                                <Calendar className="size-3" />
-                                                                                                                {formatDisplayDate(event.startAt)}
-                                                                                                        </span>
-                                                                                                        {event.endAt ? (
-                                                                                                                <span className="flex items-center gap-1 text-muted-foreground">
-                                                                                                                        <Clock className="size-3" />
-                                                                                                                        {formatDisplayDate(event.endAt)}
+                                                                                                        <div className="flex flex-col gap-1 text-muted-foreground text-xs leading-5">
+                                                                                                                <span className="flex min-w-0 flex-wrap items-center gap-1">
+                                                                                                                        <CalendarClock className="size-3 shrink-0" />
+                                                                                                                        <span className="min-w-0 break-words">
+                                                                                                                                {formatDisplayDate(event.startAt)}
+                                                                                                                        </span>
                                                                                                                 </span>
+                                                                                                                {event.endAt ? (
+                                                                                                                        <span className="flex min-w-0 flex-wrap items-center gap-1">
+                                                                                                                                <Clock className="size-3 shrink-0" />
+                                                                                                                                <span className="min-w-0 break-words">
+                                                                                                                                        {formatDisplayDate(event.endAt)}
+                                                                                                                                </span>
+                                                                                                                        </span>
+                                                                                                                ) : null}
+                                                                                                        </div>
+                                                                                                        {event.location ? (
+                                                                                                                <p className="flex min-w-0 flex-wrap items-center gap-1 text-muted-foreground text-xs leading-tight">
+                                                                                                                        <MapPin className="size-3 shrink-0" />
+                                                                                                                        <span className="min-w-0 break-words line-clamp-2">
+                                                                                                                                {event.location}
+                                                                                                                        </span>
+                                                                                                                </p>
                                                                                                         ) : null}
                                                                                                 </div>
                                                                                         </TableCell>
@@ -1251,8 +1258,8 @@ export default function AdminEventsPage() {
                                                                 >
                                                                         <CardHeader className="space-y-3">
                                                                                 <div className="flex items-start justify-between gap-3">
-                                                                                        <div className="flex flex-col gap-2">
-                                                                                                <div className="flex items-center gap-2">
+                                                                                        <div className="flex flex-col gap-3">
+                                                                                                <div className="flex flex-wrap items-center gap-2">
                                                                                                         <Checkbox
                                                                                                                 checked={isSelected}
                                                                                                                 onCheckedChange={(checked) =>
@@ -1268,10 +1275,44 @@ export default function AdminEventsPage() {
                                                                                                         <Badge variant={statusOptionMap[event.status].badgeVariant}>
                                                                                                                 {statusOptionMap[event.status].label}
                                                                                                         </Badge>
+                                                                                                        {event.isAllDay ? (
+                                                                                                                <Badge variant="outline" className="uppercase">
+                                                                                                                        All-day
+                                                                                                                </Badge>
+                                                                                                        ) : null}
+                                                                                                        {event.flag ? (
+                                                                                                                <Badge variant="secondary" className="gap-1">
+                                                                                                                        <Tag className="size-3" />
+                                                                                                                        <span className="min-w-0 break-words">
+                                                                                                                                {event.flag.label}
+                                                                                                                        </span>
+                                                                                                                </Badge>
+                                                                                                        ) : null}
                                                                                                 </div>
-                                                                                                <CardTitle className="text-xl">
+                                                                                                <CardTitle className="text-xl leading-tight line-clamp-2 break-words">
                                                                                                         {event.title}
                                                                                                 </CardTitle>
+                                                                                                {event.description ? (
+                                                                                                        <CardDescription className="line-clamp-3 text-sm leading-snug break-words">
+                                                                                                                {event.description}
+                                                                                                        </CardDescription>
+                                                                                                ) : null}
+                                                                                                <div className="space-y-1 text-sm text-muted-foreground">
+                                                                                                        <p className="flex min-w-0 flex-wrap items-center gap-2">
+                                                                                                                <CalendarClock className="size-4 shrink-0" />
+                                                                                                                <span className="min-w-0 break-words">
+                                                                                                                        {formatDisplayDate(event.startAt)}
+                                                                                                                </span>
+                                                                                                        </p>
+                                                                                                        {event.endAt ? (
+                                                                                                                <p className="flex min-w-0 flex-wrap items-center gap-2">
+                                                                                                                        <Clock className="size-4 shrink-0" />
+                                                                                                                        <span className="min-w-0 break-words">
+                                                                                                                                {formatDisplayDate(event.endAt)}
+                                                                                                                        </span>
+                                                                                                                </p>
+                                                                                                        ) : null}
+                                                                                                </div>
                                                                                         </div>
                                                                                         <DropdownMenu>
                                                                                                 <DropdownMenuTrigger asChild>
@@ -1307,25 +1348,10 @@ export default function AdminEventsPage() {
                                                                                                 </DropdownMenuContent>
                                                                                         </DropdownMenu>
                                                                                 </div>
-                                                                                {event.description ? (
-                                                                                        <CardDescription className="line-clamp-3 text-sm">
-                                                                                                {event.description}
-                                                                                        </CardDescription>
-                                                                                ) : null}
                                                                         </CardHeader>
                                                                         <CardContent className="flex flex-1 flex-col gap-4">
-                                                                                <div className="flex flex-wrap gap-3 text-sm">
+                                                                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground sm:text-sm">
                                                                                         <span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1">
-                                                                                                <CalendarClock className="size-4" />
-                                                                                                {formatDisplayDate(event.startAt)}
-                                                                                        </span>
-                                                                                        {event.endAt ? (
-                                                                                                <span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1 text-muted-foreground">
-                                                                                                        <Clock className="size-4" />
-                                                                                                        {formatDisplayDate(event.endAt)}
-                                                                                                </span>
-                                                                                        ) : null}
-                                                                                        <span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1 text-muted-foreground">
                                                                                                 <Tag className="size-4" />
                                                                                                 Priority {event.priority}
                                                                                         </span>
@@ -1335,13 +1361,18 @@ export default function AdminEventsPage() {
                                                                                         </span>
                                                                                 </div>
                                                                                 <div className="space-y-2 text-sm">
-                                                                                        <p className="flex items-center gap-2 text-muted-foreground">
-                                                                                                <MapPin className="size-4" />
-                                                                                                {event.location ?? "No location"}
+                                                                                        <p className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
+                                                                                                <MapPin className="size-4 shrink-0" />
+                                                                                                <span className="min-w-0 break-words">
+                                                                                                        {event.location ?? "No location"}
+                                                                                                </span>
                                                                                         </p>
-                                                                                        <p className="flex items-center gap-2 text-muted-foreground">
-                                                                                                <CalendarDays className="size-4" />
-                                                                                                Provider: {event.provider?.name ?? "Unassigned"}
+                                                                                        <p className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
+                                                                                                <CalendarDays className="size-4 shrink-0" />
+                                                                                                <span className="min-w-0 break-words">
+                                                                                                        Provider: {event.provider?.name ?? "Unassigned"}
+                                                                                                        {event.provider?.category ? ` • ${event.provider.category}` : ""}
+                                                                                                </span>
                                                                                         </p>
                                                                                         {event.flag ? (
                                                                                                 <p className="flex items-center gap-2 text-muted-foreground">
@@ -1350,7 +1381,7 @@ export default function AdminEventsPage() {
                                                                                                 </p>
                                                                                         ) : null}
                                                                                 </div>
-                                                                                <div className="mt-auto flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                                                                <div className="mt-auto flex flex-wrap gap-2 break-all text-xs text-muted-foreground">
                                                                                         <span>ID: {event.id}</span>
                                                                                         {event.externalId ? (
                                                                                                 <span>Source #{event.externalId}</span>
@@ -1363,11 +1394,51 @@ export default function AdminEventsPage() {
                                         </div>
                                 )}
 
-                                <div ref={sentinelRef} className="h-12" aria-hidden />
-                                {eventsQuery.isFetchingNextPage ? (
-                                        <p className="text-center text-muted-foreground text-sm">
-                                                Loading more events…
-                                        </p>
+                                {eventsQuery.data && total > 0 ? (
+                                        <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                                <div className="text-muted-foreground text-sm">
+                                                        Showing {summaryStart} to {summaryEnd} of {total} events
+                                                </div>
+                                                <Pagination>
+                                                        <PaginationContent className="flex-wrap gap-1">
+                                                                <PaginationItem>
+                                                                        <PaginationPrevious
+                                                                                href="#"
+                                                                                onClick={(event) => {
+                                                                                        event.preventDefault();
+                                                                                        setPage((prev) => Math.max(1, prev - 1));
+                                                                                }}
+                                                                                aria-disabled={page === 1}
+                                                                                className={
+                                                                                        page === 1
+                                                                                                ? "pointer-events-none opacity-50"
+                                                                                                : undefined
+                                                                                }
+                                                                        />
+                                                                </PaginationItem>
+                                                                <PaginationItem>
+                                                                        <PaginationLink href="#" isActive>
+                                                                                {page}
+                                                                        </PaginationLink>
+                                                                </PaginationItem>
+                                                                <PaginationItem>
+                                                                        <PaginationNext
+                                                                                href="#"
+                                                                                onClick={(event) => {
+                                                                                        event.preventDefault();
+                                                                                        setPage((prev) => Math.min(totalPages, prev + 1));
+                                                                                }}
+                                                                                aria-disabled={page >= totalPages}
+                                                                                className={
+                                                                                        page >= totalPages
+                                                                                                ? "pointer-events-none opacity-50"
+                                                                                                : undefined
+                                                                                }
+                                                                        />
+                                                                </PaginationItem>
+                                                        </PaginationContent>
+                                                </Pagination>
+                                        </div>
                                 ) : null}
                         </section>
 
