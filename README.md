@@ -20,6 +20,10 @@ First, install the dependencies:
 ```bash
 bun install
 ```
+
+## Monitoring worker activity
+
+Administrators can open [`/admin/logs`](apps/server/src/app/(site)/admin/logs/page.tsx) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
 ## Database Setup
 
 This project uses PostgreSQL with Drizzle ORM.

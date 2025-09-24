@@ -18,19 +18,18 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
 			{ title: "Calendars", href: "/admin/cals", icon: CalendarDays },
 			{ title: "Users", href: "/admin/users", icon: Users },
-			{ title: "Providers", href: "/admin/providers", icon: Network },
-			//Implement the page
-			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
-		],
-	},
-	{
-		label: "Activities",
-		items: [
-			{ title: "Background", href: "/admin/background", icon: ShieldCheck },
-			{ title: "Jobs", href: "/admin/background/jobs", icon: BarChart3 },
-			{ title: "Logs", href: "/admin/background/logs", icon: MessageSquare },
-		],
-	},
+                        { title: "Providers", href: "/admin/providers", icon: Network },
+                        { title: "Flags", href: "/admin/flags", icon: FlagIcon },
+                        { title: "Logs", href: "/admin/logs", icon: MessageSquare },
+                ],
+        },
+        {
+                label: "Activities",
+                items: [
+                        { title: "Background", href: "/admin/background", icon: ShieldCheck },
+                        { title: "Jobs", href: "/admin/background/jobs", icon: BarChart3 },
+                ],
+        },
 ];
 
 export const highlights = [

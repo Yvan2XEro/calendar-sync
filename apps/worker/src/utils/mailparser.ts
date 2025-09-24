@@ -2,6 +2,8 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
 
+import { logger as baseLogger, type WorkerLogger } from "../services/log";
+
 export const EventSqlInsertSchema = z.object({
 	provider_id: z.string().min(1),
 	flag_id: z.string().optional().nullable(),
@@ -71,8 +73,11 @@ type ExtractEventInput = {
 
 export async function extractEventFromEmail(
 	input: ExtractEventInput,
+	options?: { logger?: WorkerLogger },
 ): Promise<EventSqlInsert | null> {
 	const { provider_id, text, html, messageId } = input;
+	const log =
+		options?.logger ?? baseLogger.withContext({ providerId: provider_id });
 
 	const plainFromHtml = stripHtml(html);
 	const combined = [text?.trim(), plainFromHtml && !text ? plainFromHtml : ""]
@@ -106,7 +111,7 @@ Follow the rules strictly and respond with either:
 		});
 		raw = (modelText || "").trim();
 	} catch (err) {
-		console.error("[extractEventFromEmail] AI error:", err);
+		log.error("AI extraction error", { error: err });
 		return null;
 	}
 
@@ -122,48 +127,50 @@ Follow the rules strictly and respond with either:
 
 	const parsed = EventSqlInsertSchema.safeParse(json);
 	if (!parsed.success) {
-		console.warn(
-			"[extractEventFromEmail] Validation failed:",
-			parsed.error.flatten(),
-		);
+		log.warn("Extraction validation failed", {
+			issues: parsed.error.flatten(),
+		});
 		return null;
 	}
 
 	const start = new Date(parsed.data.start_at);
 	const end = parsed.data.end_at ? new Date(parsed.data.end_at) : null;
 	if (end && end < start) {
-		console.warn(
-			"[extractEventFromEmail] end_at < start_at — ignoring as non-event",
-		);
+		log.warn("Extraction end before start", {
+			startAt: parsed.data.start_at,
+			endAt: parsed.data.end_at,
+		});
 		return null;
 	}
 
 	return parsed.data;
 }
 
-function tryParseJsonObject(maybeJson: string): any | null {
+function tryParseJsonObject(maybeJson: string): Record<string, unknown> | null {
 	const direct = safeJsonParse(maybeJson);
-	if (direct && typeof direct === "object" && !Array.isArray(direct))
-		return direct;
+	if (isPlainRecord(direct)) return direct;
 
 	const fence = maybeJson.match(/```json\s*([\s\S]*?)```/i)?.[1];
 	if (fence) {
 		const fenced = safeJsonParse(fence);
-		if (fenced && typeof fenced === "object" && !Array.isArray(fenced))
-			return fenced;
+		if (isPlainRecord(fenced)) return fenced;
 	}
 
 	const braces = maybeJson.match(/\{[\s\S]*\}$/)?.[0];
 	if (braces) {
 		const obj = safeJsonParse(braces);
-		if (obj && typeof obj === "object" && !Array.isArray(obj)) return obj;
+		if (isPlainRecord(obj)) return obj;
 	}
 	return null;
 }
-function safeJsonParse(s: string) {
+function safeJsonParse(s: string): unknown {
 	try {
 		return JSON.parse(s);
 	} catch {
 		return null;
 	}
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

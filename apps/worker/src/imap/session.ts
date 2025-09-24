@@ -1,11 +1,12 @@
 import type { FetchMessageObject } from "imapflow";
 import { ImapFlow } from "imapflow";
+import type { ParsedMail } from "mailparser";
 import { simpleParser } from "mailparser";
 import type { WorkerConfig } from "../config/env";
 import { insertEvent } from "../db/events";
 import { getProviderCursor, setProviderCursor } from "../db/providers";
 import { createBackoff } from "../services/backoff";
-import { logger } from "../services/log";
+import type { WorkerLogger } from "../services/log";
 import type { ImapConfig, ProviderRecord } from "../types/provider";
 import { extractEventFromEmail } from "../utils/mailparser";
 import { extractEventFromEmailFake } from "../utils/mailparser-test";
@@ -17,6 +18,7 @@ const extractEvent = !IS_DEV
 export interface ProviderSessionOptions {
 	workerConfig: WorkerConfig;
 	signal: AbortSignal;
+	logger: WorkerLogger;
 }
 
 const FETCH_OPTIONS = {
@@ -79,21 +81,22 @@ async function handleMessage(
 	provider: ProviderRecord,
 	mailbox: string,
 	message: FetchMessageObject,
+	log: WorkerLogger,
 ): Promise<boolean> {
 	const uid = message.uid;
 	if (!uid) return false;
 
 	const source = message.source;
 	if (!source) {
-		logger.warn(`[${provider.id}] Message UID ${uid} missing raw source.`);
+		log.warn("Message missing raw source", { uid, mailbox });
 		return false;
 	}
 
-	let parsed;
+	let parsed: ParsedMail;
 	try {
 		parsed = await simpleParser(source as Buffer);
 	} catch (error) {
-		logger.error(`[${provider.id}] Failed to parse message UID ${uid}.`, error);
+		log.error("Failed to parse message", { uid, mailbox, error });
 		return false;
 	}
 
@@ -103,17 +106,18 @@ async function handleMessage(
 	const html = safeHtmlToString(parsed.html ?? undefined);
 	const internalDate = normalizeInternalDate(message.internalDate);
 
-	const extraction = await extractEvent({
-		provider_id: provider.id,
-		text,
-		html,
-		messageId,
-	});
+	const extraction = await extractEvent(
+		{
+			provider_id: provider.id,
+			text,
+			html,
+			messageId,
+		},
+		{ logger: log },
+	);
 
 	if (!extraction) {
-		logger.debug(
-			`[${provider.id}] Message UID ${uid} did not produce an event payload.`,
-		);
+		log.debug("Message did not produce event payload", { uid, mailbox });
 		return false;
 	}
 
@@ -142,15 +146,19 @@ async function handleMessage(
 	});
 
 	if (!inserted) {
-		logger.debug(
-			`[${provider.id}] Event with external_id=${externalId} already existed.`,
-		);
+		log.debug("Event already existed", {
+			externalId,
+			uid,
+			mailbox,
+		});
 		return false;
 	}
 
-	logger.info(
-		`[${provider.id}] Inserted event ${inserted.id} from UID ${uid}.`,
-	);
+	log.info("Inserted event", {
+		eventId: inserted.id,
+		uid,
+		mailbox,
+	});
 	return true;
 }
 
@@ -160,12 +168,13 @@ export async function runProviderSession(
 ): Promise<void> {
 	const imapConfig = provider.config.imap;
 	if (!imapConfig) {
-		logger.warn(`[${provider.id}] Missing IMAP configuration. Skipping.`);
+		options.logger.warn("Missing IMAP configuration");
 		return;
 	}
 
 	const mailbox = resolveMailbox(imapConfig);
 	const { workerConfig, signal } = options;
+	const sessionLogger = options.logger;
 	const backoff = createBackoff({
 		minMs: workerConfig.backoffMinMs,
 		maxMs: workerConfig.backoffMaxMs,
@@ -189,27 +198,31 @@ export async function runProviderSession(
 			});
 
 			client.on("error", (err) => {
-				logger.error(`[${provider.id}] IMAP client error.`, err);
+				sessionLogger.error("IMAP client error", { error: err });
 			});
 
 			try {
-				logger.info(
-					`[${provider.id}] Connecting to ${imapConfig.host}:${imapConfig.port}…`,
-				);
+				sessionLogger.info("Connecting to IMAP host", {
+					host: imapConfig.host,
+					port: imapConfig.port,
+					secure: imapConfig.secure,
+				});
 				await client.connect();
 				const mailboxInfo = await client.mailboxOpen(mailbox);
-				logger.info(
-					`[${provider.id}] Mailbox ${mailbox} opened (exists=${mailboxInfo.exists}, uidNext=${mailboxInfo.uidNext}).`,
-				);
+				sessionLogger.info("Mailbox opened", {
+					mailbox,
+					exists: mailboxInfo.exists,
+					uidNext: mailboxInfo.uidNext ?? null,
+				});
 
 				const storedCursor = await getProviderCursor(provider.id);
 				let lastSeenUid: number;
 				if (storedCursor == null) {
 					lastSeenUid = (mailboxInfo.uidNext ?? 1) - 1;
 					await setProviderCursor(provider.id, lastSeenUid);
-					logger.debug(
-						`[${provider.id}] Initialized cursor to UID ${lastSeenUid}.`,
-					);
+					sessionLogger.debug("Initialized cursor", {
+						cursor: lastSeenUid,
+					});
 				} else {
 					lastSeenUid = storedCursor;
 				}
@@ -241,7 +254,12 @@ export async function runProviderSession(
 						if (!message.uid) continue;
 
 						try {
-							const inserted = await handleMessage(provider, mailbox, message);
+							const inserted = await handleMessage(
+								provider,
+								mailbox,
+								message,
+								sessionLogger,
+							);
 							if (inserted) processed += 1;
 						} catch (error) {
 							fetchRequested = true;
@@ -253,9 +271,10 @@ export async function runProviderSession(
 					}
 
 					if (processed > 0) {
-						logger.info(
-							`[${provider.id}] Processed ${processed} new message(s). Cursor=${lastSeenUid}.`,
-						);
+						sessionLogger.info("Processed new messages", {
+							processed,
+							cursor: lastSeenUid,
+						});
 					}
 					lastPollAt = Date.now();
 				};
@@ -272,7 +291,9 @@ export async function runProviderSession(
 
 				client.on("exists", () => {
 					void triggerProcess(true).catch((error) => {
-						logger.error(`[${provider.id}] Error on exists->process`, error);
+						sessionLogger.error("Error processing new messages", {
+							error,
+						});
 					});
 				});
 
@@ -283,10 +304,9 @@ export async function runProviderSession(
 						await client.idle();
 					} catch (error) {
 						if (stopRequested) break;
-						logger.warn(
-							`[${provider.id}] IDLE loop interrupted.`,
-							error instanceof Error ? error.message : error,
-						);
+						sessionLogger.warn("IDLE loop interrupted", {
+							error,
+						});
 					}
 
 					await triggerProcess(false);
@@ -298,17 +318,17 @@ export async function runProviderSession(
 
 				backoff.reset();
 				if (stopRequested) {
-					logger.info(`[${provider.id}] Session stopping.`);
+					sessionLogger.info("Session stopping");
 				}
 			} catch (error) {
 				if (stopRequested) {
-					logger.debug(`[${provider.id}] Session aborted.`);
+					sessionLogger.debug("Session aborted");
 				} else {
-					logger.error(`[${provider.id}] IMAP session error.`, error);
+					sessionLogger.error("IMAP session error", { error });
 					const delay = await backoff.wait();
-					logger.info(
-						`[${provider.id}] Reconnecting after ${delay}ms backoff.`,
-					);
+					sessionLogger.info("Reconnecting after backoff", {
+						delayMs: delay,
+					});
 					try {
 						await client.logout();
 					} catch {}
@@ -328,9 +348,9 @@ export async function runProviderSession(
 
 			if (!stopRequested) {
 				const delay = await backoff.wait();
-				logger.info(
-					`[${provider.id}] Connection closed. Reconnecting after ${delay}ms.`,
-				);
+				sessionLogger.info("Connection closed. Reconnecting", {
+					delayMs: delay,
+				});
 			}
 		}
 	} finally {
