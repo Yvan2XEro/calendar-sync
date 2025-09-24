@@ -14,9 +14,9 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-        providers: providersRouter,
-        adminUsers: adminUsersRouter,
-        adminFlags: adminFlagsRouter,
-        adminLogs: adminLogsRouter,
+	providers: providersRouter,
+	adminUsers: adminUsersRouter,
+	adminFlags: adminFlagsRouter,
+	adminLogs: adminLogsRouter,
 });
 export type AppRouter = typeof appRouter;

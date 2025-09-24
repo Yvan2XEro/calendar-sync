@@ -1,11 +1,11 @@
 import { auth } from "./auth";
 
 export async function createContext(req: Request) {
-        const session = await auth.api.getSession({
-                headers: req.headers,
-        });
-        return {
-                session,
+	const session = await auth.api.getSession({
+		headers: req.headers,
+	});
+	return {
+		session,
 	};
 }
 

@@ -1,15 +1,15 @@
 import { sql } from "drizzle-orm";
 import {
-        bigserial,
-        boolean,
-        check,
-        integer,
-        jsonb,
-        pgEnum,
-        pgTable,
-        text,
-        timestamp,
-        uniqueIndex,
+	bigserial,
+	boolean,
+	check,
+	integer,
+	jsonb,
+	pgEnum,
+	pgTable,
+	text,
+	timestamp,
+	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 import { organization } from "./auth";
@@ -84,10 +84,10 @@ export const flag = pgTable(
 );
 
 export const event = pgTable(
-        "event",
-        {
-                id: text("id").primaryKey(),
-                provider: text("provider_id")
+	"event",
+	{
+		id: text("id").primaryKey(),
+		provider: text("provider_id")
 			.notNull()
 			.references(() => provider.id, { onDelete: "set null" }),
 		flag: text("flag_id").references(() => flag.id, { onDelete: "set null" }),
@@ -126,13 +126,13 @@ export type Provider = typeof provider.$inferSelect;
 export type Event = typeof event.$inferSelect;
 
 export const workerLog = pgTable("worker_log", {
-        id: bigserial("id", { mode: "number" }).primaryKey(),
-        ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
-        level: text("level").notNull(),
-        providerId: text("provider_id"),
-        sessionId: text("session_id"),
-        msg: text("msg").notNull(),
-        data: jsonb("data").$type<Record<string, unknown> | null>(),
+	id: bigserial("id", { mode: "number" }).primaryKey(),
+	ts: timestamp("ts", { withTimezone: true }).notNull().defaultNow(),
+	level: text("level").notNull(),
+	providerId: text("provider_id"),
+	sessionId: text("session_id"),
+	msg: text("msg").notNull(),
+	data: jsonb("data").$type<Record<string, unknown> | null>(),
 });
 
 export type WorkerLog = typeof workerLog.$inferSelect;
