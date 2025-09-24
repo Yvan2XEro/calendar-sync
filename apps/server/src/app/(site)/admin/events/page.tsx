@@ -447,7 +447,10 @@ export default function AdminEventsPage() {
                 keepPreviousData: true,
         });
 
-        const events = eventsQuery.data?.items ?? [];
+        const events = useMemo(
+                () => eventsQuery.data?.items ?? [],
+                [eventsQuery.data?.items],
+        );
         const total = eventsQuery.data?.total ?? 0;
         const currentPage = eventsQuery.data?.page ?? page;
         const currentLimit = eventsQuery.data?.limit ?? limit;
@@ -482,7 +485,10 @@ export default function AdminEventsPage() {
         );
 
         useEffect(() => {
-                setSelectedIds((prev) => prev.filter((id) => eventIdSet.has(id)));
+                setSelectedIds((prev) => {
+                        const filtered = prev.filter((id) => eventIdSet.has(id));
+                        return filtered.length === prev.length ? prev : filtered;
+                });
         }, [eventIdSet]);
 
         const [detailId, setDetailId] = useState<string | null>(null);
