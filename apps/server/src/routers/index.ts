@@ -2,6 +2,7 @@ import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
 import { adminFlagsRouter } from "./admin-flags";
 import { adminLogsRouter } from "./admin-logs";
 import { adminUsersRouter } from "./admin-users";
+import { eventsRouter } from "./events";
 import { providersRouter } from "./providers";
 
 export const appRouter = router({
@@ -15,6 +16,7 @@ export const appRouter = router({
 		};
 	}),
 	providers: providersRouter,
+	events: eventsRouter,
 	adminUsers: adminUsersRouter,
 	adminFlags: adminFlagsRouter,
 	adminLogs: adminLogsRouter,

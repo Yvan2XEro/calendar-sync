@@ -1,0 +1,464 @@
+import { TRPCError } from "@trpc/server";
+import {
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	isNull,
+	lt,
+	lte,
+	or,
+	type SQL,
+	sql,
+} from "drizzle-orm";
+import { z } from "zod";
+
+import { db } from "@/db";
+import { event, flag, provider } from "@/db/schema/app";
+import { adminProcedure, router } from "@/lib/trpc";
+
+const DEFAULT_PAGE_SIZE = 25;
+
+const cursorSchema = z.object({
+	startAt: z.string().datetime({ offset: true }),
+	createdAt: z.string().datetime({ offset: true }),
+	id: z.string().min(1),
+});
+
+const filterSchema = z.object({
+	providerId: z.string().min(1).optional(),
+	status: z.enum(event.status.enumValues).optional(),
+	flagId: z.union([z.string().min(1), z.literal(null)]).optional(),
+	isPublished: z.boolean().optional(),
+	isAllDay: z.boolean().optional(),
+	q: z.string().trim().min(1).optional(),
+	startFrom: z
+		.string()
+		.datetime({ offset: true })
+		.transform((value) => new Date(value))
+		.optional(),
+	startTo: z
+		.string()
+		.datetime({ offset: true })
+		.transform((value) => new Date(value))
+		.optional(),
+	priority: z
+		.object({
+			min: z.number().int().min(1).max(5).optional(),
+			max: z.number().int().min(1).max(5).optional(),
+		})
+		.refine(
+			(range) =>
+				range.min === undefined ||
+				range.max === undefined ||
+				range.min <= range.max,
+		)
+		.optional(),
+});
+
+type CursorInput = z.infer<typeof cursorSchema>;
+type EventFilterInput = z.infer<typeof filterSchema>;
+
+type EventSelection = {
+	id: string;
+	providerId: string;
+	flagId: string | null;
+	title: string;
+	description: string | null;
+	location: string | null;
+	url: string | null;
+	startAt: Date;
+	endAt: Date | null;
+	isAllDay: boolean;
+	isPublished: boolean;
+	externalId: string | null;
+	metadata: Record<string, unknown>;
+	status: (typeof event.status.enumValues)[number];
+	priority: number;
+	createdAt: Date;
+	updatedAt: Date;
+	providerName: string | null;
+	providerCategory: string | null;
+	providerStatus: (typeof provider.status.enumValues)[number] | null;
+	flagLabel: string | null;
+	flagPriority: number | null;
+};
+
+const listInputSchema = filterSchema.extend({
+	limit: z.number().int().min(1).max(200).optional(),
+	cursor: cursorSchema.optional(),
+});
+
+type ListInput = z.infer<typeof listInputSchema>;
+
+const getEventInput = z.object({
+	id: z.string().min(1),
+});
+
+const updateStatusInput = z.object({
+	id: z.string().min(1),
+	status: z.enum(event.status.enumValues),
+});
+
+const bulkUpdateStatusInput = z.object({
+	ids: z.array(z.string().min(1)).min(1),
+	status: z.enum(event.status.enumValues),
+});
+
+const updateEventInput = z
+	.object({
+		id: z.string().min(1),
+		title: z.string().trim().min(1).optional(),
+		description: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		location: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		url: z.string().trim().url().nullable().optional(),
+		startAt: z
+			.string()
+			.datetime({ offset: true })
+			.transform((value) => new Date(value))
+			.optional(),
+		endAt: z
+			.union([
+				z
+					.string()
+					.datetime({ offset: true })
+					.transform((value) => new Date(value)),
+				z.null(),
+			])
+			.optional(),
+		isAllDay: z.boolean().optional(),
+		isPublished: z.boolean().optional(),
+		externalId: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		flagId: z.union([z.string().min(1), z.null()]).optional(),
+		providerId: z.string().min(1).optional(),
+		priority: z.number().int().min(1).max(5).optional(),
+		metadata: z.record(z.string(), z.unknown()).optional(),
+	})
+	.refine(
+		(data) =>
+			!(data.startAt && data.endAt instanceof Date) ||
+			data.endAt.getTime() >= data.startAt.getTime(),
+		{
+			message: "End time must be after start time",
+			path: ["endAt"],
+		},
+	);
+
+const statsInputSchema = filterSchema;
+
+const eventSelection = {
+	id: event.id,
+	providerId: event.provider,
+	flagId: event.flag,
+	title: event.title,
+	description: event.description,
+	location: event.location,
+	url: event.url,
+	startAt: event.startAt,
+	endAt: event.endAt,
+	isAllDay: event.isAllDay,
+	isPublished: event.isPublished,
+	externalId: event.externalId,
+	metadata: event.metadata,
+	status: event.status,
+	priority: event.priority,
+	createdAt: event.createdAt,
+	updatedAt: event.updatedAt,
+	providerName: provider.name,
+	providerCategory: provider.category,
+	providerStatus: provider.status,
+	flagLabel: flag.label,
+	flagPriority: flag.priority,
+};
+
+function buildEventFilters(filters: EventFilterInput): SQL[] {
+	const clauses: SQL[] = [];
+
+	if (filters.providerId) {
+		clauses.push(eq(event.provider, filters.providerId));
+	}
+
+	if (filters.status) {
+		clauses.push(eq(event.status, filters.status));
+	}
+
+	if (filters.flagId !== undefined) {
+		if (filters.flagId === null) {
+			clauses.push(isNull(event.flag));
+		} else {
+			clauses.push(eq(event.flag, filters.flagId));
+		}
+	}
+
+	if (filters.isPublished !== undefined) {
+		clauses.push(eq(event.isPublished, filters.isPublished));
+	}
+
+	if (filters.isAllDay !== undefined) {
+		clauses.push(eq(event.isAllDay, filters.isAllDay));
+	}
+
+	if (filters.startFrom) {
+		clauses.push(gte(event.startAt, filters.startFrom));
+	}
+
+	if (filters.startTo) {
+		clauses.push(lte(event.startAt, filters.startTo));
+	}
+
+	if (filters.priority) {
+		if (filters.priority.min !== undefined) {
+			clauses.push(gte(event.priority, filters.priority.min));
+		}
+		if (filters.priority.max !== undefined) {
+			clauses.push(lte(event.priority, filters.priority.max));
+		}
+	}
+
+	if (filters.q) {
+		const term = `%${filters.q}%`;
+		clauses.push(
+			or(
+				ilike(event.title, term),
+				ilike(event.description, term),
+				ilike(event.location, term),
+			),
+		);
+	}
+
+	return clauses;
+}
+
+function buildCursorClause(cursor: CursorInput): SQL {
+	const startAt = new Date(cursor.startAt);
+	const createdAt = new Date(cursor.createdAt);
+	const id = cursor.id;
+
+	return or(
+		lt(event.startAt, startAt),
+		and(eq(event.startAt, startAt), lt(event.createdAt, createdAt)),
+		and(
+			eq(event.startAt, startAt),
+			eq(event.createdAt, createdAt),
+			lt(event.id, id),
+		),
+	);
+}
+
+function mapEvent(row: EventSelection) {
+	return {
+		id: row.id,
+		providerId: row.providerId,
+		flagId: row.flagId,
+		title: row.title,
+		description: row.description,
+		location: row.location,
+		url: row.url,
+		startAt: row.startAt,
+		endAt: row.endAt,
+		isAllDay: row.isAllDay,
+		isPublished: row.isPublished,
+		externalId: row.externalId,
+		metadata: row.metadata ?? {},
+		status: row.status,
+		priority: row.priority,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+		provider: row.providerName
+			? {
+					id: row.providerId,
+					name: row.providerName,
+					category: row.providerCategory,
+					status: row.providerStatus,
+				}
+			: null,
+		flag: row.flagId
+			? {
+					id: row.flagId,
+					label: row.flagLabel,
+					priority: row.flagPriority,
+				}
+			: null,
+	} as const;
+}
+
+async function fetchEventOrThrow(id: string) {
+	const rows = await db
+		.select(eventSelection)
+		.from(event)
+		.leftJoin(provider, eq(provider.id, event.provider))
+		.leftJoin(flag, eq(flag.id, event.flag))
+		.where(eq(event.id, id))
+		.limit(1);
+
+	const row = rows.at(0);
+	if (!row) {
+		throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+	}
+
+	return mapEvent(row as EventSelection);
+}
+
+export const eventsRouter = router({
+	list: adminProcedure
+		.input(listInputSchema.optional())
+		.query(async ({ input }) => {
+			const filters: ListInput = { ...(input ?? {}) };
+			const { cursor, limit: requestedLimit, ...restFilters } = filters;
+			const limit = requestedLimit ?? DEFAULT_PAGE_SIZE;
+
+			const whereClauses = buildEventFilters(restFilters as EventFilterInput);
+
+			if (cursor) {
+				whereClauses.push(buildCursorClause(cursor));
+			}
+
+			const rows = await db
+				.select(eventSelection)
+				.from(event)
+				.leftJoin(provider, eq(provider.id, event.provider))
+				.leftJoin(flag, eq(flag.id, event.flag))
+				.where(whereClauses.length ? and(...whereClauses) : undefined)
+				.orderBy(desc(event.startAt), desc(event.createdAt), desc(event.id))
+				.limit(limit + 1);
+
+			const hasMore = rows.length > limit;
+			const limitedRows = hasMore ? rows.slice(0, limit) : rows;
+			const items = limitedRows.map((row) => mapEvent(row as EventSelection));
+
+			const lastItem = items.at(-1) ?? null;
+			const nextCursor =
+				hasMore && lastItem
+					? {
+							startAt: lastItem.startAt.toISOString(),
+							createdAt: lastItem.createdAt.toISOString(),
+							id: lastItem.id,
+						}
+					: null;
+
+			return {
+				items,
+				nextCursor,
+			} as const;
+		}),
+	get: adminProcedure.input(getEventInput).query(async ({ input }) => {
+		return fetchEventOrThrow(input.id);
+	}),
+	updateStatus: adminProcedure
+		.input(updateStatusInput)
+		.mutation(async ({ input }) => {
+			const [updated] = await db
+				.update(event)
+				.set({ status: input.status, updatedAt: sql`now()` })
+				.where(eq(event.id, input.id))
+				.returning({ id: event.id });
+
+			if (!updated) {
+				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			}
+
+			return fetchEventOrThrow(updated.id);
+		}),
+	bulkUpdateStatus: adminProcedure
+		.input(bulkUpdateStatusInput)
+		.mutation(async ({ input }) => {
+			const ids = Array.from(new Set(input.ids));
+
+			if (ids.length === 0) {
+				return { updatedCount: 0 } as const;
+			}
+
+			const result = await db
+				.update(event)
+				.set({ status: input.status, updatedAt: sql`now()` })
+				.where(inArray(event.id, ids))
+				.returning({ id: event.id });
+
+			return { updatedCount: result.length } as const;
+		}),
+	update: adminProcedure.input(updateEventInput).mutation(async ({ input }) => {
+		const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+
+		if (input.title !== undefined) updates.title = input.title;
+		if (input.description !== undefined)
+			updates.description = input.description;
+		if (input.location !== undefined) updates.location = input.location;
+		if (input.url !== undefined) updates.url = input.url;
+		if (input.startAt !== undefined) updates.startAt = input.startAt;
+		if (input.endAt !== undefined) updates.endAt = input.endAt;
+		if (input.isAllDay !== undefined) updates.isAllDay = input.isAllDay;
+		if (input.isPublished !== undefined)
+			updates.isPublished = input.isPublished;
+		if (input.externalId !== undefined) updates.externalId = input.externalId;
+		if (input.flagId !== undefined) updates.flag = input.flagId;
+		if (input.providerId !== undefined) updates.provider = input.providerId;
+		if (input.priority !== undefined) updates.priority = input.priority;
+		if (input.metadata !== undefined) updates.metadata = input.metadata;
+
+		if (Object.keys(updates).length === 1) {
+			return fetchEventOrThrow(input.id);
+		}
+
+		const [updated] = await db
+			.update(event)
+			.set(updates)
+			.where(eq(event.id, input.id))
+			.returning({ id: event.id });
+
+		if (!updated) {
+			throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+		}
+
+		return fetchEventOrThrow(updated.id);
+	}),
+	stats: adminProcedure
+		.input(statsInputSchema.optional())
+		.query(async ({ input }) => {
+			const filters = input ?? {};
+			const whereClauses = buildEventFilters(filters);
+
+			const grouped = await db
+				.select({
+					status: event.status,
+					value: count(event.id),
+				})
+				.from(event)
+				.where(whereClauses.length ? and(...whereClauses) : undefined)
+				.groupBy(event.status);
+
+			const byStatus = Object.fromEntries(
+				event.status.enumValues.map((status) => [
+					status,
+					grouped.find((row) => row.status === status)?.value ?? 0,
+				]),
+			) as Record<(typeof event.status.enumValues)[number], number>;
+
+			const total = Object.values(byStatus).reduce(
+				(acc, value) => acc + value,
+				0,
+			);
+
+			return {
+				total,
+				byStatus,
+			} as const;
+		}),
+});
