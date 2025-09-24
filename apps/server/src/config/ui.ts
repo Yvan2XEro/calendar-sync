@@ -3,9 +3,10 @@ import {
 	CalendarDays,
 	FlagIcon,
 	LayoutDashboard,
+	ListTodo,
+	MapPin,
 	MessageSquare,
 	Network,
-	Settings,
 	ShieldCheck,
 	Users,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Logs", href: "/admin/logs", icon: MessageSquare },
+			{ title: "Events queue", href: "/admin/events", icon: ListTodo },
 		],
 	},
 	{
