@@ -28,7 +28,8 @@ export async function insertEvent(
       is_all_day,
       is_published,
       metadata,
-      priority
+      priority,
+      status
     ) VALUES (
       ${id},
       ${values.provider_id},
@@ -43,7 +44,8 @@ export async function insertEvent(
       ${values.is_all_day ?? false},
       ${values.is_published ?? false},
       ${JSON.stringify(values.metadata ?? {})}::jsonb,
-      ${values.priority ?? 3}
+      ${values.priority ?? 3},
+      ${values.status ?? "pending"}
     )
     ON CONFLICT (provider_id, external_id) DO NOTHING
     RETURNING id

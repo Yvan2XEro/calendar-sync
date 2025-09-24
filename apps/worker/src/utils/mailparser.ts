@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { logger as baseLogger, type WorkerLogger } from "../services/log";
 
+export const eventStatuses = ["pending", "approved", "rejected"] as const;
+
 export const EventSqlInsertSchema = z.object({
 	provider_id: z.string().min(1),
 	flag_id: z.string().optional().nullable(),
@@ -22,6 +24,8 @@ export const EventSqlInsertSchema = z.object({
 	metadata: z.record(z.string(), z.any()).default({}),
 
 	priority: z.number().int().min(1).max(5).default(3),
+
+	status: z.enum(eventStatuses).default("pending"),
 });
 export type EventSqlInsert = z.infer<typeof EventSqlInsertSchema>;
 
