@@ -1,8 +1,9 @@
-import { sql } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import {
 	bigserial,
 	boolean,
 	check,
+	index,
 	integer,
 	jsonb,
 	pgEnum,
@@ -19,6 +20,12 @@ export const providerStatus = pgEnum("provider_status", [
 	"beta",
 	"active",
 	"deprecated",
+]);
+
+export const eventStatus = pgEnum("event_status", [
+	"pending",
+	"approved",
+	"rejected",
 ]);
 
 export const provider = pgTable("provider", {
@@ -105,6 +112,8 @@ export const event = pgTable(
 			.default(sql`'{}'::jsonb`)
 			.notNull(),
 
+		status: eventStatus("status").notNull().default("pending"),
+
 		priority: integer("priority").notNull().default(3),
 
 		createdAt: timestamp("created_at", { withTimezone: true })
@@ -119,6 +128,32 @@ export const event = pgTable(
 		eventProviderExternalIdUnique: uniqueIndex(
 			"event_provider_id_external_id_unique",
 		).on(table.provider, table.externalId),
+		statusStartAtIdx: index("status_start_at_idx").on(
+			table.status,
+			desc(table.startAt),
+		),
+		statusCreatedAtIdx: index("status_created_at_idx").on(
+			table.status,
+			desc(table.createdAt),
+		),
+		providerStartAtIdx: index("provider_start_at_idx").on(
+			table.provider,
+			desc(table.startAt),
+		),
+		providerCreatedAtIdx: index("provider_created_at_idx").on(
+			table.provider,
+			desc(table.createdAt),
+		),
+		providerStatusStartAtIdx: index("provider_status_start_at_idx").on(
+			table.provider,
+			table.status,
+			desc(table.startAt),
+		),
+		providerStatusCreatedAtIdx: index("provider_status_created_at_idx").on(
+			table.provider,
+			table.status,
+			desc(table.createdAt),
+		),
 	}),
 );
 

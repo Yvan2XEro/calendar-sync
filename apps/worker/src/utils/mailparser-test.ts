@@ -1,6 +1,10 @@
 import { faker } from "@faker-js/faker";
 import type { WorkerLogger } from "../services/log";
-import { type EventSqlInsert, EventSqlInsertSchema } from "./mailparser";
+import {
+	type EventSqlInsert,
+	EventSqlInsertSchema,
+	eventStatuses,
+} from "./mailparser";
 
 type ExtractEventInput = {
 	provider_id: string;
@@ -81,6 +85,7 @@ export async function extractEventFromEmailFake(
 			seed: seedBasis,
 		},
 		priority: faker.number.int({ min: 1, max: 5 }),
+		status: faker.helpers.arrayElement(eventStatuses),
 	};
 
 	const parsed = EventSqlInsertSchema.safeParse(payload);
