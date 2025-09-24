@@ -1,18 +1,17 @@
 import { TRPCError } from "@trpc/server";
 import {
-	and,
-	count,
-	desc,
-	eq,
-	gte,
-	ilike,
-	inArray,
-	isNull,
-	lt,
-	lte,
-	or,
-	type SQL,
-	sql,
+        and,
+        count,
+        desc,
+        eq,
+        gte,
+        ilike,
+        inArray,
+        isNull,
+        lte,
+        or,
+        type SQL,
+        sql,
 } from "drizzle-orm";
 import { z } from "zod";
 
@@ -22,15 +21,9 @@ import { adminProcedure, router } from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
 
-const cursorSchema = z.object({
-	startAt: z.string().datetime({ offset: true }),
-	createdAt: z.string().datetime({ offset: true }),
-	id: z.string().min(1),
-});
-
 const filterSchema = z.object({
-	providerId: z.string().min(1).optional(),
-	status: z.enum(event.status.enumValues).optional(),
+        providerId: z.string().min(1).optional(),
+        status: z.enum(event.status.enumValues).optional(),
 	flagId: z.union([z.string().min(1), z.literal(null)]).optional(),
 	isPublished: z.boolean().optional(),
 	isAllDay: z.boolean().optional(),
@@ -59,7 +52,6 @@ const filterSchema = z.object({
 		.optional(),
 });
 
-type CursorInput = z.infer<typeof cursorSchema>;
 type EventFilterInput = z.infer<typeof filterSchema>;
 
 type EventSelection = {
@@ -88,8 +80,8 @@ type EventSelection = {
 };
 
 const listInputSchema = filterSchema.extend({
-	limit: z.number().int().min(1).max(200).optional(),
-	cursor: cursorSchema.optional(),
+        page: z.number().int().min(1).optional(),
+        limit: z.number().int().min(1).max(200).optional(),
 });
 
 type ListInput = z.infer<typeof listInputSchema>;
@@ -247,22 +239,6 @@ function buildEventFilters(filters: EventFilterInput): SQL[] {
 	return clauses;
 }
 
-function buildCursorClause(cursor: CursorInput): SQL {
-	const startAt = new Date(cursor.startAt);
-	const createdAt = new Date(cursor.createdAt);
-	const id = cursor.id;
-
-	return or(
-		lt(event.startAt, startAt),
-		and(eq(event.startAt, startAt), lt(event.createdAt, createdAt)),
-		and(
-			eq(event.startAt, startAt),
-			eq(event.createdAt, createdAt),
-			lt(event.id, id),
-		),
-	);
-}
-
 function mapEvent(row: EventSelection) {
 	return {
 		id: row.id,
@@ -318,47 +294,54 @@ async function fetchEventOrThrow(id: string) {
 }
 
 export const eventsRouter = router({
-	list: adminProcedure
-		.input(listInputSchema.optional())
-		.query(async ({ input }) => {
-			const filters: ListInput = { ...(input ?? {}) };
-			const { cursor, limit: requestedLimit, ...restFilters } = filters;
-			const limit = requestedLimit ?? DEFAULT_PAGE_SIZE;
+        list: adminProcedure
+                .input(listInputSchema.optional())
+                .query(async ({ input }) => {
+                        const filters: ListInput = { ...(input ?? {}) };
+                        const {
+                                page: requestedPage,
+                                limit: requestedLimit,
+                                ...restFilters
+                        } = filters;
+                        const page = requestedPage ?? 1;
+                        const limit = requestedLimit ?? DEFAULT_PAGE_SIZE;
 
-			const whereClauses = buildEventFilters(restFilters as EventFilterInput);
+                        const whereClauses = buildEventFilters(
+                                restFilters as EventFilterInput,
+                        );
+                        const whereCondition =
+                                whereClauses.length > 0 ? and(...whereClauses) : undefined;
 
-			if (cursor) {
-				whereClauses.push(buildCursorClause(cursor));
-			}
+                        const [totalResult, rows] = await Promise.all([
+                                db
+                                        .select({ value: count() })
+                                        .from(event)
+                                        .where(whereCondition),
+                                db
+                                        .select(eventSelection)
+                                        .from(event)
+                                        .leftJoin(provider, eq(provider.id, event.provider))
+                                        .leftJoin(flag, eq(flag.id, event.flag))
+                                        .where(whereCondition)
+                                        .orderBy(
+                                                desc(event.startAt),
+                                                desc(event.createdAt),
+                                                desc(event.id),
+                                        )
+                                        .offset((page - 1) * limit)
+                                        .limit(limit),
+                        ]);
 
-			const rows = await db
-				.select(eventSelection)
-				.from(event)
-				.leftJoin(provider, eq(provider.id, event.provider))
-				.leftJoin(flag, eq(flag.id, event.flag))
-				.where(whereClauses.length ? and(...whereClauses) : undefined)
-				.orderBy(desc(event.startAt), desc(event.createdAt), desc(event.id))
-				.limit(limit + 1);
+                        const total = Number(totalResult.at(0)?.value ?? 0);
+                        const items = rows.map((row) => mapEvent(row as EventSelection));
 
-			const hasMore = rows.length > limit;
-			const limitedRows = hasMore ? rows.slice(0, limit) : rows;
-			const items = limitedRows.map((row) => mapEvent(row as EventSelection));
-
-			const lastItem = items.at(-1) ?? null;
-			const nextCursor =
-				hasMore && lastItem
-					? {
-							startAt: lastItem.startAt.toISOString(),
-							createdAt: lastItem.createdAt.toISOString(),
-							id: lastItem.id,
-						}
-					: null;
-
-			return {
-				items,
-				nextCursor,
-			} as const;
-		}),
+                        return {
+                                items,
+                                total,
+                                page,
+                                limit,
+                        } as const;
+                }),
 	get: adminProcedure.input(getEventInput).query(async ({ input }) => {
 		return fetchEventOrThrow(input.id);
 	}),
