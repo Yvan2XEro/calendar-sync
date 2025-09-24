@@ -2,8 +2,11 @@
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import {
-        QueryClient,
         type InfiniteData,
+        type QueryClient,
+        useInfiniteQuery,
+        useMutation,
+        useQuery,
         useQueryClient,
 } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -98,7 +101,8 @@ import {
         TableRow,
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { trpc } from "@/lib/trpc-client";
+import { providerKeys } from "@/lib/query-keys/providers";
+import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
 const EVENT_FILTER_STORAGE_KEY = "admin.events.filters";
@@ -133,6 +137,15 @@ type EventsListInput = NonNullable<RouterInputs["events"]["list"]>;
 type EventsListOutput = RouterOutputs["events"]["list"];
 type EventListItem = EventsListOutput["items"][number];
 type EventsInfiniteData = InfiniteData<EventsListOutput>;
+type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
+type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
+type UpdateEventInput = RouterInputs["events"]["update"];
+
+const adminEventKeys = {
+        all: ["adminEvents"] as const,
+        list: (input: RouterInputs["events"]["list"]) =>
+                [...adminEventKeys.all, "list", input ?? null] as const,
+} as const;
 
 type Filters = {
         q: string;
@@ -402,16 +415,29 @@ export default function AdminEventsPage() {
                 }
         }, [filters, hasInitialQuery, searchParams, searchParamsString]);
 
-        const providersQuery = trpc.providers.catalog.list.useQuery();
-
-        const eventsQuery = trpc.events.list.useInfiniteQuery(listInput, {
-                getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+        const providersQuery = useQuery({
+                queryKey: providerKeys.catalog.list(),
+                queryFn: () => trpcClient.providers.catalog.list.query(),
         });
 
         const listQueryKey = useMemo(
-                () => trpc.events.list.infiniteQueryKey(listInput),
+                () => adminEventKeys.list(listInput),
                 [listInput],
         );
+
+        const eventsQuery = useInfiniteQuery({
+                queryKey: listQueryKey,
+                initialPageParam: undefined as EventsListInput["cursor"],
+                getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+                queryFn: ({ pageParam }) => {
+                        const queryInput: RouterInputs["events"]["list"] = {
+                                ...(listInput ?? {}),
+                                cursor: pageParam ?? undefined,
+                        };
+
+                        return trpcClient.events.list.query(queryInput);
+                },
+        });
 
         const events = useMemo(
                 () =>
@@ -601,7 +627,9 @@ export default function AdminEventsPage() {
                 setEditValues(null);
         }, []);
 
-        const updateStatusMutation = trpc.events.updateStatus.useMutation({
+        const updateStatusMutation = useMutation({
+                mutationFn: (variables: UpdateStatusInput) =>
+                        trpcClient.events.updateStatus.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
                         const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
@@ -631,7 +659,9 @@ export default function AdminEventsPage() {
                 },
         });
 
-        const bulkStatusMutation = trpc.events.bulkUpdateStatus.useMutation({
+        const bulkStatusMutation = useMutation({
+                mutationFn: (variables: BulkUpdateStatusInput) =>
+                        trpcClient.events.bulkUpdateStatus.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
                         const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
@@ -666,7 +696,9 @@ export default function AdminEventsPage() {
                 },
         });
 
-        const updateEventMutation = trpc.events.update.useMutation({
+        const updateEventMutation = useMutation({
+                mutationFn: (variables: UpdateEventInput) =>
+                        trpcClient.events.update.mutate(variables),
                 onMutate: async (variables) => {
                         await queryClient.cancelQueries({ queryKey: listQueryKey });
                         const previous = queryClient.getQueryData<EventsInfiniteData>(listQueryKey);
