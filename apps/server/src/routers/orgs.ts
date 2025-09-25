@@ -191,7 +191,7 @@ export const orgsRouter = router({
                         applySearchFilter(filters, input.search);
                         const whereCondition = filters.length === 1 ? filters[0] : and(...filters);
 
-                        let query = db
+                        const baseQuery = db
                                 .select({
                                         id: organization.id,
                                         name: organization.name,
@@ -212,12 +212,12 @@ export const orgsRouter = router({
                                 .offset(offset)
                                 .limit(limit + 1);
 
-                        query =
+                        const orderedQuery =
                                 sortValue === "members-desc"
-                                        ? query.orderBy(desc(membersCountExpr), asc(organization.name))
-                                        : query.orderBy(asc(organization.name));
+                                        ? baseQuery.orderBy(desc(membersCountExpr), asc(organization.name))
+                                        : baseQuery.orderBy(asc(organization.name));
 
-                        const rows = await query;
+                        const rows = await orderedQuery;
 
                         const items = rows.slice(0, limit).map((row) => ({
                                 id: row.id,
