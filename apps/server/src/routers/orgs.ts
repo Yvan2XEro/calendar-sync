@@ -1,7 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import {
         SQL,
-        alias,
         and,
         asc,
         desc,
@@ -10,6 +9,7 @@ import {
         isNull,
         sql,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
