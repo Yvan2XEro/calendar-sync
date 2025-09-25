@@ -1,7 +1,9 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ChevronsUpDown, X } from "lucide-react";
 import * as React from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,20 +18,16 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-	useLinkOrgProviders,
-	useOrgProviderList,
-} from "@/hooks/use-provider-admin";
+import { useLinkOrgProviders } from "@/hooks/use-provider-admin";
+import { providerKeys } from "@/lib/query-keys/providers";
+import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
 
-type ProviderSummary = {
-	id: string;
-	name: string;
-	category: string;
-	status: string;
-	lastTestedAt: Date | string | null;
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type OrgProviderListOutput = RouterOutputs["providers"]["org"]["list"];
+type MultiSelectOption = OrgProviderListOutput["catalogSummary"][number] & {
+        description?: string | null;
 };
-
-type MultiSelectOption = ProviderSummary & { description?: string | null };
 
 type MultiSelectProps = {
 	options: MultiSelectOption[];
@@ -222,21 +220,25 @@ export type CalendarProvidersCardProps = {
 };
 
 export function CalendarProvidersCard({ slug }: CalendarProvidersCardProps) {
-	const providersQuery = useOrgProviderList(slug);
-	const linkMutation = useLinkOrgProviders(slug);
+        const providersQuery = useQuery<OrgProviderListOutput>({
+                queryKey: providerKeys.org.list(slug),
+                queryFn: () => trpcClient.providers.org.list.query({ slug }),
+                enabled: Boolean(slug),
+        });
+        const linkMutation = useLinkOrgProviders(slug);
 
-	const options: MultiSelectOption[] = React.useMemo(
-		() =>
-			providersQuery.data?.catalogSummary.map((item) => ({
+        const options: MultiSelectOption[] = React.useMemo(
+                () =>
+                        providersQuery.data?.catalogSummary.map((item) => ({
 				id: item.id,
 				name: item.name,
 				category: item.category,
 				status: item.status,
-				description: null,
-				lastTestedAt: item.lastTestedAt ?? null,
-			})) ?? [],
-		[providersQuery.data?.catalogSummary],
-	);
+                                description: null,
+                                lastTestedAt: item.lastTestedAt,
+                        })) ?? [],
+                [providersQuery.data?.catalogSummary],
+        );
 
 	const initialSelection = React.useMemo(
 		() => providersQuery.data?.linkedProviderIds ?? [],

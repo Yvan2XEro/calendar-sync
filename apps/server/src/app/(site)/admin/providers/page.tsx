@@ -1,8 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
+import type { inferRouterOutputs } from "@trpc/server";
 
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -26,22 +28,28 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import {
-	useCatalogList,
-	useDeleteCatalogProvider,
-	useTestCatalogImap,
-	useTestCatalogSmtp,
+        useDeleteCatalogProvider,
+        useTestCatalogImap,
+        useTestCatalogSmtp,
 } from "@/hooks/use-provider-admin";
+import { providerKeys } from "@/lib/query-keys/providers";
+import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type CatalogListOutput = RouterOutputs["providers"]["catalog"]["list"];
 
 export default function ProvidersAdminPage() {
 	const router = useRouter();
-	const providersQuery = useCatalogList();
+        const providersQuery = useQuery<CatalogListOutput>({
+                queryKey: providerKeys.catalog.list(),
+                queryFn: () => trpcClient.providers.catalog.list.query(),
+        });
 	const imapTestMutation = useTestCatalogImap();
 	const smtpTestMutation = useTestCatalogSmtp();
 	const deleteMutation = useDeleteCatalogProvider();
 
-        const rows =
-                providersQuery.data ??
-                ([] as NonNullable<typeof providersQuery.data>);
+        const rows = providersQuery.data ?? [];
 
 	const renderStatusBadge = (status: string) => {
 		const normalized = status.toLowerCase();
