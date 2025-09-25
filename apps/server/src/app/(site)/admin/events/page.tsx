@@ -22,24 +22,9 @@ import {
         UserCheck,
         UserX,
 } from "lucide-react";
-import type {
-        ChangeEvent,
-        ComponentType,
-        FormEvent,
-        SVGProps,
-} from "react";
-import {
-        useCallback,
-        useEffect,
-        useMemo,
-        useRef,
-        useState,
-} from "react";
-import {
-        usePathname,
-        useRouter,
-        useSearchParams,
-} from "next/navigation";
+import type { ChangeEvent, ComponentType, FormEvent, SVGProps } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 
@@ -130,10 +115,10 @@ const statusActions: Array<{
         status: EventStatus;
         icon: ComponentType<SVGProps<SVGSVGElement>>;
 }> = [
-        { label: "Validate", status: "approved", icon: UserCheck },
-        { label: "Mark pending", status: "pending", icon: RefreshCcw },
-        { label: "Archive", status: "rejected", icon: UserX },
-];
+                { label: "Validate", status: "approved", icon: UserCheck },
+                { label: "Mark pending", status: "pending", icon: RefreshCcw },
+                { label: "Archive", status: "rejected", icon: UserX },
+        ];
 
 type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
@@ -301,10 +286,8 @@ function buildListInput(filters: Filters): EventsListFilters | undefined {
         }
         if (filters.priorityMin !== null || filters.priorityMax !== null) {
                 input.priority = {};
-                if (filters.priorityMin !== null)
-                        input.priority.min = filters.priorityMin;
-                if (filters.priorityMax !== null)
-                        input.priority.max = filters.priorityMax;
+                if (filters.priorityMin !== null) input.priority.min = filters.priorityMin;
+                if (filters.priorityMax !== null) input.priority.max = filters.priorityMax;
         }
         return Object.keys(input).length ? input : undefined;
 }
@@ -367,7 +350,8 @@ export default function AdminEventsPage() {
 
         const skipSearchSyncRef = useRef(false);
 
-        const storedFilters = typeof window !== "undefined" ? readStoredFilters() : null;
+        const storedFilters =
+                typeof window !== "undefined" ? readStoredFilters() : null;
 
         const [filters, setFilters] = useState<Filters>(() => {
                 if (hasInitialQuery) {
@@ -423,9 +407,10 @@ export default function AdminEventsPage() {
                         skipSearchSyncRef.current = false;
                         return;
                 }
-                const parsed = hasInitialQuery || searchParamsString
-                        ? parseFiltersFromSearchParams(searchParams)
-                        : defaultFilters;
+                const parsed =
+                        hasInitialQuery || searchParamsString
+                                ? parseFiltersFromSearchParams(searchParams)
+                                : defaultFilters;
                 if (!areFiltersEqual(filters, parsed)) {
                         setFilters(parsed);
                 }
@@ -457,9 +442,7 @@ export default function AdminEventsPage() {
         const safeLimit = currentLimit > 0 ? currentLimit : DEFAULT_PAGE_SIZE;
         const totalPages = total > 0 ? Math.max(1, Math.ceil(total / safeLimit)) : 1;
         const summaryStart =
-                total === 0 || events.length === 0
-                        ? 0
-                        : (currentPage - 1) * safeLimit + 1;
+                total === 0 || events.length === 0 ? 0 : (currentPage - 1) * safeLimit + 1;
         const summaryEnd =
                 total === 0 || events.length === 0
                         ? 0
@@ -513,15 +496,17 @@ export default function AdminEventsPage() {
                 setFilters((prev) => ({
                         ...prev,
                         status:
-                                value === "all" ||
-                                (eventStatuses as readonly string[]).includes(value)
+                                value === "all" || (eventStatuses as readonly string[]).includes(value)
                                         ? (value as Filters["status"])
                                         : prev.status,
                 }));
         }, []);
 
         const handleProviderChange = useCallback((value: string) => {
-                setFilters((prev) => ({ ...prev, providerId: value === "all" ? "" : value }));
+                setFilters((prev) => ({
+                        ...prev,
+                        providerId: value === "all" ? "" : value,
+                }));
         }, []);
 
         const handleDateChange = useCallback(
@@ -534,10 +519,9 @@ export default function AdminEventsPage() {
         );
 
         const handleToggleChange = useCallback(
-                (key: "publishedOnly" | "allDayOnly") =>
-                        (checked: boolean) => {
-                                setFilters((prev) => ({ ...prev, [key]: checked }));
-                        },
+                (key: "publishedOnly" | "allDayOnly") => (checked: boolean) => {
+                        setFilters((prev) => ({ ...prev, [key]: checked }));
+                },
                 [],
         );
 
@@ -585,18 +569,15 @@ export default function AdminEventsPage() {
                 [eventIdSet, events],
         );
 
-        const handleSelect = useCallback(
-                (id: string, checked: boolean) => {
-                        setSelectedIds((prev) => {
-                                if (checked) {
-                                        if (prev.includes(id)) return prev;
-                                        return [...prev, id];
-                                }
-                                return prev.filter((value) => value !== id);
-                        });
-                },
-                [],
-        );
+        const handleSelect = useCallback((id: string, checked: boolean) => {
+                setSelectedIds((prev) => {
+                        if (checked) {
+                                if (prev.includes(id)) return prev;
+                                return [...prev, id];
+                        }
+                        return prev.filter((value) => value !== id);
+                });
+        }, []);
 
         const handleOpenDetail = useCallback((id: string) => {
                 setDetailId(id);
@@ -606,26 +587,23 @@ export default function AdminEventsPage() {
                 setDetailId(null);
         }, []);
 
-        const handleEditOpen = useCallback(
-                (event: EventListItem) => {
-                        setEditingId(event.id);
-                        setEditValues({
-                                title: event.title,
-                                description: event.description ?? "",
-                                location: event.location ?? "",
-                                url: event.url ?? "",
-                                startAt: formatDateTimeLocal(event.startAt),
-                                endAt: formatDateTimeLocal(event.endAt),
-                                isAllDay: event.isAllDay,
-                                isPublished: event.isPublished,
-                                externalId: event.externalId ?? "",
-                                priority: event.priority,
-                                providerId: event.provider?.id ?? "",
-                        });
-                        setEditDialogOpen(true);
-                },
-                [],
-        );
+        const handleEditOpen = useCallback((event: EventListItem) => {
+                setEditingId(event.id);
+                setEditValues({
+                        title: event.title,
+                        description: event.description ?? "",
+                        location: event.location ?? "",
+                        url: event.url ?? "",
+                        startAt: formatDateTimeLocal(event.startAt),
+                        endAt: formatDateTimeLocal(event.endAt),
+                        isAllDay: event.isAllDay,
+                        isPublished: event.isPublished,
+                        externalId: event.externalId ?? "",
+                        priority: event.priority,
+                        providerId: event.provider?.id ?? "",
+                });
+                setEditDialogOpen(true);
+        }, []);
 
         const handleEditClose = useCallback(() => {
                 setEditDialogOpen(false);
@@ -682,9 +660,7 @@ export default function AdminEventsPage() {
                                 queryClient.setQueryData(listQueryKey, context.previous);
                         }
                         toast.error(
-                                error instanceof Error
-                                        ? error.message
-                                        : "Unable to update events",
+                                error instanceof Error ? error.message : "Unable to update events",
                         );
                 },
                 onSuccess: (result, variables) => {
@@ -716,27 +692,25 @@ export default function AdminEventsPage() {
                                 patch.description =
                                         typeof variables.description === "string"
                                                 ? variables.description
-                                                : variables.description ?? null;
+                                                : (variables.description ?? null);
                         if (variables.location !== undefined)
                                 patch.location =
                                         typeof variables.location === "string"
                                                 ? variables.location
-                                                : variables.location ?? null;
+                                                : (variables.location ?? null);
                         if (variables.url !== undefined)
                                 patch.url =
                                         typeof variables.url === "string"
                                                 ? variables.url
-                                                : variables.url ?? null;
+                                                : (variables.url ?? null);
                         if (variables.startAt !== undefined) patch.startAt = variables.startAt;
                         if (variables.endAt !== undefined) patch.endAt = variables.endAt;
-                        if (variables.isAllDay !== undefined)
-                                patch.isAllDay = variables.isAllDay;
+                        if (variables.isAllDay !== undefined) patch.isAllDay = variables.isAllDay;
                         if (variables.isPublished !== undefined)
                                 patch.isPublished = variables.isPublished;
                         if (variables.externalId !== undefined)
                                 patch.externalId = variables.externalId ?? null;
-                        if (variables.priority !== undefined)
-                                patch.priority = variables.priority;
+                        if (variables.priority !== undefined) patch.priority = variables.priority;
                         patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
                         return { previous };
                 },
@@ -745,9 +719,7 @@ export default function AdminEventsPage() {
                                 queryClient.setQueryData(listQueryKey, context.previous);
                         }
                         toast.error(
-                                error instanceof Error
-                                        ? error.message
-                                        : "Unable to update event",
+                                error instanceof Error ? error.message : "Unable to update event",
                         );
                 },
                 onSuccess: (updated) => {
@@ -789,10 +761,9 @@ export default function AdminEventsPage() {
                                 startAt: editValues.startAt
                                         ? new Date(editValues.startAt).toISOString()
                                         : undefined,
-                                endAt:
-                                        editValues.endAt
-                                                ? new Date(editValues.endAt).toISOString()
-                                                : null,
+                                endAt: editValues.endAt
+                                        ? new Date(editValues.endAt).toISOString()
+                                        : null,
                                 isAllDay: editValues.isAllDay,
                                 isPublished: editValues.isPublished,
                                 externalId: editValues.externalId.trim(),
@@ -831,17 +802,13 @@ export default function AdminEventsPage() {
                                                                 Event moderation
                                                         </CardTitle>
                                                         <CardDescription>
-                                                                Review synchronized events, adjust metadata, and
-                                                                update their publication state.
+                                                                Review synchronized events, adjust metadata, and update their
+                                                                publication state.
                                                         </CardDescription>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                         <Button
-                                                                variant={
-                                                                        filters.view === "table"
-                                                                                ? "default"
-                                                                                : "outline"
-                                                                }
+                                                                variant={filters.view === "table" ? "default" : "outline"}
                                                                 size="icon"
                                                                 aria-label="Table view"
                                                                 onClick={() => handleViewChange("table")}
@@ -849,11 +816,7 @@ export default function AdminEventsPage() {
                                                                 <TableIcon className="size-4" />
                                                         </Button>
                                                         <Button
-                                                                variant={
-                                                                        filters.view === "cards"
-                                                                                ? "default"
-                                                                                : "outline"
-                                                                }
+                                                                variant={filters.view === "cards" ? "default" : "outline"}
                                                                 size="icon"
                                                                 aria-label="Card view"
                                                                 onClick={() => handleViewChange("cards")}
@@ -930,7 +893,10 @@ export default function AdminEventsPage() {
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
                                                                 <div>
-                                                                        <Label htmlFor="events-published" className="text-sm font-medium">
+                                                                        <Label
+                                                                                htmlFor="events-published"
+                                                                                className="text-sm font-medium"
+                                                                        >
                                                                                 Published only
                                                                         </Label>
                                                                         <p className="text-xs text-muted-foreground">
@@ -945,7 +911,10 @@ export default function AdminEventsPage() {
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
                                                                 <div>
-                                                                        <Label htmlFor="events-allday" className="text-sm font-medium">
+                                                                        <Label
+                                                                                htmlFor="events-allday"
+                                                                                className="text-sm font-medium"
+                                                                        >
                                                                                 All-day events
                                                                         </Label>
                                                                         <p className="text-xs text-muted-foreground">
@@ -1023,9 +992,7 @@ export default function AdminEventsPage() {
                                                 <div className="flex items-center gap-2 text-sm">
                                                         <Checkbox
                                                                 checked={headerCheckboxState}
-                                                                onCheckedChange={(checked) =>
-                                                                        handleSelectAll(Boolean(checked))
-                                                                }
+                                                                onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
                                                         />
                                                         <span>
                                                                 {selectedIds.length} event
@@ -1087,9 +1054,7 @@ export default function AdminEventsPage() {
                                                                                         aria-label="Select all events"
                                                                                 />
                                                                         </TableHead>
-                                                                        <TableHead className="min-w-[260px]">
-                                                                                Event
-                                                                        </TableHead>
+                                                                        <TableHead className="min-w-[260px]">Event</TableHead>
                                                                         <TableHead>Provider</TableHead>
                                                                         <TableHead>Status</TableHead>
                                                                         <TableHead>Priority</TableHead>
@@ -1106,12 +1071,7 @@ export default function AdminEventsPage() {
                                                                                                 <Checkbox
                                                                                                         checked={isSelected}
                                                                                                         onCheckedChange={(checked) =>
-                                                                                                                handleSelect(
-                                                                                                                        event.id,
-                                                                                                                        Boolean(
-                                                                                                                                checked,
-                                                                                                                        ),
-                                                                                                                )
+                                                                                                                handleSelect(event.id, Boolean(checked))
                                                                                                         }
                                                                                                         aria-label={`Select event ${event.title}`}
                                                                                                 />
@@ -1123,18 +1083,12 @@ export default function AdminEventsPage() {
                                                                                                                         {event.title}
                                                                                                                 </span>
                                                                                                                 {event.isAllDay ? (
-                                                                                                                        <Badge
-                                                                                                                                variant="outline"
-                                                                                                                                className="uppercase"
-                                                                                                                        >
+                                                                                                                        <Badge variant="outline" className="uppercase">
                                                                                                                                 All-day
                                                                                                                         </Badge>
                                                                                                                 ) : null}
                                                                                                                 {event.flag ? (
-                                                                                                                        <Badge
-                                                                                                                                variant="secondary"
-                                                                                                                                className="gap-1"
-                                                                                                                        >
+                                                                                                                        <Badge variant="secondary" className="gap-1">
                                                                                                                                 <Tag className="size-3" />
                                                                                                                                 <span className="min-w-0 break-words">
                                                                                                                                         {event.flag.label}
@@ -1186,7 +1140,9 @@ export default function AdminEventsPage() {
                                                                                                 </div>
                                                                                         </TableCell>
                                                                                         <TableCell>
-                                                                                                <Badge variant={statusOptionMap[event.status].badgeVariant}>
+                                                                                                <Badge
+                                                                                                        variant={statusOptionMap[event.status].badgeVariant}
+                                                                                                >
                                                                                                         {statusOptionMap[event.status].label}
                                                                                                 </Badge>
                                                                                         </TableCell>
@@ -1195,11 +1151,7 @@ export default function AdminEventsPage() {
                                                                                         </TableCell>
                                                                                         <TableCell>
                                                                                                 <Badge
-                                                                                                        variant={
-                                                                                                                event.isPublished
-                                                                                                                        ? "default"
-                                                                                                                        : "outline"
-                                                                                                        }
+                                                                                                        variant={event.isPublished ? "default" : "outline"}
                                                                                                 >
                                                                                                         {event.isPublished ? "Published" : "Draft"}
                                                                                                 </Badge>
@@ -1212,17 +1164,12 @@ export default function AdminEventsPage() {
                                                                                                                 </Button>
                                                                                                         </DropdownMenuTrigger>
                                                                                                         <DropdownMenuContent align="end" className="w-48">
-                                                                                                                <DropdownMenuLabel>
-                                                                                                                        Moderation
-                                                                                                                </DropdownMenuLabel>
+                                                                                                                <DropdownMenuLabel>Moderation</DropdownMenuLabel>
                                                                                                                 {statusActions.map((action) => (
                                                                                                                         <DropdownMenuItem
                                                                                                                                 key={action.status}
                                                                                                                                 onClick={() =>
-                                                                                                                                        handleStatusAction(
-                                                                                                                                                event.id,
-                                                                                                                                                action.status,
-                                                                                                                                        )
+                                                                                                                                        handleStatusAction(event.id, action.status)
                                                                                                                                 }
                                                                                                                         >
                                                                                                                                 <action.icon className="mr-2 size-4" />
@@ -1259,7 +1206,7 @@ export default function AdminEventsPage() {
                                                                         className={cn(
                                                                                 "relative flex h-full flex-col border",
                                                                                 isSelected &&
-                                                                                        "border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]",
+                                                                                "border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]",
                                                                         )}
                                                                 >
                                                                         <CardHeader className="space-y-3">
@@ -1269,16 +1216,13 @@ export default function AdminEventsPage() {
                                                                                                         <Checkbox
                                                                                                                 checked={isSelected}
                                                                                                                 onCheckedChange={(checked) =>
-                                                                                                                        handleSelect(
-                                                                                                                                event.id,
-                                                                                                                                Boolean(
-                                                                                                                                        checked,
-                                                                                                                                ),
-                                                                                                                        )
+                                                                                                                        handleSelect(event.id, Boolean(checked))
                                                                                                                 }
                                                                                                                 aria-label={`Select event ${event.title}`}
                                                                                                         />
-                                                                                                        <Badge variant={statusOptionMap[event.status].badgeVariant}>
+                                                                                                        <Badge
+                                                                                                                variant={statusOptionMap[event.status].badgeVariant}
+                                                                                                        >
                                                                                                                 {statusOptionMap[event.status].label}
                                                                                                         </Badge>
                                                                                                         {event.isAllDay ? (
@@ -1327,17 +1271,12 @@ export default function AdminEventsPage() {
                                                                                                         </Button>
                                                                                                 </DropdownMenuTrigger>
                                                                                                 <DropdownMenuContent align="end" className="w-48">
-                                                                                                        <DropdownMenuLabel>
-                                                                                                                Moderation
-                                                                                                        </DropdownMenuLabel>
+                                                                                                        <DropdownMenuLabel>Moderation</DropdownMenuLabel>
                                                                                                         {statusActions.map((action) => (
                                                                                                                 <DropdownMenuItem
                                                                                                                         key={action.status}
                                                                                                                         onClick={() =>
-                                                                                                                                handleStatusAction(
-                                                                                                                                        event.id,
-                                                                                                                                        action.status,
-                                                                                                                                )
+                                                                                                                                handleStatusAction(event.id, action.status)
                                                                                                                         }
                                                                                                                 >
                                                                                                                         <action.icon className="mr-2 size-4" />
@@ -1345,10 +1284,14 @@ export default function AdminEventsPage() {
                                                                                                                 </DropdownMenuItem>
                                                                                                         ))}
                                                                                                         <DropdownMenuSeparator />
-                                                                                                        <DropdownMenuItem onClick={() => handleEditOpen(event)}>
+                                                                                                        <DropdownMenuItem
+                                                                                                                onClick={() => handleEditOpen(event)}
+                                                                                                        >
                                                                                                                 Edit event
                                                                                                         </DropdownMenuItem>
-                                                                                                        <DropdownMenuItem onClick={() => handleOpenDetail(event.id)}>
+                                                                                                        <DropdownMenuItem
+                                                                                                                onClick={() => handleOpenDetail(event.id)}
+                                                                                                        >
                                                                                                                 View details
                                                                                                         </DropdownMenuItem>
                                                                                                 </DropdownMenuContent>
@@ -1377,7 +1320,9 @@ export default function AdminEventsPage() {
                                                                                                 <CalendarDays className="size-4 shrink-0" />
                                                                                                 <span className="min-w-0 break-words">
                                                                                                         Provider: {event.provider?.name ?? "Unassigned"}
-                                                                                                        {event.provider?.category ? ` • ${event.provider.category}` : ""}
+                                                                                                        {event.provider?.category
+                                                                                                                ? ` • ${event.provider.category}`
+                                                                                                                : ""}
                                                                                                 </span>
                                                                                         </p>
                                                                                         {event.flag ? (
@@ -1385,12 +1330,6 @@ export default function AdminEventsPage() {
                                                                                                         <Tag className="size-4" />
                                                                                                         Flagged: {event.flag.label}
                                                                                                 </p>
-                                                                                        ) : null}
-                                                                                </div>
-                                                                                <div className="mt-auto flex flex-wrap gap-2 break-all text-xs text-muted-foreground">
-                                                                                        <span>ID: {event.id}</span>
-                                                                                        {event.externalId ? (
-                                                                                                <span>Source #{event.externalId}</span>
                                                                                         ) : null}
                                                                                 </div>
                                                                         </CardContent>
@@ -1416,9 +1355,7 @@ export default function AdminEventsPage() {
                                                                                 }}
                                                                                 aria-disabled={page === 1}
                                                                                 className={
-                                                                                        page === 1
-                                                                                                ? "pointer-events-none opacity-50"
-                                                                                                : undefined
+                                                                                        page === 1 ? "pointer-events-none opacity-50" : undefined
                                                                                 }
                                                                         />
                                                                 </PaginationItem>
@@ -1454,11 +1391,15 @@ export default function AdminEventsPage() {
                                         if (!open) handleCloseDetail();
                                 }}
                         >
-                                <SheetContent side="right" className="w-full max-w-xl overflow-y-auto">
+                                <SheetContent
+                                        side="right"
+                                        className="min-w-2xl max-w-2xl overflow-y-auto p-3"
+                                >
                                         <SheetHeader>
                                                 <SheetTitle>{detailEvent?.title ?? "Event details"}</SheetTitle>
                                                 <SheetDescription>
-                                                        Review the synchronized metadata before applying moderation changes.
+                                                        Review the synchronized metadata before applying moderation
+                                                        changes.
                                                 </SheetDescription>
                                         </SheetHeader>
                                         {detailEvent ? (
@@ -1473,10 +1414,14 @@ export default function AdminEventsPage() {
                                                                         </p>
                                                                 ) : null}
                                                                 <div className="flex flex-wrap gap-2">
-                                                                        <Badge variant={statusOptionMap[detailEvent.status].badgeVariant}>
+                                                                        <Badge
+                                                                                variant={statusOptionMap[detailEvent.status].badgeVariant}
+                                                                        >
                                                                                 {statusOptionMap[detailEvent.status].label}
                                                                         </Badge>
-                                                                        <Badge variant={detailEvent.isPublished ? "default" : "outline"}>
+                                                                        <Badge
+                                                                                variant={detailEvent.isPublished ? "default" : "outline"}
+                                                                        >
                                                                                 {detailEvent.isPublished ? "Published" : "Draft"}
                                                                         </Badge>
                                                                         {detailEvent.isAllDay ? (
@@ -1523,7 +1468,7 @@ export default function AdminEventsPage() {
                                                         <div className="space-y-1 text-sm">
                                                                 <p className="font-semibold text-foreground">Metadata</p>
                                                                 <pre className="max-h-48 overflow-auto rounded-md bg-muted/60 p-3 text-xs">
-{JSON.stringify(detailEvent.metadata ?? {}, null, 2)}
+                                                                        {JSON.stringify(detailEvent.metadata ?? {}, null, 2)}
                                                                 </pre>
                                                         </div>
                                                         <div className="flex flex-wrap gap-2">
@@ -1572,9 +1517,7 @@ export default function AdminEventsPage() {
                                                                 value={editValues?.title ?? ""}
                                                                 onChange={(event) =>
                                                                         setEditValues((prev) =>
-                                                                                prev
-                                                                                        ? { ...prev, title: event.target.value }
-                                                                                        : prev,
+                                                                                prev ? { ...prev, title: event.target.value } : prev,
                                                                         )
                                                                 }
                                                                 required
@@ -1749,7 +1692,10 @@ export default function AdminEventsPage() {
                                                         </div>
                                                         <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
                                                                 <div>
-                                                                        <Label htmlFor="event-published" className="text-sm font-medium">
+                                                                        <Label
+                                                                                htmlFor="event-published"
+                                                                                className="text-sm font-medium"
+                                                                        >
                                                                                 Published
                                                                         </Label>
                                                                         <p className="text-xs text-muted-foreground">
@@ -1761,9 +1707,7 @@ export default function AdminEventsPage() {
                                                                         checked={editValues?.isPublished ?? false}
                                                                         onCheckedChange={(checked) =>
                                                                                 setEditValues((prev) =>
-                                                                                        prev
-                                                                                                ? { ...prev, isPublished: checked }
-                                                                                                : prev,
+                                                                                        prev ? { ...prev, isPublished: checked } : prev,
                                                                                 )
                                                                         }
                                                                 />
@@ -1783,9 +1727,7 @@ export default function AdminEventsPage() {
                                                                 checked={editValues?.isAllDay ?? false}
                                                                 onCheckedChange={(checked) =>
                                                                         setEditValues((prev) =>
-                                                                                prev
-                                                                                        ? { ...prev, isAllDay: checked }
-                                                                                        : prev,
+                                                                                prev ? { ...prev, isAllDay: checked } : prev,
                                                                         )
                                                                 }
                                                         />
@@ -1796,10 +1738,7 @@ export default function AdminEventsPage() {
                                                                         Cancel
                                                                 </Button>
                                                         </DialogClose>
-                                                        <Button
-                                                                type="submit"
-                                                                disabled={updateEventMutation.isPending}
-                                                        >
+                                                        <Button type="submit" disabled={updateEventMutation.isPending}>
                                                                 {updateEventMutation.isPending ? "Saving…" : "Save changes"}
                                                         </Button>
                                                 </DialogFooter>
