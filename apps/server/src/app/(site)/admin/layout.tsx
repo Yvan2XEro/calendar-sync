@@ -10,22 +10,25 @@ export default async function AdminLayout({
 }: {
 	children: React.ReactNode;
 }) {
+	const headerList = await headers();
 	const session = await auth.api.getSession({
-		headers: headers(),
+		headers: headerList,
 	});
 
 	if (!session) {
 		redirect("/auth/sign-in");
 	}
 
-        const userRole = (session.user as typeof session.user & {
-                role?: string | null;
-        })?.role;
-        const roles = userRole ? [userRole] : [];
+	const userRole = (
+		session.user as typeof session.user & {
+			role?: string | null;
+		}
+	)?.role;
+	const roles = userRole ? [userRole] : [];
 
-        if (!roles.includes("admin")) {
-                redirect("/");
-        }
+	if (!roles.includes("admin")) {
+		redirect("/");
+	}
 
 	return <RequireAdmin>{children}</RequireAdmin>;
 }

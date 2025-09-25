@@ -96,19 +96,19 @@ export function useEventFilters(
 			skipSearchSyncRef.current = false;
 			return;
 		}
-                const nextParams = filtersToSearchParams(filters);
-                const nextString = nextParams.toString();
-                if (nextString === searchParamsString) {
-                        return;
-                }
-                skipSearchSyncRef.current = true;
-                const queryEntries = Array.from(nextParams.entries()).map<[string, string]>(
-                        ([key, value]) => [key, value],
-                );
-                const nextUrl =
-                        queryEntries.length > 0 ? `${pathname}?${nextString}` : pathname;
-                router.replace(nextUrl, { scroll: false });
-        }, [filters, pathname, router, searchParamsString]);
+		const nextParams = filtersToSearchParams(filters);
+		const nextString = nextParams.toString();
+		if (nextString === searchParamsString) {
+			return;
+		}
+		skipSearchSyncRef.current = true;
+		const queryEntries = Array.from(nextParams.entries()).map<[string, string]>(
+			([key, value]) => [key, value],
+		);
+		const nextUrl =
+			queryEntries.length > 0 ? `${pathname}?${nextString}` : pathname;
+		router.replace(nextUrl as any, { scroll: false });
+	}, [filters, pathname, router, searchParamsString]);
 
 	useEffect(() => {
 		if (skipSearchSyncRef.current) {
