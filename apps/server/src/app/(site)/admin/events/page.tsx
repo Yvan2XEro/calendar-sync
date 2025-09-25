@@ -7,119 +7,79 @@ import {
 	useQuery,
 	useQueryClient,
 } from "@tanstack/react-query";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import type { inferRouterInputs } from "@trpc/server";
 import { format } from "date-fns";
-import {
-	CalendarClock,
-	CalendarDays,
-	Clock,
-	ExternalLink,
-	LayoutGrid,
-	MapPin,
-	MoreHorizontal,
-	RefreshCcw,
-	Table as TableIcon,
-	Tag,
-	UserCheck,
-	UserX,
-} from "lucide-react";
-import type { ComponentType, FormEvent, SVGProps } from "react";
+import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
+import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
+import { EventListView } from "@/components/admin/events/EventListView";
+import { statusActions } from "@/components/admin/events/status-actions";
+import type { EventListItem, EventsListOutput } from "@/components/admin/events/types";
+import { formatDisplayDate } from "@/components/admin/events/utils";
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
+        Card,
+        CardContent,
+        CardDescription,
+        CardHeader,
+        CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-	Dialog,
-	DialogClose,
-	DialogContent,
-	DialogDescription,
-	DialogFooter,
-	DialogHeader,
-	DialogTitle,
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle,
 } from "@/components/ui/dialog";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuLabel,
-	DropdownMenuSeparator,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-	Pagination,
-	PaginationContent,
-	PaginationItem,
-	PaginationLink,
-	PaginationNext,
-	PaginationPrevious,
+        Pagination,
+        PaginationContent,
+        PaginationItem,
+        PaginationLink,
+        PaginationNext,
+        PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+        SelectValue,
 } from "@/components/ui/select";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
+        Sheet,
+        SheetContent,
+        SheetDescription,
+        SheetHeader,
+        SheetTitle,
 } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
-import { cn } from "@/lib/utils";
 import type { AppRouter } from "@/routers";
 
 import {
-	type EventStatus,
-	eventStatuses,
-	statusOptionMap,
+        type EventStatus,
+        eventStatuses,
+        statusOptionMap,
 } from "./event-filters";
 import { useEventFilters } from "./useEventFilters";
 
-const statusActions: Array<{
-	label: string;
-	status: EventStatus;
-	icon: ComponentType<SVGProps<SVGSVGElement>>;
-}> = [
-	{ label: "Validate", status: "approved", icon: UserCheck },
-	{ label: "Mark pending", status: "pending", icon: RefreshCcw },
-	{ label: "Archive", status: "rejected", icon: UserX },
-];
-
 type RouterInputs = inferRouterInputs<AppRouter>;
-type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 const DEFAULT_PAGE_SIZE = 25;
 
 type EventsListInput = RouterInputs["events"]["list"];
 type EventsListFilters = Omit<NonNullable<EventsListInput>, "page" | "limit">;
-type EventsListOutput = RouterOutputs["events"]["list"];
-type EventListItem = EventsListOutput["items"][number];
 type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
 type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
@@ -140,17 +100,10 @@ function formatDateTimeLocal(value: string | Date | null | undefined) {
 	return format(date, "yyyy-MM-dd'T'HH:mm");
 }
 
-function formatDisplayDate(value: string | Date | null | undefined) {
-	if (!value) return "";
-	const date = value instanceof Date ? value : new Date(value);
-	if (Number.isNaN(date.getTime())) return "";
-	return format(date, "MMM d, yyyy p");
-}
-
 function patchEventsInCache(
-	queryClient: QueryClient,
-	queryKey: unknown,
-	ids: Iterable<string>,
+        queryClient: QueryClient,
+        queryKey: unknown,
+        ids: Iterable<string>,
 	patch: Partial<EventListItem>,
 ) {
 	const idSet = new Set(ids);
@@ -774,304 +727,18 @@ export default function AdminEventsPage() {
 							</div>
 						</CardContent>
 					</Card>
-				) : filters.view === "table" ? (
-					<div className="overflow-hidden rounded-lg border">
-						<Table>
-							<TableHeader className="bg-muted/40">
-								<TableRow>
-									<TableHead className="w-12">
-										<Checkbox
-											checked={headerCheckboxState}
-											onCheckedChange={(checked) =>
-												handleSelectAll(Boolean(checked))
-											}
-											aria-label="Select all events"
-										/>
-									</TableHead>
-									<TableHead className="min-w-[260px]">Event</TableHead>
-									<TableHead>Provider</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Priority</TableHead>
-									<TableHead>Published</TableHead>
-									<TableHead className="text-right">Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{events.map((event) => {
-									const isSelected = selectedIdSet.has(event.id);
-									return (
-										<TableRow key={event.id} className="align-top">
-											<TableCell>
-												<Checkbox
-													checked={isSelected}
-													onCheckedChange={(checked) =>
-														handleSelect(event.id, Boolean(checked))
-													}
-													aria-label={`Select event ${event.title}`}
-												/>
-											</TableCell>
-											<TableCell className="max-w-[420px]">
-												<div className="flex flex-col gap-2">
-													<div className="flex flex-wrap items-center gap-2">
-														<span className="line-clamp-2 break-words font-medium text-sm leading-tight sm:text-base">
-															{event.title}
-														</span>
-														{event.isAllDay ? (
-															<Badge variant="outline" className="uppercase">
-																All-day
-															</Badge>
-														) : null}
-														{event.flag ? (
-															<Badge variant="secondary" className="gap-1">
-																<Tag className="size-3" />
-																<span className="min-w-0 break-words">
-																	{event.flag.label}
-																</span>
-															</Badge>
-														) : null}
-													</div>
-													{event.description ? (
-														<p className="line-clamp-2 break-words text-muted-foreground text-sm leading-snug">
-															{event.description}
-														</p>
-													) : null}
-													<div className="flex flex-col gap-1 text-muted-foreground text-xs leading-5">
-														<span className="flex min-w-0 flex-wrap items-center gap-1">
-															<CalendarClock className="size-3 shrink-0" />
-															<span className="min-w-0 break-words">
-																{formatDisplayDate(event.startAt)}
-															</span>
-														</span>
-														{event.endAt ? (
-															<span className="flex min-w-0 flex-wrap items-center gap-1">
-																<Clock className="size-3 shrink-0" />
-																<span className="min-w-0 break-words">
-																	{formatDisplayDate(event.endAt)}
-																</span>
-															</span>
-														) : null}
-													</div>
-													{event.location ? (
-														<p className="flex min-w-0 flex-wrap items-center gap-1 text-muted-foreground text-xs leading-tight">
-															<MapPin className="size-3 shrink-0" />
-															<span className="line-clamp-2 min-w-0 break-words">
-																{event.location}
-															</span>
-														</p>
-													) : null}
-												</div>
-											</TableCell>
-											<TableCell>
-												<div className="flex flex-col">
-													<span className="font-medium text-sm">
-														{event.provider?.name ?? "Unassigned"}
-													</span>
-													{event.provider?.category ? (
-														<span className="text-muted-foreground text-xs">
-															{event.provider.category}
-														</span>
-													) : null}
-												</div>
-											</TableCell>
-											<TableCell>
-												<Badge
-													variant={statusOptionMap[event.status].badgeVariant}
-												>
-													{statusOptionMap[event.status].label}
-												</Badge>
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">{event.priority}</Badge>
-											</TableCell>
-											<TableCell>
-												<Badge
-													variant={event.isPublished ? "default" : "outline"}
-												>
-													{event.isPublished ? "Published" : "Draft"}
-												</Badge>
-											</TableCell>
-											<TableCell className="text-right">
-												<DropdownMenu>
-													<DropdownMenuTrigger asChild>
-														<Button variant="ghost" size="icon">
-															<MoreHorizontal className="size-4" />
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-48">
-														<DropdownMenuLabel>Moderation</DropdownMenuLabel>
-														{statusActions.map((action) => (
-															<DropdownMenuItem
-																key={action.status}
-																onClick={() =>
-																	handleStatusAction(event.id, action.status)
-																}
-															>
-																<action.icon className="mr-2 size-4" />
-																{action.label}
-															</DropdownMenuItem>
-														))}
-														<DropdownMenuSeparator />
-														<DropdownMenuItem
-															onClick={() => handleEditOpen(event)}
-														>
-															Edit event
-														</DropdownMenuItem>
-														<DropdownMenuItem
-															onClick={() => handleOpenDetail(event.id)}
-														>
-															View details
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
-											</TableCell>
-										</TableRow>
-									);
-								})}
-							</TableBody>
-						</Table>
-					</div>
 				) : (
-					<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-						{events.map((event) => {
-							const isSelected = selectedIdSet.has(event.id);
-							return (
-								<Card
-									key={event.id}
-									className={cn(
-										"relative flex h-full flex-col border",
-										isSelected &&
-											"border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]",
-									)}
-								>
-									<CardHeader className="space-y-3">
-										<div className="flex items-start justify-between gap-3">
-											<div className="flex flex-col gap-3">
-												<div className="flex flex-wrap items-center gap-2">
-													<Checkbox
-														checked={isSelected}
-														onCheckedChange={(checked) =>
-															handleSelect(event.id, Boolean(checked))
-														}
-														aria-label={`Select event ${event.title}`}
-													/>
-													<Badge
-														variant={statusOptionMap[event.status].badgeVariant}
-													>
-														{statusOptionMap[event.status].label}
-													</Badge>
-													{event.isAllDay ? (
-														<Badge variant="outline" className="uppercase">
-															All-day
-														</Badge>
-													) : null}
-													{event.flag ? (
-														<Badge variant="secondary" className="gap-1">
-															<Tag className="size-3" />
-															<span className="min-w-0 break-words">
-																{event.flag.label}
-															</span>
-														</Badge>
-													) : null}
-												</div>
-												<CardTitle className="line-clamp-2 break-words text-xl leading-tight">
-													{event.title}
-												</CardTitle>
-												{event.description ? (
-													<CardDescription className="line-clamp-3 break-words text-sm leading-snug">
-														{event.description}
-													</CardDescription>
-												) : null}
-												<div className="space-y-1 text-muted-foreground text-sm">
-													<p className="flex min-w-0 flex-wrap items-center gap-2">
-														<CalendarClock className="size-4 shrink-0" />
-														<span className="min-w-0 break-words">
-															{formatDisplayDate(event.startAt)}
-														</span>
-													</p>
-													{event.endAt ? (
-														<p className="flex min-w-0 flex-wrap items-center gap-2">
-															<Clock className="size-4 shrink-0" />
-															<span className="min-w-0 break-words">
-																{formatDisplayDate(event.endAt)}
-															</span>
-														</p>
-													) : null}
-												</div>
-											</div>
-											<DropdownMenu>
-												<DropdownMenuTrigger asChild>
-													<Button variant="ghost" size="icon">
-														<MoreHorizontal className="size-4" />
-													</Button>
-												</DropdownMenuTrigger>
-												<DropdownMenuContent align="end" className="w-48">
-													<DropdownMenuLabel>Moderation</DropdownMenuLabel>
-													{statusActions.map((action) => (
-														<DropdownMenuItem
-															key={action.status}
-															onClick={() =>
-																handleStatusAction(event.id, action.status)
-															}
-														>
-															<action.icon className="mr-2 size-4" />
-															{action.label}
-														</DropdownMenuItem>
-													))}
-													<DropdownMenuSeparator />
-													<DropdownMenuItem
-														onClick={() => handleEditOpen(event)}
-													>
-														Edit event
-													</DropdownMenuItem>
-													<DropdownMenuItem
-														onClick={() => handleOpenDetail(event.id)}
-													>
-														View details
-													</DropdownMenuItem>
-												</DropdownMenuContent>
-											</DropdownMenu>
-										</div>
-									</CardHeader>
-									<CardContent className="flex flex-1 flex-col gap-4">
-										<div className="flex flex-wrap gap-2 text-muted-foreground text-xs sm:text-sm">
-											<span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1">
-												<Tag className="size-4" />
-												Priority {event.priority}
-											</span>
-											<span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1 text-muted-foreground">
-												<ExternalLink className="size-4" />
-												{event.isPublished ? "Published" : "Draft"}
-											</span>
-										</div>
-										<div className="space-y-2 text-sm">
-											<p className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
-												<MapPin className="size-4 shrink-0" />
-												<span className="min-w-0 break-words">
-													{event.location ?? "No location"}
-												</span>
-											</p>
-											<p className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
-												<CalendarDays className="size-4 shrink-0" />
-												<span className="min-w-0 break-words">
-													Provider: {event.provider?.name ?? "Unassigned"}
-													{event.provider?.category
-														? ` • ${event.provider.category}`
-														: ""}
-												</span>
-											</p>
-											{event.flag ? (
-												<p className="flex items-center gap-2 text-muted-foreground">
-													<Tag className="size-4" />
-													Flagged: {event.flag.label}
-												</p>
-											) : null}
-										</div>
-									</CardContent>
-								</Card>
-							);
-						})}
-					</div>
-				)}
+                                <EventListView
+                                        events={events}
+                                        view={filters.view}
+                                        selectedIds={selectedIds}
+                                        onSelect={handleSelect}
+                                        onSelectAll={handleSelectAll}
+                                        onEdit={handleEditOpen}
+                                        onViewDetail={handleOpenDetail}
+                                        onStatusAction={handleStatusAction}
+                                />
+                                )
 
 				{eventsQuery.data && total > 0 ? (
 					<div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
