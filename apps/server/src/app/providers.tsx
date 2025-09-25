@@ -3,6 +3,7 @@
 import { authClient } from "@/lib/auth-client";
 import { AuthUIProvider } from "@daveyplate/better-auth-ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { upload } from "@vercel/blob/client";
 import { ThemeProvider } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -33,8 +34,12 @@ export function Providers({ children }: { children: ReactNode }) {
             pathMode: "slug",
             basePath: "/admin/cals",
             logo: {
-              upload: async (_file) => {
-                return "https://unsplash.com/photos/1";
+              upload: async (file) => {
+                const blob = await upload(file.name, file, {
+                  access: "public",
+                  handleUploadUrl: "/api/upload",
+                });
+                return blob.url;
               },
               delete: async (_url) => {},
               size: 256,
