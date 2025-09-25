@@ -4,12 +4,12 @@ import {
 	organizationClient,
 } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
-import type { auth } from "./auth";
+type AuthInstance = typeof import("./auth").auth;
 
 export const authClient = createAuthClient({
 	plugins: [
 		organizationClient({
-			schema: inferOrgAdditionalFields<typeof auth>(),
+			schema: inferOrgAdditionalFields<AuthInstance>(),
 		}),
 		adminClient(),
 	],
