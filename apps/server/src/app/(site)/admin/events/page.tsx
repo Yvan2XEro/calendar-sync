@@ -13,40 +13,43 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
 import {
-        EventEditDialog,
-        type EventEditFormValues,
-        type ProviderOption,
+	EventEditDialog,
+	type EventEditFormValues,
+	type ProviderOption,
 } from "@/components/admin/events/EventEditDialog";
 import { EventListView } from "@/components/admin/events/EventListView";
 import { statusActions } from "@/components/admin/events/status-actions";
-import type { EventListItem, EventsListOutput } from "@/components/admin/events/types";
+import type {
+	EventListItem,
+	EventsListOutput,
+} from "@/components/admin/events/types";
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import {
-        Card,
-        CardContent,
-        CardDescription,
-        CardHeader,
-        CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-        Pagination,
-        PaginationContent,
-        PaginationItem,
-        PaginationLink,
-        PaginationNext,
-        PaginationPrevious,
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-        Select,
-        SelectContent,
-        SelectItem,
-        SelectTrigger,
-        SelectValue,
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { providerKeys } from "@/lib/query-keys/providers";
@@ -54,9 +57,9 @@ import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
 import {
-        type EventStatus,
-        eventStatuses,
-        statusOptionMap,
+	type EventStatus,
+	eventStatuses,
+	statusOptionMap,
 } from "./event-filters";
 import { useEventFilters } from "./useEventFilters";
 
@@ -71,18 +74,18 @@ type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
 
 const adminEventKeys = {
-        all: ["adminEvents"] as const,
-        list: (params: {
-                filters: EventsListFilters | null;
-                page: number;
-                limit: number;
-        }) => [...adminEventKeys.all, "list", params] as const,
+	all: ["adminEvents"] as const,
+	list: (params: {
+		filters: EventsListFilters | null;
+		page: number;
+		limit: number;
+	}) => [...adminEventKeys.all, "list", params] as const,
 } as const;
 
 function patchEventsInCache(
-        queryClient: QueryClient,
-        queryKey: unknown,
-        ids: Iterable<string>,
+	queryClient: QueryClient,
+	queryKey: unknown,
+	ids: Iterable<string>,
 	patch: Partial<EventListItem>,
 ) {
 	const idSet = new Set(ids);
@@ -132,23 +135,23 @@ export default function AdminEventsPage() {
 		handleViewChange,
 	} = useEventFilters({ defaultLimit: DEFAULT_PAGE_SIZE });
 
-        const providersQuery = useQuery({
-                queryKey: providerKeys.catalog.list(),
-                queryFn: () => trpcClient.providers.catalog.list.query(),
-        });
+	const providersQuery = useQuery({
+		queryKey: providerKeys.catalog.list(),
+		queryFn: () => trpcClient.providers.catalog.list.query(),
+	});
 
-        const providerOptions = useMemo<ProviderOption[]>(() => {
-                if (!providersQuery.data) return [];
-                return providersQuery.data.map((provider) => ({
-                        id: (provider as ProviderOption).id,
-                        name: (provider as ProviderOption).name,
-                }));
-        }, [providersQuery.data]);
+	const providerOptions = useMemo<ProviderOption[]>(() => {
+		if (!providersQuery.data) return [];
+		return providersQuery.data.map((provider) => ({
+			id: (provider as ProviderOption).id,
+			name: (provider as ProviderOption).name,
+		}));
+	}, [providersQuery.data]);
 
-        const listQueryKey = useMemo(
-                () => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
-                [limit, listFilters, page],
-        );
+	const listQueryKey = useMemo(
+		() => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
+		[limit, listFilters, page],
+	);
 
 	const eventsQuery = useQuery({
 		queryKey: listQueryKey,
@@ -172,20 +175,20 @@ export default function AdminEventsPage() {
 			? 0
 			: Math.min(total, summaryStart + events.length - 1);
 
-        useEffect(() => {
-                if (!eventsQuery.data) return;
-                if (eventsQuery.data.limit !== limit) {
-                        setLimit(eventsQuery.data.limit);
-                }
-        }, [eventsQuery.data, limit, setLimit]);
+	useEffect(() => {
+		if (!eventsQuery.data) return;
+		if (eventsQuery.data.limit !== limit) {
+			setLimit(eventsQuery.data.limit);
+		}
+	}, [eventsQuery.data, limit, setLimit]);
 
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-        useEffect(() => {
-                setPage(1);
-                setSelectedIds([]);
-                void listFilters;
-        }, [listFilters, setPage, setSelectedIds]);
+	useEffect(() => {
+		setPage(1);
+		setSelectedIds([]);
+		void listFilters;
+	}, [listFilters, setPage, setSelectedIds]);
 
 	const eventIdSet = useMemo(
 		() => new Set(events.map((event) => event.id)),
@@ -199,8 +202,8 @@ export default function AdminEventsPage() {
 		});
 	}, [eventIdSet]);
 
-        const [detailId, setDetailId] = useState<string | null>(null);
-        const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
+	const [detailId, setDetailId] = useState<string | null>(null);
+	const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
 
 	const detailEvent = useMemo(
 		() => events.find((event) => event.id === detailId) ?? null,
@@ -215,10 +218,10 @@ export default function AdminEventsPage() {
 		(checked: boolean) => {
 			setSelectedIds((prev) => {
 				if (checked) {
-                                        const union = new Set(prev);
-                                        events.forEach((event) => {
-                                                union.add(event.id);
-                                        });
+					const union = new Set(prev);
+					events.forEach((event) => {
+						union.add(event.id);
+					});
 					return Array.from(union);
 				}
 				return prev.filter((id) => !eventIdSet.has(id));
@@ -245,13 +248,13 @@ export default function AdminEventsPage() {
 		setDetailId(null);
 	}, []);
 
-        const handleEditOpen = useCallback((event: EventListItem) => {
-                setEditingEvent(event);
-        }, []);
+	const handleEditOpen = useCallback((event: EventListItem) => {
+		setEditingEvent(event);
+	}, []);
 
-        const handleEditClose = useCallback(() => {
-                setEditingEvent(null);
-        }, []);
+	const handleEditClose = useCallback(() => {
+		setEditingEvent(null);
+	}, []);
 
 	const updateStatusMutation = useMutation({
 		mutationFn: (variables: UpdateStatusInput) =>
@@ -389,33 +392,31 @@ export default function AdminEventsPage() {
 		[bulkStatusMutation, selectedIds],
 	);
 
-        const handleEditSubmit = useCallback(
-                (values: EventEditFormValues) => {
-                        if (!editingEvent) return;
+	const handleEditSubmit = useCallback(
+		(values: EventEditFormValues) => {
+			if (!editingEvent) return;
 
-                        const payload: RouterInputs["events"]["update"] = {
-                                id: editingEvent.id,
-                                title: values.title.trim(),
-                                description: values.description.trim(),
-                                location: values.location.trim(),
-                                url: values.url.trim() || null,
-                                startAt: values.startAt
-                                        ? new Date(values.startAt).toISOString()
-                                        : undefined,
-                                endAt: values.endAt
-                                        ? new Date(values.endAt).toISOString()
-                                        : null,
-                                isAllDay: values.isAllDay,
-                                isPublished: values.isPublished,
-                                externalId: values.externalId.trim(),
-                                priority: values.priority,
-                                providerId: values.providerId || undefined,
-                        };
+			const payload: RouterInputs["events"]["update"] = {
+				id: editingEvent.id,
+				title: values.title.trim(),
+				description: values.description.trim(),
+				location: values.location.trim(),
+				url: values.url.trim() || null,
+				startAt: values.startAt
+					? new Date(values.startAt).toISOString()
+					: undefined,
+				endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
+				isAllDay: values.isAllDay,
+				isPublished: values.isPublished,
+				externalId: values.externalId.trim(),
+				priority: values.priority,
+				providerId: values.providerId || undefined,
+			};
 
-                        updateEventMutation.mutate(payload);
-                },
-                [editingEvent, updateEventMutation],
-        );
+			updateEventMutation.mutate(payload);
+		},
+		[editingEvent, updateEventMutation],
+	);
 
 	const headerCheckboxState = selectedIds.length
 		? allSelectedOnPage
@@ -457,10 +458,10 @@ export default function AdminEventsPage() {
 								<TableIcon className="size-4" />
 							</Button>
 							<Button
-								variant={filters.view === "cards" ? "default" : "outline"}
+								variant={filters.view === "card" ? "default" : "outline"}
 								size="icon"
 								aria-label="Card view"
-								onClick={() => handleViewChange("cards")}
+								onClick={() => handleViewChange("card")}
 							>
 								<LayoutGrid className="size-4" />
 							</Button>
@@ -681,20 +682,20 @@ export default function AdminEventsPage() {
 							</div>
 						</CardContent>
 					</Card>
-                                ) : (
-                                        <EventListView
-                                                events={events}
-                                                view={filters.view}
-                                                selectedIds={selectedIds}
-                                                onSelect={handleSelect}
-                                                onSelectAll={handleSelectAll}
-                                                onEdit={handleEditOpen}
-                                                onViewDetail={handleOpenDetail}
-                                                onStatusAction={handleStatusAction}
-                                        />
-                                )}
+				) : (
+					<EventListView
+						events={events}
+						view={filters.view}
+						selectedIds={selectedIds}
+						onSelect={handleSelect}
+						onSelectAll={handleSelectAll}
+						onEdit={handleEditOpen}
+						onViewDetail={handleOpenDetail}
+						onStatusAction={handleStatusAction}
+					/>
+				)}
 
-                                {eventsQuery.data && total > 0 ? (
+				{eventsQuery.data && total > 0 ? (
 					<div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
 						<div className="text-muted-foreground text-sm">
 							Showing {summaryStart} to {summaryEnd} of {total} events
@@ -740,23 +741,23 @@ export default function AdminEventsPage() {
 				) : null}
 			</section>
 
-                        <EventDetailSheet
-                                event={detailEvent}
-                                statusActions={statusActions}
-                                onUpdateStatus={handleStatusAction}
-                                onEdit={handleEditOpen}
-                                onClose={handleCloseDetail}
-                                statusLoading={statusLoading}
-                        />
+			<EventDetailSheet
+				event={detailEvent}
+				statusActions={statusActions}
+				onUpdateStatus={handleStatusAction}
+				onEdit={handleEditOpen}
+				onClose={handleCloseDetail}
+				statusLoading={statusLoading}
+			/>
 
-                        <EventEditDialog
-                                open={editingEvent != null}
-                                event={editingEvent}
-                                providers={providerOptions}
-                                onSubmit={handleEditSubmit}
-                                onClose={handleEditClose}
-                                isSaving={updateEventMutation.isPending}
-                        />
+			<EventEditDialog
+				open={editingEvent != null}
+				event={editingEvent}
+				providers={providerOptions}
+				onSubmit={handleEditSubmit}
+				onClose={handleEditClose}
+				isSaving={updateEventMutation.isPending}
+			/>
 		</AppShell>
 	);
 }

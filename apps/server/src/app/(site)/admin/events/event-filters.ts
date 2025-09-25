@@ -35,7 +35,7 @@ export type Filters = {
 	allDayOnly: boolean;
 	priorityMin: number | null;
 	priorityMax: number | null;
-	view: "table" | "cards";
+	view: "table" | "card";
 };
 
 export const defaultFilters: Filters = {
@@ -90,7 +90,7 @@ export function parseFiltersFromSearchParams(
 	next.priorityMax = priorityMaxParam ? Number(priorityMaxParam) : null;
 
 	const viewParam = params.get("view");
-	next.view = viewParam === "cards" ? "cards" : "table";
+	next.view = viewParam === "card" ? "card" : "table";
 
 	return next;
 }

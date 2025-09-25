@@ -40,7 +40,7 @@ type UseEventFiltersResult = {
 		key: "priorityMin" | "priorityMax",
 		value: string,
 	) => void;
-	handleViewChange: (view: "table" | "cards") => void;
+	handleViewChange: (view: "table" | "card") => void;
 };
 
 export function useEventFilters(
@@ -184,7 +184,7 @@ export function useEventFilters(
 		[],
 	);
 
-	const handleViewChange = useCallback((view: "table" | "cards") => {
+	const handleViewChange = useCallback((view: "table" | "card") => {
 		setFilters((prev) => ({ ...prev, view }));
 	}, []);
 
