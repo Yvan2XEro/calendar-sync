@@ -19,6 +19,7 @@ import {
 } from "@/components/admin/events/EventEditDialog";
 import { EventListView } from "@/components/admin/events/EventListView";
 import { statusActions } from "@/components/admin/events/status-actions";
+import type { StatusAction } from "@/components/admin/events/status-actions";
 import type {
 	EventListItem,
 	EventsListOutput,
@@ -96,7 +97,7 @@ function patchEventsInCache(
                 if (!previous) return previous;
                 return {
                         ...previous,
-                        items: previous.items.map((item) =>
+                        items: previous.items.map((item: EventListItem) =>
                                 idSet.has(item.id) ? { ...item, ...patch } : item,
                         ),
                 } satisfies EventsListOutput;
@@ -115,7 +116,7 @@ function replaceEventInCache(
                 if (!previous) return previous;
                 return {
                         ...previous,
-                        items: previous.items.map((item) =>
+                        items: previous.items.map((item: EventListItem) =>
                                 item.id === updated.id ? updated : item,
                         ),
                 } satisfies EventsListOutput;
@@ -149,7 +150,7 @@ export default function AdminEventsPage() {
 
         const providerOptions = useMemo<ProviderOption[]>(() => {
                 if (!providersQuery.data) return [];
-                return providersQuery.data.map((provider) => ({
+                return providersQuery.data.map((provider: ProvidersCatalogListOutput[number]) => ({
                         id: provider.id,
                         name: provider.name,
                 } satisfies ProviderOption));
@@ -163,13 +164,13 @@ export default function AdminEventsPage() {
         const eventsQuery = useQuery<EventsListOutput>({
                 queryKey: listQueryKey,
                 queryFn: () => trpcClient.events.list.query(listParams),
-                placeholderData: (previous) => previous,
+                placeholderData: (previous: EventsListOutput | undefined) => previous,
         });
 
-	const events = useMemo(
-		() => eventsQuery.data?.items ?? [],
-		[eventsQuery.data?.items],
-	);
+        const events = useMemo<EventListItem[]>(
+                () => eventsQuery.data?.items ?? [],
+                [eventsQuery.data?.items],
+        );
 	const total = eventsQuery.data?.total ?? 0;
 	const currentPage = eventsQuery.data?.page ?? page;
 	const currentLimit = eventsQuery.data?.limit ?? limit;
@@ -199,10 +200,10 @@ export default function AdminEventsPage() {
 		void listFilters;
 	}, [listFilters, setPage, setSelectedIds]);
 
-	const eventIdSet = useMemo(
-		() => new Set(events.map((event) => event.id)),
-		[events],
-	);
+        const eventIdSet = useMemo(
+                () => new Set(events.map((event: EventListItem) => event.id)),
+                [events],
+        );
 
 	useEffect(() => {
 		setSelectedIds((prev) => {
@@ -214,23 +215,23 @@ export default function AdminEventsPage() {
 	const [detailId, setDetailId] = useState<string | null>(null);
 	const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
 
-	const detailEvent = useMemo(
-		() => events.find((event) => event.id === detailId) ?? null,
-		[detailId, events],
-	);
+        const detailEvent = useMemo(
+                () => events.find((event: EventListItem) => event.id === detailId) ?? null,
+                [detailId, events],
+        );
 
 	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 	const allSelectedOnPage =
-		events.length > 0 && events.every((event) => selectedIdSet.has(event.id));
+                events.length > 0 && events.every((event: EventListItem) => selectedIdSet.has(event.id));
 
 	const handleSelectAll = useCallback(
 		(checked: boolean) => {
 			setSelectedIds((prev) => {
 				if (checked) {
 					const union = new Set(prev);
-					events.forEach((event) => {
-						union.add(event.id);
-					});
+                                        events.forEach((event: EventListItem) => {
+                                                union.add(event.id);
+                                        });
 					return Array.from(union);
 				}
 				return prev.filter((id) => !eventIdSet.has(id));
@@ -528,11 +529,11 @@ export default function AdminEventsPage() {
 										<SelectItem value="all">
 											{statusOptionMap.all.label}
 										</SelectItem>
-										{eventStatuses.map((status) => (
-											<SelectItem key={status} value={status}>
-												{statusOptionMap[status].label}
-											</SelectItem>
-										))}
+                                                                                {eventStatuses.map((status: EventStatus) => (
+                                                                                        <SelectItem key={status} value={status}>
+                                                                                                {statusOptionMap[status].label}
+                                                                                        </SelectItem>
+                                                                                ))}
 									</SelectContent>
 								</Select>
 								<Select
@@ -544,10 +545,10 @@ export default function AdminEventsPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All providers</SelectItem>
-										{providersQuery.data?.map((provider) => (
-											<SelectItem key={provider.id} value={provider.id}>
-												{provider.name}
-											</SelectItem>
+                                                                                {providersQuery.data?.map((provider: ProvidersCatalogListOutput[number]) => (
+                                                                                        <SelectItem key={provider.id} value={provider.id}>
+                                                                                                {provider.name}
+                                                                                        </SelectItem>
 										))}
 									</SelectContent>
 								</Select>
@@ -626,10 +627,10 @@ export default function AdminEventsPage() {
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="any">Any</SelectItem>
-											{[1, 2, 3, 4, 5].map((priority) => (
-												<SelectItem
-													key={`min-${priority}`}
-													value={String(priority)}
+                                                                                        {[1, 2, 3, 4, 5].map((priority: number) => (
+                                                                                                <SelectItem
+                                                                                                        key={`min-${priority}`}
+                                                                                                        value={String(priority)}
 												>
 													{priority}
 												</SelectItem>
@@ -652,10 +653,10 @@ export default function AdminEventsPage() {
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="any">Any</SelectItem>
-											{[1, 2, 3, 4, 5].map((priority) => (
-												<SelectItem
-													key={`max-${priority}`}
-													value={String(priority)}
+                                                                                        {[1, 2, 3, 4, 5].map((priority: number) => (
+                                                                                                <SelectItem
+                                                                                                        key={`max-${priority}`}
+                                                                                                        value={String(priority)}
 												>
 													{priority}
 												</SelectItem>
@@ -681,10 +682,10 @@ export default function AdminEventsPage() {
 							</span>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
-							{statusActions.map((action) => (
-								<Button
-									key={action.status}
-									size="sm"
+                                                        {statusActions.map((action: StatusAction) => (
+                                                                <Button
+                                                                        key={action.status}
+                                                                        size="sm"
 									variant="outline"
 									onClick={() => handleBulkStatus(action.status)}
 									disabled={bulkStatusMutation.isPending}
