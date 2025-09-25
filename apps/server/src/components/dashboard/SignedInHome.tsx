@@ -609,7 +609,7 @@ function RecentEventsCarousel({
   }
 
   return (
-    <section className="space-y-4">
+    <section className="min-w-0 space-y-4">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-semibold text-xl tracking-tight">
@@ -644,7 +644,7 @@ function RecentEventsCarousel({
         aria-label="Recent events"
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        className="flex gap-4 overflow-x-auto pb-2"
+        className="flex min-w-0 w-full max-w-full gap-4 overflow-x-auto pb-2"
       >
         {events?.map((event) => (
           <RecentEventCard key={event.id} event={event} />
