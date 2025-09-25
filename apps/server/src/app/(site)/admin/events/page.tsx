@@ -163,6 +163,7 @@ export default function AdminEventsPage() {
         const eventsQuery = useQuery<EventsListOutput>({
                 queryKey: listQueryKey,
                 queryFn: () => trpcClient.events.list.query(listParams),
+                placeholderData: (previous) => previous,
         });
 
 	const events = useMemo(

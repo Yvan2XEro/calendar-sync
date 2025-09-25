@@ -149,6 +149,7 @@ export default function AdminUsersPage() {
         >({
                 queryKey: listKey,
                 queryFn: () => trpcClient.adminUsers.list.query(listParams),
+                placeholderData: (previous) => previous,
         });
 
         const rolesQuery = useQuery<RolesOptionsOutput>({
