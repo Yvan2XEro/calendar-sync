@@ -157,9 +157,18 @@ const updateEventInput = z
 
 const statsInputSchema = filterSchema;
 
+const RECENT_EVENTS_DEFAULT_LIMIT = 8;
+const RECENT_EVENTS_MAX_LIMIT = 20;
+const RECENT_EVENTS_WINDOW_DAYS = 30;
+
 const recentEventsInput = z
         .object({
-                limit: z.number().int().min(1).max(20).optional(),
+                limit: z
+                        .number()
+                        .int()
+                        .min(1)
+                        .max(RECENT_EVENTS_MAX_LIMIT)
+                        .optional(),
         })
         .optional();
 
@@ -306,8 +315,12 @@ export const eventsRouter = router({
                 .input(recentEventsInput)
                 .query(async ({ ctx, input }) => {
                         const userId = ctx.session.user.id;
-                        const limit = input?.limit ?? 8;
+                        const limit = input?.limit ?? RECENT_EVENTS_DEFAULT_LIMIT;
+
                         const now = new Date();
+                        const windowEnd = new Date(
+                                now.getTime() + RECENT_EVENTS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+                        );
 
                         const rows = await db
                                 .select({
@@ -346,9 +359,10 @@ export const eventsRouter = router({
                                                 eq(event.status, "approved"),
                                                 eq(event.isPublished, true),
                                                 gte(event.startAt, now),
+                                                lte(event.startAt, windowEnd),
                                         ),
                                 )
-                                .orderBy(event.startAt)
+                                .orderBy(event.startAt, event.id)
                                 .limit(limit);
 
                         return rows.map((row) => ({
