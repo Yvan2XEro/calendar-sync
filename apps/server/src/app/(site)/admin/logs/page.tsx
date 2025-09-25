@@ -209,7 +209,7 @@ export default function AdminLogsPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All providers</SelectItem>
-										{providerQuery.data?.map((provider) => (
+                                                                                {providerQuery.data?.map((provider: ProvidersCatalogListOutput[number]) => (
 											<SelectItem key={provider.id} value={provider.id}>
 												{provider.name}
 											</SelectItem>
