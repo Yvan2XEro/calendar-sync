@@ -145,11 +145,13 @@ export default function AdminUsersPage() {
                 AdminUsersListOutput,
                 Error,
                 AdminUsersListOutput,
-                ReturnType<typeof listKey>
+                typeof listKey
         >({
                 queryKey: listKey,
                 queryFn: () => trpcClient.adminUsers.list.query(listParams),
-                placeholderData: (previous) => previous,
+                placeholderData: (
+                        previous: AdminUsersListOutput | undefined,
+                ) => previous,
         });
 
         const rolesQuery = useQuery<RolesOptionsOutput>({
@@ -173,11 +175,14 @@ export default function AdminUsersPage() {
                         const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
                         queryClient.setQueryData<AdminUsersListOutput>(
                                 listKey,
-                                (current) => {
+                                (current: AdminUsersListOutput | undefined) => {
                                         if (!current) return current;
                                         return {
                                                 ...current,
-                                                items: current.items.map((item) =>
+                                                items: current.items.map(
+                                                        (
+                                                                item: AdminUsersListOutput["items"][number],
+                                                        ) =>
                                                         item.userId === userId
                                                                 ? { ...item, isBanned: true }
                                                                 : item,
@@ -215,11 +220,14 @@ export default function AdminUsersPage() {
                         const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
                         queryClient.setQueryData<AdminUsersListOutput>(
                                 listKey,
-                                (current) => {
+                                (current: AdminUsersListOutput | undefined) => {
                                         if (!current) return current;
                                         return {
                                                 ...current,
-                                                items: current.items.map((item) =>
+                                                items: current.items.map(
+                                                        (
+                                                                item: AdminUsersListOutput["items"][number],
+                                                        ) =>
                                                         item.userId === userId
                                                                 ? { ...item, isBanned: false }
                                                                 : item,
@@ -271,7 +279,7 @@ export default function AdminUsersPage() {
 	}, []);
 
         const isLoading = listQuery.isPending;
-        const rows = listData?.items ?? [];
+        const rows = (listData?.items ?? []) as AdminUsersListOutput["items"];
         const summaryStart =
                 listData && listData.total > 0
                         ? (listData.page - 1) * listData.pageSize + 1
@@ -588,25 +596,29 @@ export default function AdminUsersPage() {
 												</TableCell>
 												<TableCell>
 													<div className="flex flex-wrap gap-2">
-														{item.roles.length === 0 ? (
-															<Badge variant="outline">user</Badge>
-														) : (
-															item.roles.map((role) => (
-																<Badge key={role} variant="outline">
-																	{role}
-																</Badge>
-															))
-														)}
+                                                {item.roles.length === 0 ? (
+                                                        <Badge variant="outline">user</Badge>
+                                                ) : (
+                                                        item.roles.map((
+                                                                role: AdminUsersListOutput["items"][number]["roles"][number],
+                                                        ) => (
+                                                                <Badge key={role} variant="outline">
+                                                                        {role}
+                                                                </Badge>
+                                                        ))
+                                                )}
 													</div>
 												</TableCell>
 												<TableCell>
 													<div className="flex flex-wrap gap-2">
-														{item.calendars.map((calendar) => (
-															<Badge
-																key={calendar.id}
-																variant="secondary"
-																className="max-w-[120px] truncate"
-															>
+                                                {item.calendars.map((
+                                                        calendar: AdminUsersListOutput["items"][number]["calendars"][number],
+                                                ) => (
+                                                        <Badge
+                                                                key={calendar.id}
+                                                                variant="secondary"
+                                                                className="max-w-[120px] truncate"
+                                                        >
 																<span title={calendar.name}>
 																	{calendar.name}
 																</span>
