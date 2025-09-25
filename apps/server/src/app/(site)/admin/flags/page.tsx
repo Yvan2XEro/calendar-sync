@@ -82,13 +82,17 @@ const flagFormSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 	description: z.string().optional(),
 	priority: z.coerce
-		.number({ invalid_type_error: "Priority is required" })
-		.int("Priority must be an integer")
-		.min(1, "Priority must be between 1 and 5")
-		.max(5, "Priority must be between 1 and 5"),
+                .number()
+                .refine((value) => !Number.isNaN(value), {
+                        message: "Priority is required",
+                })
+                .int("Priority must be an integer")
+                .min(1, "Priority must be between 1 and 5")
+                .max(5, "Priority must be between 1 and 5"),
 });
 
-type FlagFormValues = z.infer<typeof flagFormSchema>;
+type FlagFormValues = z.input<typeof flagFormSchema>;
+type FlagFormOutput = z.output<typeof flagFormSchema>;
 type AdminFlagOutputs = inferRouterOutputs<AppRouter>["adminFlags"];
 type Flag = AdminFlagOutputs["listFlags"][number];
 
@@ -122,7 +126,9 @@ export default function AdminFlagsPage() {
 	);
 
 	const form = useForm<FlagFormValues>({
-		resolver: zodResolver(flagFormSchema),
+		resolver: zodResolver<FlagFormValues, undefined, FlagFormOutput>(
+			flagFormSchema,
+		),
 		defaultValues,
 	});
 
@@ -132,7 +138,7 @@ export default function AdminFlagsPage() {
 	});
 
 	const createMutation = useMutation({
-		mutationFn: (input: FlagFormValues) =>
+		mutationFn: (input: FlagFormOutput) =>
 			trpcClient.adminFlags.createFlag.mutate(input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
@@ -140,7 +146,7 @@ export default function AdminFlagsPage() {
 	});
 
 	const updateMutation = useMutation({
-		mutationFn: (input: FlagFormValues & { id: string }) =>
+		mutationFn: (input: FlagFormOutput & { id: string }) =>
 			trpcClient.adminFlags.updateFlag.mutate(input),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
@@ -222,12 +228,12 @@ export default function AdminFlagsPage() {
 			form.setValue("slug", normalizedSlug, { shouldValidate: true });
 		}
 
-		const payload: FlagFormValues = {
+		const payload: FlagFormOutput = flagFormSchema.parse({
+			...values,
 			label: trimmedLabel,
 			slug: normalizedSlug,
 			description: trimmedDescription,
-			priority: values.priority,
-		};
+		});
 
 		try {
 			if (editingFlag) {
