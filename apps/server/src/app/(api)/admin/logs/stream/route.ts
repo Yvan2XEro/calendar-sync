@@ -7,16 +7,19 @@ import { db } from "@/db";
 import { workerLog } from "@/db/schema/app";
 import { createContext } from "@/lib/context";
 
-const app = new Hono();
+type Session = NonNullable<Awaited<ReturnType<typeof createContext>>["session"]>;
+
+const app = new Hono<{ Variables: { session: Session } }>();
 
 app.use(async (c, next) => {
-	const context = await createContext(c.req.raw);
+        const context = await createContext(c.req.raw);
+        const session = context.session;
 
-	if (!context.session) {
-		return c.json({ error: "Unauthorized" }, 401);
-	}
+        if (!session) {
+                return c.json({ error: "Unauthorized" }, 401);
+        }
 
-        const userRole = (context.session.user as typeof context.session.user & {
+        const userRole = (session.user as typeof session.user & {
                 role?: string | null;
         })?.role;
         const roles = userRole ? [userRole] : [];
@@ -25,8 +28,8 @@ app.use(async (c, next) => {
                 return c.json({ error: "Forbidden" }, 403);
         }
 
-	c.set("session", context.session);
-	await next();
+        c.set("session", session);
+        await next();
 });
 
 app.get(async (c) => {
