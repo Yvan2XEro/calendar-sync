@@ -16,8 +16,9 @@ import {
 import { z } from "zod";
 
 import { db } from "@/db";
-import { event, flag, provider } from "@/db/schema/app";
-import { adminProcedure, router } from "@/lib/trpc";
+import { event, flag, organizationProvider, provider } from "@/db/schema/app";
+import { member, organization } from "@/db/schema/auth";
+import { adminProcedure, protectedProcedure, router } from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -155,6 +156,12 @@ const updateEventInput = z
 	);
 
 const statsInputSchema = filterSchema;
+
+const recentEventsInput = z
+        .object({
+                limit: z.number().int().min(1).max(20).optional(),
+        })
+        .optional();
 
 const eventSelection = {
 	id: event.id,
@@ -295,9 +302,78 @@ async function fetchEventOrThrow(id: string) {
 }
 
 export const eventsRouter = router({
-	list: adminProcedure
-		.input(listInputSchema.optional())
-		.query(async ({ input }) => {
+        listRecentForUser: protectedProcedure
+                .input(recentEventsInput)
+                .query(async ({ ctx, input }) => {
+                        const userId = ctx.session.user.id;
+                        const limit = input?.limit ?? 8;
+                        const now = new Date();
+
+                        const rows = await db
+                                .select({
+                                        id: event.id,
+                                        title: event.title,
+                                        description: event.description,
+                                        location: event.location,
+                                        url: event.url,
+                                        startAt: event.startAt,
+                                        endAt: event.endAt,
+                                        metadata: event.metadata,
+                                        organizationId: organization.id,
+                                        organizationName: organization.name,
+                                        organizationSlug: organization.slug,
+                                        providerName: provider.name,
+                                })
+                                .from(event)
+                                .innerJoin(provider, eq(provider.id, event.provider))
+                                .innerJoin(
+                                        organizationProvider,
+                                        eq(organizationProvider.providerId, provider.id),
+                                )
+                                .innerJoin(
+                                        organization,
+                                        eq(organization.id, organizationProvider.organizationId),
+                                )
+                                .innerJoin(
+                                        member,
+                                        and(
+                                                eq(member.organizationId, organization.id),
+                                                eq(member.userId, userId),
+                                        ),
+                                )
+                                .where(
+                                        and(
+                                                eq(event.status, "approved"),
+                                                eq(event.isPublished, true),
+                                                gte(event.startAt, now),
+                                        ),
+                                )
+                                .orderBy(event.startAt)
+                                .limit(limit);
+
+                        return rows.map((row) => ({
+                                id: row.id,
+                                title: row.title,
+                                description: row.description,
+                                location: row.location,
+                                url: row.url,
+                                startAt: row.startAt,
+                                endAt: row.endAt,
+                                organization: {
+                                        id: row.organizationId,
+                                        name: row.organizationName,
+                                        slug: row.organizationSlug,
+                                },
+                                providerName: row.providerName,
+                                imageUrl:
+                                        typeof row.metadata?.imageUrl === "string"
+                                                ? (row.metadata.imageUrl as string)
+                                                : null,
+                        }));
+                }),
+        list: adminProcedure
+                .input(listInputSchema.optional())
+                .query(async ({ input }) => {
 			const filters: ListInput = { ...(input ?? {}) };
 			const {
 				page: requestedPage,
