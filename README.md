@@ -37,6 +37,12 @@ The page is designed for high-volume review and offers several tools that work t
 - **Bulk moderation actions** – Select individual rows or cards (or use the header checkbox to select all on the current page) to activate the bulk action bar, then apply the predefined status transitions such as approve, mark pending, or archive to every selected event at once.
 
 Open the drawer or dialog actions in each row/card to see the complete metadata, update individual events, or inspect detailed timing, provider, and flag information before applying changes.
+
+## Tuning the signed-in home experience
+
+- **Recent events carousel size** – Update the `RECENT_EVENTS_LIMIT` constant inside [`apps/server/src/components/dashboard/SignedInHome.tsx`](apps/server/src/components/dashboard/SignedInHome.tsx) to control how many cards render in the slider at once.
+- **Discover tab sort options** – Adjust the `discoverSortValues` tuple (and its default fallback of `"name-asc" satisfies DiscoverSort`) in [`apps/server/src/routers/orgs.ts`](apps/server/src/routers/orgs.ts) when changing which sort orders are offered to users by default.
+- **Branding copy & visuals** – Edit the hero section markup in the `SignedInHome` component (same module as above) to refresh the welcome message, supporting text, and illustration assets shown to signed-in members.
 ## Database Setup
 
 This project uses PostgreSQL with Drizzle ORM.
