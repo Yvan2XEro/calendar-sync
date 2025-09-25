@@ -39,7 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { eventKeys } from "@/lib/query-keys/events";
 import { orgsKeys } from "@/lib/query-keys/orgs";
-import { trpcClient } from "@/lib/trpc-client";
+import { eventsApi, orgsApi } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
 const RECENT_EVENTS_LIMIT = 8;
@@ -47,8 +47,9 @@ const ORGANIZATION_PAGE_SIZE = 6;
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 type RecentEvent = RouterOutputs["events"]["listRecentForUser"][number];
-type JoinedPage = RouterOutputs["orgs"]["joined"];
-type DiscoverPage = RouterOutputs["orgs"]["discover"];
+type OrgListResult = RouterOutputs["orgs"]["listForUser"];
+type JoinedPage = Extract<OrgListResult, { segment: "joined" }>;
+type DiscoverPage = Extract<OrgListResult, { segment: "discover" }>;
 type JoinedOrganization = JoinedPage["items"][number];
 type DiscoverOrganization = DiscoverPage["items"][number];
 
@@ -75,40 +76,82 @@ export function SignedInHome({ session }: { session: SessionData }) {
 
         const recentEventsQuery = useQuery({
                 queryKey: eventKeys.recentForUser({ limit: RECENT_EVENTS_LIMIT }),
-                queryFn: () => trpcClient.events.listRecentForUser.query({ limit: RECENT_EVENTS_LIMIT }),
+                queryFn: () => eventsApi.listRecentForUser({ limit: RECENT_EVENTS_LIMIT }),
         });
 
         const [search, setSearch] = React.useState("");
         const deferredSearch = React.useDeferredValue(search);
-        const organizationFilters = React.useMemo(
+        const joinedFilters = React.useMemo(
                 () => ({
+                        segment: "joined" as const,
                         search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
                         limit: ORGANIZATION_PAGE_SIZE,
+                        sort: "recent" as const,
                 }),
                 [deferredSearch],
         );
 
-        const joinedKey = orgsKeys.joined(organizationFilters);
-        const discoverKey = orgsKeys.discover(organizationFilters);
+        const discoverFilters = React.useMemo(
+                () => ({
+                        segment: "discover" as const,
+                        search: deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
+                        limit: ORGANIZATION_PAGE_SIZE,
+                        sort: "name-asc" as const,
+                }),
+                [deferredSearch],
+        );
 
-        const joinedQuery = useInfiniteQuery({
+        const joinedKey = React.useMemo(
+                () =>
+                        orgsKeys.list({
+                                segment: joinedFilters.segment,
+                                search: joinedFilters.search ?? null,
+                                limit: joinedFilters.limit ?? null,
+                                sort: joinedFilters.sort ?? null,
+                        }),
+                [joinedFilters],
+        );
+
+        const discoverKey = React.useMemo(
+                () =>
+                        orgsKeys.list({
+                                segment: discoverFilters.segment,
+                                search: discoverFilters.search ?? null,
+                                limit: discoverFilters.limit ?? null,
+                                sort: discoverFilters.sort ?? null,
+                        }),
+                [discoverFilters],
+        );
+
+        const joinedQuery = useInfiniteQuery<JoinedPage>({
                 queryKey: joinedKey,
                 initialPageParam: 1,
                 queryFn: ({ pageParam }) =>
-                        trpcClient.orgs.joined.query({ ...organizationFilters, page: pageParam }),
+                        orgsApi.listForUser({
+                                ...joinedFilters,
+                                page: typeof pageParam === "number" ? pageParam : 1,
+                        }),
                 getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
         });
 
-        const discoverQuery = useInfiniteQuery({
+        const discoverQuery = useInfiniteQuery<DiscoverPage>({
                 queryKey: discoverKey,
                 initialPageParam: 1,
                 queryFn: ({ pageParam }) =>
-                        trpcClient.orgs.discover.query({ ...organizationFilters, page: pageParam }),
+                        orgsApi.listForUser({
+                                ...discoverFilters,
+                                page: typeof pageParam === "number" ? pageParam : 1,
+                        }),
                 getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
         });
 
         const queryClient = useQueryClient();
-        const joinMutation = useJoinOrganizationMutation({ queryClient, joinedKey, discoverKey });
+        const joinMutation = useJoinOrganizationMutation({
+                queryClient,
+                joinedKey,
+                discoverKey,
+                joinedFilters,
+        });
 
         const handleJoin = React.useCallback(
                 (organization: DiscoverOrganization) => {
@@ -293,14 +336,21 @@ function useJoinOrganizationMutation({
         queryClient,
         joinedKey,
         discoverKey,
+        joinedFilters,
 }: {
         queryClient: ReturnType<typeof useQueryClient>;
-        joinedKey: ReturnType<typeof orgsKeys.joined>;
-        discoverKey: ReturnType<typeof orgsKeys.discover>;
+        joinedKey: ReturnType<typeof orgsKeys.list>;
+        discoverKey: ReturnType<typeof orgsKeys.list>;
+        joinedFilters: {
+                segment: "joined";
+                limit: number;
+                sort: JoinedPage["sort"];
+                search?: string | undefined;
+        };
 }) {
         return useMutation<JoinedOrganization, unknown, JoinVariables, JoinContext>({
                 mutationFn: async ({ organizationId }) => {
-                        return trpcClient.orgs.join.mutate({ organizationId });
+                        return orgsApi.join({ organizationId });
                 },
                 onMutate: async (variables) => {
                         await Promise.all([
@@ -327,7 +377,10 @@ function useJoinOrganizationMutation({
                                                 pages: [
                                                         {
                                                                 items: [optimisticJoined],
+                                                                segment: joinedFilters.segment,
                                                                 page: 1,
+                                                                limit: joinedFilters.limit,
+                                                                sort: joinedFilters.sort,
                                                                 nextPage: null,
                                                         },
                                                 ],
@@ -384,7 +437,10 @@ function useJoinOrganizationMutation({
                                                 pages: [
                                                         {
                                                                 items: [result],
+                                                                segment: joinedFilters.segment,
                                                                 page: 1,
+                                                                limit: joinedFilters.limit,
+                                                                sort: joinedFilters.sort,
                                                                 nextPage: null,
                                                         },
                                                 ],
