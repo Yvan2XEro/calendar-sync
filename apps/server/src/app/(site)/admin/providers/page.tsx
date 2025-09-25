@@ -39,7 +39,9 @@ export default function ProvidersAdminPage() {
 	const smtpTestMutation = useTestCatalogSmtp();
 	const deleteMutation = useDeleteCatalogProvider();
 
-	const rows = providersQuery.data ?? [];
+        const rows =
+                providersQuery.data ??
+                ([] as NonNullable<typeof providersQuery.data>);
 
 	const renderStatusBadge = (status: string) => {
 		const normalized = status.toLowerCase();
@@ -186,13 +188,18 @@ export default function ProvidersAdminPage() {
 													>
 														Test SMTP
 													</Button>
-													<Button
-														variant="default"
-														size="sm"
-														onClick={() =>
-															router.push(`/admin/providers/${row.id}`)
-														}
-													>
+                                                                                                        <Button
+                                                                                                                variant="default"
+                                                                                                                size="sm"
+                                                                                                                onClick={() =>
+                                                                                                                        router.push({
+                                                                                                                                pathname: "/admin/providers/[providerId]",
+                                                                                                                                params: {
+                                                                                                                                        providerId: row.id,
+                                                                                                                                },
+                                                                                                                        })
+                                                                                                                }
+                                                                                                        >
 														Edit
 													</Button>
 													<Button
