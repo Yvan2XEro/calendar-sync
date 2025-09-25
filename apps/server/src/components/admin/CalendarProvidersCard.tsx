@@ -229,14 +229,16 @@ export function CalendarProvidersCard({ slug }: CalendarProvidersCardProps) {
 
         const options: MultiSelectOption[] = React.useMemo(
                 () =>
-                        providersQuery.data?.catalogSummary.map((item) => ({
-				id: item.id,
-				name: item.name,
-				category: item.category,
-				status: item.status,
-                                description: null,
-                                lastTestedAt: item.lastTestedAt,
-                        })) ?? [],
+                        providersQuery.data?.catalogSummary.map(
+                                (item: OrgProviderListOutput["catalogSummary"][number]) => ({
+                                        id: item.id,
+                                        name: item.name,
+                                        category: item.category,
+                                        status: item.status,
+                                        description: null,
+                                        lastTestedAt: item.lastTestedAt,
+                                }),
+                        ) ?? [],
                 [providersQuery.data?.catalogSummary],
         );
 
