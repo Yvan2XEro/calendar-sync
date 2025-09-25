@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { CardDescription } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { EventListItem } from "./types";
-import { formatDisplayDate } from "./utils";
+import { formatDisplayDate } from "@/lib/datetime";
 
 type EventPreviewProps = {
 	event: EventListItem;

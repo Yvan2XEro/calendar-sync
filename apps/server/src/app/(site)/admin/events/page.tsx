@@ -8,18 +8,20 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { inferRouterInputs } from "@trpc/server";
-import { format } from "date-fns";
 import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
-import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
+import {
+        EventEditDialog,
+        type EventEditFormValues,
+        type ProviderOption,
+} from "@/components/admin/events/EventEditDialog";
 import { EventListView } from "@/components/admin/events/EventListView";
 import { statusActions } from "@/components/admin/events/status-actions";
 import type { EventListItem, EventsListOutput } from "@/components/admin/events/types";
-import { formatDisplayDate } from "@/components/admin/events/utils";
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
         Card,
@@ -29,15 +31,6 @@ import {
         CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-        Dialog,
-        DialogClose,
-        DialogContent,
-        DialogDescription,
-        DialogFooter,
-        DialogHeader,
-        DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -55,13 +48,6 @@ import {
         SelectTrigger,
         SelectValue,
 } from "@/components/ui/select";
-import {
-        Sheet,
-        SheetContent,
-        SheetDescription,
-        SheetHeader,
-        SheetTitle,
-} from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
@@ -85,20 +71,13 @@ type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
 
 const adminEventKeys = {
-	all: ["adminEvents"] as const,
-	list: (params: {
-		filters: EventsListFilters | null;
-		page: number;
-		limit: number;
-	}) => [...adminEventKeys.all, "list", params] as const,
+        all: ["adminEvents"] as const,
+        list: (params: {
+                filters: EventsListFilters | null;
+                page: number;
+                limit: number;
+        }) => [...adminEventKeys.all, "list", params] as const,
 } as const;
-
-function formatDateTimeLocal(value: string | Date | null | undefined) {
-	if (!value) return "";
-	const date = value instanceof Date ? value : new Date(value);
-	if (Number.isNaN(date.getTime())) return "";
-	return format(date, "yyyy-MM-dd'T'HH:mm");
-}
 
 function patchEventsInCache(
         queryClient: QueryClient,
@@ -134,20 +113,6 @@ function replaceEventInCache(
 	});
 }
 
-type EditValues = {
-	title: string;
-	description: string;
-	location: string;
-	url: string;
-	startAt: string;
-	endAt: string;
-	isAllDay: boolean;
-	isPublished: boolean;
-	externalId: string;
-	priority: number;
-	providerId: string;
-};
-
 export default function AdminEventsPage() {
 	const queryClient = useQueryClient();
 	const {
@@ -167,15 +132,23 @@ export default function AdminEventsPage() {
 		handleViewChange,
 	} = useEventFilters({ defaultLimit: DEFAULT_PAGE_SIZE });
 
-	const providersQuery = useQuery({
-		queryKey: providerKeys.catalog.list(),
-		queryFn: () => trpcClient.providers.catalog.list.query(),
-	});
+        const providersQuery = useQuery({
+                queryKey: providerKeys.catalog.list(),
+                queryFn: () => trpcClient.providers.catalog.list.query(),
+        });
 
-	const listQueryKey = useMemo(
-		() => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
-		[limit, listFilters, page],
-	);
+        const providerOptions = useMemo<ProviderOption[]>(() => {
+                if (!providersQuery.data) return [];
+                return providersQuery.data.map((provider) => ({
+                        id: (provider as ProviderOption).id,
+                        name: (provider as ProviderOption).name,
+                }));
+        }, [providersQuery.data]);
+
+        const listQueryKey = useMemo(
+                () => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
+                [limit, listFilters, page],
+        );
 
 	const eventsQuery = useQuery({
 		queryKey: listQueryKey,
@@ -226,10 +199,8 @@ export default function AdminEventsPage() {
 		});
 	}, [eventIdSet]);
 
-	const [detailId, setDetailId] = useState<string | null>(null);
-	const [editDialogOpen, setEditDialogOpen] = useState(false);
-	const [editingId, setEditingId] = useState<string | null>(null);
-	const [editValues, setEditValues] = useState<EditValues | null>(null);
+        const [detailId, setDetailId] = useState<string | null>(null);
+        const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
 
 	const detailEvent = useMemo(
 		() => events.find((event) => event.id === detailId) ?? null,
@@ -274,29 +245,13 @@ export default function AdminEventsPage() {
 		setDetailId(null);
 	}, []);
 
-	const handleEditOpen = useCallback((event: EventListItem) => {
-		setEditingId(event.id);
-		setEditValues({
-			title: event.title,
-			description: event.description ?? "",
-			location: event.location ?? "",
-			url: event.url ?? "",
-			startAt: formatDateTimeLocal(event.startAt),
-			endAt: formatDateTimeLocal(event.endAt),
-			isAllDay: event.isAllDay,
-			isPublished: event.isPublished,
-			externalId: event.externalId ?? "",
-			priority: event.priority,
-			providerId: event.provider?.id ?? "",
-		});
-		setEditDialogOpen(true);
-	}, []);
+        const handleEditOpen = useCallback((event: EventListItem) => {
+                setEditingEvent(event);
+        }, []);
 
-	const handleEditClose = useCallback(() => {
-		setEditDialogOpen(false);
-		setEditingId(null);
-		setEditValues(null);
-	}, []);
+        const handleEditClose = useCallback(() => {
+                setEditingEvent(null);
+        }, []);
 
 	const updateStatusMutation = useMutation({
 		mutationFn: (variables: UpdateStatusInput) =>
@@ -434,34 +389,33 @@ export default function AdminEventsPage() {
 		[bulkStatusMutation, selectedIds],
 	);
 
-	const handleEditSubmit = useCallback(
-		(event: FormEvent<HTMLFormElement>) => {
-			event.preventDefault();
-			if (!editingId || !editValues) return;
+        const handleEditSubmit = useCallback(
+                (values: EventEditFormValues) => {
+                        if (!editingEvent) return;
 
-			const payload: RouterInputs["events"]["update"] = {
-				id: editingId,
-				title: editValues.title.trim(),
-				description: editValues.description.trim(),
-				location: editValues.location.trim(),
-				url: editValues.url.trim() || null,
-				startAt: editValues.startAt
-					? new Date(editValues.startAt).toISOString()
-					: undefined,
-				endAt: editValues.endAt
-					? new Date(editValues.endAt).toISOString()
-					: null,
-				isAllDay: editValues.isAllDay,
-				isPublished: editValues.isPublished,
-				externalId: editValues.externalId.trim(),
-				priority: editValues.priority,
-				providerId: editValues.providerId || undefined,
-			};
+                        const payload: RouterInputs["events"]["update"] = {
+                                id: editingEvent.id,
+                                title: values.title.trim(),
+                                description: values.description.trim(),
+                                location: values.location.trim(),
+                                url: values.url.trim() || null,
+                                startAt: values.startAt
+                                        ? new Date(values.startAt).toISOString()
+                                        : undefined,
+                                endAt: values.endAt
+                                        ? new Date(values.endAt).toISOString()
+                                        : null,
+                                isAllDay: values.isAllDay,
+                                isPublished: values.isPublished,
+                                externalId: values.externalId.trim(),
+                                priority: values.priority,
+                                providerId: values.providerId || undefined,
+                        };
 
-			updateEventMutation.mutate(payload);
-		},
-		[editValues, editingId, updateEventMutation],
-	);
+                        updateEventMutation.mutate(payload);
+                },
+                [editingEvent, updateEventMutation],
+        );
 
 	const headerCheckboxState = selectedIds.length
 		? allSelectedOnPage
@@ -727,20 +681,20 @@ export default function AdminEventsPage() {
 							</div>
 						</CardContent>
 					</Card>
-				) : (
-                                <EventListView
-                                        events={events}
-                                        view={filters.view}
-                                        selectedIds={selectedIds}
-                                        onSelect={handleSelect}
-                                        onSelectAll={handleSelectAll}
-                                        onEdit={handleEditOpen}
-                                        onViewDetail={handleOpenDetail}
-                                        onStatusAction={handleStatusAction}
-                                />
-                                )
+                                ) : (
+                                        <EventListView
+                                                events={events}
+                                                view={filters.view}
+                                                selectedIds={selectedIds}
+                                                onSelect={handleSelect}
+                                                onSelectAll={handleSelectAll}
+                                                onEdit={handleEditOpen}
+                                                onViewDetail={handleOpenDetail}
+                                                onStatusAction={handleStatusAction}
+                                        />
+                                )}
 
-				{eventsQuery.data && total > 0 ? (
+                                {eventsQuery.data && total > 0 ? (
 					<div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
 						<div className="text-muted-foreground text-sm">
 							Showing {summaryStart} to {summaryEnd} of {total} events
@@ -786,366 +740,23 @@ export default function AdminEventsPage() {
 				) : null}
 			</section>
 
-			<Sheet
-				open={detailEvent != null}
-				onOpenChange={(open) => {
-					if (!open) handleCloseDetail();
-				}}
-			>
-				<SheetContent
-					side="right"
-					className="min-w-2xl max-w-2xl overflow-y-auto p-3"
-				>
-					<SheetHeader>
-						<SheetTitle>{detailEvent?.title ?? "Event details"}</SheetTitle>
-						<SheetDescription>
-							Review the synchronized metadata before applying moderation
-							changes.
-						</SheetDescription>
-					</SheetHeader>
-					{detailEvent ? (
-						<div className="mt-6 space-y-6">
-							<div className="space-y-2">
-								<p className="text-muted-foreground text-sm">
-									Event ID: {detailEvent.id}
-								</p>
-								{detailEvent.externalId ? (
-									<p className="text-muted-foreground text-sm">
-										External ID: {detailEvent.externalId}
-									</p>
-								) : null}
-								<div className="flex flex-wrap gap-2">
-									<Badge
-										variant={statusOptionMap[detailEvent.status].badgeVariant}
-									>
-										{statusOptionMap[detailEvent.status].label}
-									</Badge>
-									<Badge
-										variant={detailEvent.isPublished ? "default" : "outline"}
-									>
-										{detailEvent.isPublished ? "Published" : "Draft"}
-									</Badge>
-									{detailEvent.isAllDay ? (
-										<Badge variant="outline">All-day</Badge>
-									) : null}
-								</div>
-							</div>
-							<div className="space-y-1 text-sm">
-								<p className="font-semibold text-foreground">Schedule</p>
-								<p className="text-muted-foreground">
-									Starts: {formatDisplayDate(detailEvent.startAt)}
-								</p>
-								{detailEvent.endAt ? (
-									<p className="text-muted-foreground">
-										Ends: {formatDisplayDate(detailEvent.endAt)}
-									</p>
-								) : null}
-							</div>
-							<div className="space-y-1 text-sm">
-								<p className="font-semibold text-foreground">Location</p>
-								<p className="text-muted-foreground">
-									{detailEvent.location ?? "No location provided"}
-								</p>
-							</div>
-							<div className="space-y-1 text-sm">
-								<p className="font-semibold text-foreground">Provider</p>
-								<p className="text-muted-foreground">
-									{detailEvent.provider?.name ?? "Unassigned"}
-								</p>
-								{detailEvent.provider?.category ? (
-									<p className="text-muted-foreground">
-										{detailEvent.provider.category}
-									</p>
-								) : null}
-							</div>
-							{detailEvent.description ? (
-								<div className="space-y-1 text-sm">
-									<p className="font-semibold text-foreground">Description</p>
-									<p className="whitespace-pre-wrap text-muted-foreground">
-										{detailEvent.description}
-									</p>
-								</div>
-							) : null}
-							<div className="space-y-1 text-sm">
-								<p className="font-semibold text-foreground">Metadata</p>
-								<pre className="max-h-48 overflow-auto rounded-md bg-muted/60 p-3 text-xs">
-									{JSON.stringify(detailEvent.metadata ?? {}, null, 2)}
-								</pre>
-							</div>
-							<div className="flex flex-wrap gap-2">
-								{statusActions.map((action) => (
-									<Button
-										key={action.status}
-										onClick={() =>
-											handleStatusAction(detailEvent.id, action.status)
-										}
-										disabled={statusLoading}
-									>
-										<action.icon className="mr-2 size-4" />
-										{action.label}
-									</Button>
-								))}
-								<Button
-									variant="outline"
-									onClick={() => handleEditOpen(detailEvent)}
-								>
-									Edit event
-								</Button>
-							</div>
-						</div>
-					) : null}
-				</SheetContent>
-			</Sheet>
+                        <EventDetailSheet
+                                event={detailEvent}
+                                statusActions={statusActions}
+                                onUpdateStatus={handleStatusAction}
+                                onEdit={handleEditOpen}
+                                onClose={handleCloseDetail}
+                                statusLoading={statusLoading}
+                        />
 
-			<Dialog
-				open={editDialogOpen}
-				onOpenChange={(open) => {
-					if (!open) handleEditClose();
-				}}
-			>
-				<DialogContent className="sm:max-w-lg">
-					<form onSubmit={handleEditSubmit} className="space-y-4">
-						<DialogHeader>
-							<DialogTitle>Edit event</DialogTitle>
-							<DialogDescription>
-								Update key event metadata before saving your moderation changes.
-							</DialogDescription>
-						</DialogHeader>
-						<div className="space-y-2">
-							<Label htmlFor="event-title">Title</Label>
-							<Input
-								id="event-title"
-								value={editValues?.title ?? ""}
-								onChange={(event) =>
-									setEditValues((prev) =>
-										prev ? { ...prev, title: event.target.value } : prev,
-									)
-								}
-								required
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="event-description">Description</Label>
-							<textarea
-								id="event-description"
-								value={editValues?.description ?? ""}
-								onChange={(event) =>
-									setEditValues((prev) =>
-										prev
-											? {
-													...prev,
-													description: event.target.value,
-												}
-											: prev,
-									)
-								}
-								className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-							/>
-						</div>
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="space-y-2">
-								<Label htmlFor="event-start">Start time</Label>
-								<Input
-									id="event-start"
-									type="datetime-local"
-									value={editValues?.startAt ?? ""}
-									onChange={(event) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														startAt: event.target.value,
-													}
-												: prev,
-										)
-									}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="event-end">End time</Label>
-								<Input
-									id="event-end"
-									type="datetime-local"
-									value={editValues?.endAt ?? ""}
-									onChange={(event) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														endAt: event.target.value,
-													}
-												: prev,
-										)
-									}
-								/>
-							</div>
-						</div>
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="space-y-2">
-								<Label htmlFor="event-location">Location</Label>
-								<Input
-									id="event-location"
-									value={editValues?.location ?? ""}
-									onChange={(event) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														location: event.target.value,
-													}
-												: prev,
-										)
-									}
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="event-url">URL</Label>
-								<Input
-									id="event-url"
-									value={editValues?.url ?? ""}
-									onChange={(event) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														url: event.target.value,
-													}
-												: prev,
-										)
-									}
-								/>
-							</div>
-						</div>
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="space-y-2">
-								<Label htmlFor="event-priority">Priority</Label>
-								<Select
-									value={editValues ? String(editValues.priority) : "3"}
-									onValueChange={(value) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														priority: Number(value),
-													}
-												: prev,
-										)
-									}
-								>
-									<SelectTrigger id="event-priority">
-										<SelectValue placeholder="Priority" />
-									</SelectTrigger>
-									<SelectContent>
-										{[1, 2, 3, 4, 5].map((priority) => (
-											<SelectItem key={priority} value={String(priority)}>
-												{priority}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-							<div className="space-y-2">
-								<Label htmlFor="event-provider">Provider</Label>
-								<Select
-									value={editValues?.providerId ?? ""}
-									onValueChange={(value) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														providerId: value,
-													}
-												: prev,
-										)
-									}
-								>
-									<SelectTrigger id="event-provider">
-										<SelectValue placeholder="Select provider" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="">Unassigned</SelectItem>
-										{providersQuery.data?.map((provider) => (
-											<SelectItem key={provider.id} value={provider.id}>
-												{provider.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-						<div className="grid gap-4 sm:grid-cols-2">
-							<div className="space-y-2">
-								<Label htmlFor="event-external">External ID</Label>
-								<Input
-									id="event-external"
-									value={editValues?.externalId ?? ""}
-									onChange={(event) =>
-										setEditValues((prev) =>
-											prev
-												? {
-														...prev,
-														externalId: event.target.value,
-													}
-												: prev,
-										)
-									}
-								/>
-							</div>
-							<div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
-								<div>
-									<Label
-										htmlFor="event-published"
-										className="font-medium text-sm"
-									>
-										Published
-									</Label>
-									<p className="text-muted-foreground text-xs">
-										Toggle whether the event is visible externally.
-									</p>
-								</div>
-								<Switch
-									id="event-published"
-									checked={editValues?.isPublished ?? false}
-									onCheckedChange={(checked) =>
-										setEditValues((prev) =>
-											prev ? { ...prev, isPublished: checked } : prev,
-										)
-									}
-								/>
-							</div>
-						</div>
-						<div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 px-3 py-2">
-							<div>
-								<Label htmlFor="event-allday" className="font-medium text-sm">
-									All-day event
-								</Label>
-								<p className="text-muted-foreground text-xs">
-									Set to true if this event spans the entire day.
-								</p>
-							</div>
-							<Switch
-								id="event-allday"
-								checked={editValues?.isAllDay ?? false}
-								onCheckedChange={(checked) =>
-									setEditValues((prev) =>
-										prev ? { ...prev, isAllDay: checked } : prev,
-									)
-								}
-							/>
-						</div>
-						<DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-							<DialogClose asChild>
-								<Button type="button" variant="outline">
-									Cancel
-								</Button>
-							</DialogClose>
-							<Button type="submit" disabled={updateEventMutation.isPending}>
-								{updateEventMutation.isPending ? "Saving…" : "Save changes"}
-							</Button>
-						</DialogFooter>
-					</form>
-				</DialogContent>
-			</Dialog>
+                        <EventEditDialog
+                                open={editingEvent != null}
+                                event={editingEvent}
+                                providers={providerOptions}
+                                onSubmit={handleEditSubmit}
+                                onClose={handleEditClose}
+                                isSaving={updateEventMutation.isPending}
+                        />
 		</AppShell>
 	);
 }
