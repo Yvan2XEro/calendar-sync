@@ -105,15 +105,9 @@ export function useEventFilters(
                 const queryEntries = Array.from(nextParams.entries()).map<[string, string]>(
                         ([key, value]) => [key, value],
                 );
-                const query = Object.fromEntries(queryEntries);
-                router.replace(
-                        queryEntries.length > 0
-                                ? { pathname, query }
-                                : { pathname },
-                        {
-                                scroll: false,
-                        },
-                );
+                const nextUrl =
+                        queryEntries.length > 0 ? `${pathname}?${nextString}` : pathname;
+                router.replace(nextUrl, { scroll: false });
         }, [filters, pathname, router, searchParamsString]);
 
 	useEffect(() => {

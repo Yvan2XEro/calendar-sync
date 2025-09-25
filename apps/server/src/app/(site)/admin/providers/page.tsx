@@ -192,12 +192,9 @@ export default function ProvidersAdminPage() {
                                                                                                                 variant="default"
                                                                                                                 size="sm"
                                                                                                                 onClick={() =>
-                                                                                                                        router.push({
-                                                                                                                                pathname: "/admin/providers/[providerId]",
-                                                                                                                                params: {
-                                                                                                                                        providerId: row.id,
-                                                                                                                                },
-                                                                                                                        })
+                                                                                                                        router.push(
+                                                                                                                                `/admin/providers/${row.id}`,
+                                                                                                                        )
                                                                                                                 }
                                                                                                         >
 														Edit
