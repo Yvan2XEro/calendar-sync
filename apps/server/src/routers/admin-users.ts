@@ -1,14 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import {
-	and,
-	asc,
-	count,
-	desc,
-	eq,
-	ilike,
-	inArray,
-	isNull,
-	or,
+        SQL,
+        and,
+        asc,
+        count,
+        desc,
+        eq,
+        ilike,
+        inArray,
+        isNull,
+        or,
 } from "drizzle-orm";
 import { z } from "zod";
 
@@ -42,9 +43,9 @@ export const adminUsersRouter = router({
 
 		const calendarUserIds = input.calendarId
 			? await db
-				.select({ userId: member.userId })
-				.from(member)
-				.where(eq(member.organizationId, input.calendarId))
+					.select({ userId: member.userId })
+					.from(member)
+					.where(eq(member.organizationId, input.calendarId))
 			: null;
 
 		if (calendarUserIds && calendarUserIds.length === 0) {
@@ -56,21 +57,25 @@ export const adminUsersRouter = router({
 			};
 		}
 
-		const conditions: Array<ReturnType<typeof eq>> = [];
+                const conditions: SQL<unknown>[] = [];
 
-		if (input.q) {
-			const term = `%${input.q}%`;
-			const whereClause = or(ilike(user.name, term), ilike(user.email, term));
-			if (whereClause) conditions.push(whereClause);
-		}
+                if (input.q) {
+                        const term = `%${input.q}%`;
+                        const clause = or(ilike(user.name, term), ilike(user.email, term));
+                        if (clause) {
+                                conditions.push(clause);
+                        }
+                }
 
 		if (input.roles?.length) {
 			conditions.push(inArray(user.role, input.roles));
 		}
 
 		if (input.status === "active") {
-			const whereClause = or(eq(user.banned, false), isNull(user.banned));
-			if (whereClause) conditions.push(whereClause);
+                        const clause = or(eq(user.banned, false), isNull(user.banned));
+                        if (clause) {
+                                conditions.push(clause);
+                        }
 		} else if (input.status === "banned") {
 			conditions.push(eq(user.banned, true));
 		}
