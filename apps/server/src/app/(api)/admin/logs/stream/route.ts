@@ -16,15 +16,14 @@ app.use(async (c, next) => {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
 
-	const roleCandidates = Array.isArray(context.session.user?.roles)
-		? context.session.user.roles
-		: context.session.user?.role
-			? [context.session.user.role]
-			: [];
+        const userRole = (context.session.user as typeof context.session.user & {
+                role?: string | null;
+        })?.role;
+        const roles = userRole ? [userRole] : [];
 
-	if (!roleCandidates.includes("admin")) {
-		return c.json({ error: "Forbidden" }, 403);
-	}
+        if (!roles.includes("admin")) {
+                return c.json({ error: "Forbidden" }, 403);
+        }
 
 	c.set("session", context.session);
 	await next();
