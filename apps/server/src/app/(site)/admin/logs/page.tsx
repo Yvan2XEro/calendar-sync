@@ -2,9 +2,9 @@
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { useQuery } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import { format } from "date-fns";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { inferRouterOutputs } from "@trpc/server";
 
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -92,10 +92,10 @@ export default function AdminLogsPage() {
 	const [providerFilter, setProviderFilter] = useState<string | null>(null);
 	const [levelFilter, setLevelFilter] = useState<string | null>(null);
 
-        const providerQuery = useQuery<ProvidersCatalogListOutput>({
-                queryKey: providerKeys.catalog.list(),
-                queryFn: () => trpcClient.providers.catalog.list.query(),
-        });
+	const providerQuery = useQuery<ProvidersCatalogListOutput>({
+		queryKey: providerKeys.catalog.list(),
+		queryFn: () => trpcClient.providers.catalog.list.query(),
+	});
 	const logsQuery = useAdminLogs({
 		providerId: providerFilter,
 		level: levelFilter,
@@ -209,11 +209,13 @@ export default function AdminLogsPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All providers</SelectItem>
-                                                                                {providerQuery.data?.map((provider: ProvidersCatalogListOutput[number]) => (
-											<SelectItem key={provider.id} value={provider.id}>
-												{provider.name}
-											</SelectItem>
-										))}
+										{providerQuery.data?.map(
+											(provider: ProvidersCatalogListOutput[number]) => (
+												<SelectItem key={provider.id} value={provider.id}>
+													{provider.name}
+												</SelectItem>
+											),
+										)}
 									</SelectContent>
 								</Select>
 							)}

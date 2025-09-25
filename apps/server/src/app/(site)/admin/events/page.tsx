@@ -1,16 +1,5 @@
 "use client";
 
-import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
-import {
-        type QueryClient,
-        useMutation,
-        useQuery,
-        useQueryClient,
-} from "@tanstack/react-query";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
 import {
 	EventEditDialog,
@@ -18,14 +7,13 @@ import {
 	type ProviderOption,
 } from "@/components/admin/events/EventEditDialog";
 import { EventListView } from "@/components/admin/events/EventListView";
-import { statusActions } from "@/components/admin/events/status-actions";
 import type { StatusAction } from "@/components/admin/events/status-actions";
+import { statusActions } from "@/components/admin/events/status-actions";
 import type {
 	EventListItem,
 	EventsListOutput,
 } from "@/components/admin/events/types";
 import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -53,15 +41,27 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { UserAvatar } from "@/components/UserAvatar";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
+import {
+	type QueryClient,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
 import {
-        type EventsListFilters,
-        type EventStatus,
-        eventStatuses,
-        statusOptionMap,
+	type EventStatus,
+	type EventsListFilters,
+	eventStatuses,
+	statusOptionMap,
 } from "./event-filters";
 import { useEventFilters } from "./useEventFilters";
 
@@ -85,43 +85,43 @@ const adminEventKeys = {
 } as const;
 
 function patchEventsInCache(
-        queryClient: QueryClient,
-        queryKey: ReturnType<typeof adminEventKeys.list>,
-        ids: Iterable<string>,
-        patch: Partial<EventListItem>,
+	queryClient: QueryClient,
+	queryKey: ReturnType<typeof adminEventKeys.list>,
+	ids: Iterable<string>,
+	patch: Partial<EventListItem>,
 ) {
-        const idSet = new Set(ids);
-        queryClient.setQueryData<EventsListOutput>(
-                queryKey,
-                (previous: EventsListOutput | undefined) => {
-                if (!previous) return previous;
-                return {
-                        ...previous,
-                        items: previous.items.map((item: EventListItem) =>
-                                idSet.has(item.id) ? { ...item, ...patch } : item,
-                        ),
-                } satisfies EventsListOutput;
-                },
-        );
+	const idSet = new Set(ids);
+	queryClient.setQueryData<EventsListOutput>(
+		queryKey,
+		(previous: EventsListOutput | undefined) => {
+			if (!previous) return previous;
+			return {
+				...previous,
+				items: previous.items.map((item: EventListItem) =>
+					idSet.has(item.id) ? { ...item, ...patch } : item,
+				),
+			} satisfies EventsListOutput;
+		},
+	);
 }
 
 function replaceEventInCache(
-        queryClient: QueryClient,
-        queryKey: ReturnType<typeof adminEventKeys.list>,
-        updated: EventListItem,
+	queryClient: QueryClient,
+	queryKey: ReturnType<typeof adminEventKeys.list>,
+	updated: EventListItem,
 ) {
-        queryClient.setQueryData<EventsListOutput>(
-                queryKey,
-                (previous: EventsListOutput | undefined) => {
-                if (!previous) return previous;
-                return {
-                        ...previous,
-                        items: previous.items.map((item: EventListItem) =>
-                                item.id === updated.id ? updated : item,
-                        ),
-                } satisfies EventsListOutput;
-                },
-        );
+	queryClient.setQueryData<EventsListOutput>(
+		queryKey,
+		(previous: EventsListOutput | undefined) => {
+			if (!previous) return previous;
+			return {
+				...previous,
+				items: previous.items.map((item: EventListItem) =>
+					item.id === updated.id ? updated : item,
+				),
+			} satisfies EventsListOutput;
+		},
+	);
 }
 
 export default function AdminEventsPage() {
@@ -143,34 +143,37 @@ export default function AdminEventsPage() {
 		handleViewChange,
 	} = useEventFilters({ defaultLimit: DEFAULT_PAGE_SIZE });
 
-        const providersQuery = useQuery<ProvidersCatalogListOutput>({
-                queryKey: providerKeys.catalog.list(),
-                queryFn: () => trpcClient.providers.catalog.list.query(),
-        });
+	const providersQuery = useQuery<ProvidersCatalogListOutput>({
+		queryKey: providerKeys.catalog.list(),
+		queryFn: () => trpcClient.providers.catalog.list.query(),
+	});
 
-        const providerOptions = useMemo<ProviderOption[]>(() => {
-                if (!providersQuery.data) return [];
-                return providersQuery.data.map((provider: ProvidersCatalogListOutput[number]) => ({
-                        id: provider.id,
-                        name: provider.name,
-                } satisfies ProviderOption));
-        }, [providersQuery.data]);
+	const providerOptions = useMemo<ProviderOption[]>(() => {
+		if (!providersQuery.data) return [];
+		return providersQuery.data.map(
+			(provider: ProvidersCatalogListOutput[number]) =>
+				({
+					id: provider.id,
+					name: provider.name,
+				}) satisfies ProviderOption,
+		);
+	}, [providersQuery.data]);
 
-        const listQueryKey = useMemo<ReturnType<typeof adminEventKeys.list>>(
-                () => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
-                [limit, listFilters, page],
-        );
+	const listQueryKey = useMemo<ReturnType<typeof adminEventKeys.list>>(
+		() => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
+		[limit, listFilters, page],
+	);
 
-        const eventsQuery = useQuery<EventsListOutput>({
-                queryKey: listQueryKey,
-                queryFn: () => trpcClient.events.list.query(listParams),
-                placeholderData: (previous: EventsListOutput | undefined) => previous,
-        });
+	const eventsQuery = useQuery<EventsListOutput>({
+		queryKey: listQueryKey,
+		queryFn: () => trpcClient.events.list.query(listParams),
+		placeholderData: (previous: EventsListOutput | undefined) => previous,
+	});
 
-        const events = useMemo<EventListItem[]>(
-                () => eventsQuery.data?.items ?? [],
-                [eventsQuery.data?.items],
-        );
+	const events = useMemo<EventListItem[]>(
+		() => eventsQuery.data?.items ?? [],
+		[eventsQuery.data?.items],
+	);
 	const total = eventsQuery.data?.total ?? 0;
 	const currentPage = eventsQuery.data?.page ?? page;
 	const currentLimit = eventsQuery.data?.limit ?? limit;
@@ -190,20 +193,20 @@ export default function AdminEventsPage() {
 		}
 	}, [eventsQuery.data, limit, setLimit]);
 
-        const [selectedIds, setSelectedIds] = useState<
-                Array<EventsListOutput["items"][number]["id"]>
-        >([]);
+	const [selectedIds, setSelectedIds] = useState<
+		Array<EventsListOutput["items"][number]["id"]>
+	>([]);
 
 	useEffect(() => {
 		setPage(1);
 		setSelectedIds([]);
 		void listFilters;
-	}, [listFilters, setPage, setSelectedIds]);
+	}, [listFilters, setPage]);
 
-        const eventIdSet = useMemo(
-                () => new Set(events.map((event: EventListItem) => event.id)),
-                [events],
-        );
+	const eventIdSet = useMemo(
+		() => new Set(events.map((event: EventListItem) => event.id)),
+		[events],
+	);
 
 	useEffect(() => {
 		setSelectedIds((prev) => {
@@ -215,23 +218,24 @@ export default function AdminEventsPage() {
 	const [detailId, setDetailId] = useState<string | null>(null);
 	const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
 
-        const detailEvent = useMemo(
-                () => events.find((event: EventListItem) => event.id === detailId) ?? null,
-                [detailId, events],
-        );
+	const detailEvent = useMemo(
+		() => events.find((event: EventListItem) => event.id === detailId) ?? null,
+		[detailId, events],
+	);
 
 	const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 	const allSelectedOnPage =
-                events.length > 0 && events.every((event: EventListItem) => selectedIdSet.has(event.id));
+		events.length > 0 &&
+		events.every((event: EventListItem) => selectedIdSet.has(event.id));
 
 	const handleSelectAll = useCallback(
 		(checked: boolean) => {
 			setSelectedIds((prev) => {
 				if (checked) {
 					const union = new Set(prev);
-                                        events.forEach((event: EventListItem) => {
-                                                union.add(event.id);
-                                        });
+					events.forEach((event: EventListItem) => {
+						union.add(event.id);
+					});
 					return Array.from(union);
 				}
 				return prev.filter((id) => !eventIdSet.has(id));
@@ -266,25 +270,25 @@ export default function AdminEventsPage() {
 		setEditingEvent(null);
 	}, []);
 
-        const updateStatusMutation = useMutation({
-                mutationFn: (variables: UpdateStatusInput) =>
-                        trpcClient.events.updateStatus.mutate(variables),
-                onMutate: async (variables) => {
-                        await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-                        patchEventsInCache(queryClient, listQueryKey, [variables.id], {
-                                status: variables.status,
-                                updatedAt: new Date().toISOString(),
-                        });
-                        return { previous };
-                },
-                onError: (error, _variables, context) => {
-                        if (context?.previous) {
-                                queryClient.setQueryData<EventsListOutput>(
-                                        listQueryKey,
-                                        context.previous,
-                                );
-                        }
+	const updateStatusMutation = useMutation({
+		mutationFn: (variables: UpdateStatusInput) =>
+			trpcClient.events.updateStatus.mutate(variables),
+		onMutate: async (variables) => {
+			await queryClient.cancelQueries({ queryKey: listQueryKey });
+			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+			patchEventsInCache(queryClient, listQueryKey, [variables.id], {
+				status: variables.status,
+				updatedAt: new Date().toISOString(),
+			});
+			return { previous };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData<EventsListOutput>(
+					listQueryKey,
+					context.previous,
+				);
+			}
 			toast.error(
 				error instanceof Error
 					? error.message
@@ -304,22 +308,22 @@ export default function AdminEventsPage() {
 	const bulkStatusMutation = useMutation({
 		mutationFn: (variables: BulkUpdateStatusInput) =>
 			trpcClient.events.bulkUpdateStatus.mutate(variables),
-                onMutate: async (variables) => {
-                        await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-                        patchEventsInCache(queryClient, listQueryKey, variables.ids, {
-                                status: variables.status,
-                                updatedAt: new Date().toISOString(),
-                        });
-                        return { previous, ids: variables.ids };
-                },
-                onError: (error, _variables, context) => {
-                        if (context?.previous) {
-                                queryClient.setQueryData<EventsListOutput>(
-                                        listQueryKey,
-                                        context.previous,
-                                );
-                        }
+		onMutate: async (variables) => {
+			await queryClient.cancelQueries({ queryKey: listQueryKey });
+			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+			patchEventsInCache(queryClient, listQueryKey, variables.ids, {
+				status: variables.status,
+				updatedAt: new Date().toISOString(),
+			});
+			return { previous, ids: variables.ids };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData<EventsListOutput>(
+					listQueryKey,
+					context.previous,
+				);
+			}
 			toast.error(
 				error instanceof Error ? error.message : "Unable to update events",
 			);
@@ -342,67 +346,63 @@ export default function AdminEventsPage() {
 	const updateEventMutation = useMutation({
 		mutationFn: (variables: UpdateEventInput) =>
 			trpcClient.events.update.mutate(variables),
-                onMutate: async (variables) => {
-                        await queryClient.cancelQueries({ queryKey: listQueryKey });
-                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-                        const patch: Partial<EventListItem> = {
-                                updatedAt: new Date().toISOString(),
-                                ...(variables.title !== undefined
-                                        ? { title: variables.title }
-                                        : {}),
-                                ...(variables.description !== undefined
-                                        ? {
-                                                  description:
-                                                          typeof variables.description === "string"
-                                                                  ? variables.description
-                                                                  : variables.description ?? null,
-                                          }
-                                        : {}),
-                                ...(variables.location !== undefined
-                                        ? {
-                                                  location:
-                                                          typeof variables.location === "string"
-                                                                  ? variables.location
-                                                                  : variables.location ?? null,
-                                          }
-                                        : {}),
-                                ...(variables.url !== undefined
-                                        ? {
-                                                  url:
-                                                          typeof variables.url === "string"
-                                                                  ? variables.url
-                                                                  : variables.url ?? null,
-                                          }
-                                        : {}),
-                                ...(variables.startAt !== undefined
-                                        ? { startAt: variables.startAt }
-                                        : {}),
-                                ...(variables.endAt !== undefined
-                                        ? { endAt: variables.endAt }
-                                        : {}),
-                                ...(variables.isAllDay !== undefined
-                                        ? { isAllDay: variables.isAllDay }
-                                        : {}),
-                                ...(variables.isPublished !== undefined
-                                        ? { isPublished: variables.isPublished }
-                                        : {}),
-                                ...(variables.externalId !== undefined
-                                        ? { externalId: variables.externalId ?? null }
-                                        : {}),
-                                ...(variables.priority !== undefined
-                                        ? { priority: variables.priority }
-                                        : {}),
-                        };
-                        patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
-                        return { previous };
-                },
-                onError: (error, _variables, context) => {
-                        if (context?.previous) {
-                                queryClient.setQueryData<EventsListOutput>(
-                                        listQueryKey,
-                                        context.previous,
-                                );
-                        }
+		onMutate: async (variables) => {
+			await queryClient.cancelQueries({ queryKey: listQueryKey });
+			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+			const patch: Partial<EventListItem> = {
+				updatedAt: new Date().toISOString(),
+				...(variables.title !== undefined ? { title: variables.title } : {}),
+				...(variables.description !== undefined
+					? {
+							description:
+								typeof variables.description === "string"
+									? variables.description
+									: (variables.description ?? null),
+						}
+					: {}),
+				...(variables.location !== undefined
+					? {
+							location:
+								typeof variables.location === "string"
+									? variables.location
+									: (variables.location ?? null),
+						}
+					: {}),
+				...(variables.url !== undefined
+					? {
+							url:
+								typeof variables.url === "string"
+									? variables.url
+									: (variables.url ?? null),
+						}
+					: {}),
+				...(variables.startAt !== undefined
+					? { startAt: variables.startAt }
+					: {}),
+				...(variables.endAt !== undefined ? { endAt: variables.endAt } : {}),
+				...(variables.isAllDay !== undefined
+					? { isAllDay: variables.isAllDay }
+					: {}),
+				...(variables.isPublished !== undefined
+					? { isPublished: variables.isPublished }
+					: {}),
+				...(variables.externalId !== undefined
+					? { externalId: variables.externalId ?? null }
+					: {}),
+				...(variables.priority !== undefined
+					? { priority: variables.priority }
+					: {}),
+			};
+			patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
+			return { previous };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData<EventsListOutput>(
+					listQueryKey,
+					context.previous,
+				);
+			}
 			toast.error(
 				error instanceof Error ? error.message : "Unable to update event",
 			);
@@ -529,11 +529,11 @@ export default function AdminEventsPage() {
 										<SelectItem value="all">
 											{statusOptionMap.all.label}
 										</SelectItem>
-                                                                                {eventStatuses.map((status: EventStatus) => (
-                                                                                        <SelectItem key={status} value={status}>
-                                                                                                {statusOptionMap[status].label}
-                                                                                        </SelectItem>
-                                                                                ))}
+										{eventStatuses.map((status: EventStatus) => (
+											<SelectItem key={status} value={status}>
+												{statusOptionMap[status].label}
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 								<Select
@@ -545,11 +545,13 @@ export default function AdminEventsPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All providers</SelectItem>
-                                                                                {providersQuery.data?.map((provider: ProvidersCatalogListOutput[number]) => (
-                                                                                        <SelectItem key={provider.id} value={provider.id}>
-                                                                                                {provider.name}
-                                                                                        </SelectItem>
-										))}
+										{providersQuery.data?.map(
+											(provider: ProvidersCatalogListOutput[number]) => (
+												<SelectItem key={provider.id} value={provider.id}>
+													{provider.name}
+												</SelectItem>
+											),
+										)}
 									</SelectContent>
 								</Select>
 							</div>
@@ -627,10 +629,10 @@ export default function AdminEventsPage() {
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="any">Any</SelectItem>
-                                                                                        {[1, 2, 3, 4, 5].map((priority: number) => (
-                                                                                                <SelectItem
-                                                                                                        key={`min-${priority}`}
-                                                                                                        value={String(priority)}
+											{[1, 2, 3, 4, 5].map((priority: number) => (
+												<SelectItem
+													key={`min-${priority}`}
+													value={String(priority)}
 												>
 													{priority}
 												</SelectItem>
@@ -653,10 +655,10 @@ export default function AdminEventsPage() {
 										</SelectTrigger>
 										<SelectContent>
 											<SelectItem value="any">Any</SelectItem>
-                                                                                        {[1, 2, 3, 4, 5].map((priority: number) => (
-                                                                                                <SelectItem
-                                                                                                        key={`max-${priority}`}
-                                                                                                        value={String(priority)}
+											{[1, 2, 3, 4, 5].map((priority: number) => (
+												<SelectItem
+													key={`max-${priority}`}
+													value={String(priority)}
 												>
 													{priority}
 												</SelectItem>
@@ -682,10 +684,10 @@ export default function AdminEventsPage() {
 							</span>
 						</div>
 						<div className="flex flex-wrap items-center gap-2">
-                                                        {statusActions.map((action: StatusAction) => (
-                                                                <Button
-                                                                        key={action.status}
-                                                                        size="sm"
+							{statusActions.map((action: StatusAction) => (
+								<Button
+									key={action.status}
+									size="sm"
 									variant="outline"
 									onClick={() => handleBulkStatus(action.status)}
 									disabled={bulkStatusMutation.isPending}

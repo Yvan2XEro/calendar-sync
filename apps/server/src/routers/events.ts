@@ -261,18 +261,18 @@ function mapEvent(row: EventSelection) {
 		updatedAt: row.updatedAt,
 		provider: row.providerName
 			? {
-				id: row.providerId,
-				name: row.providerName,
-				category: row.providerCategory,
-				status: row.providerStatus,
-			}
+					id: row.providerId,
+					name: row.providerName,
+					category: row.providerCategory,
+					status: row.providerStatus,
+				}
 			: null,
 		flag: row.flagId
 			? {
-				id: row.flagId,
-				label: row.flagLabel,
-				priority: row.flagPriority,
-			}
+					id: row.flagId,
+					label: row.flagLabel,
+					priority: row.flagPriority,
+				}
 			: null,
 	} as const;
 }

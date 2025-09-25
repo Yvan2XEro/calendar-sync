@@ -141,64 +141,58 @@ export default function AdminUsersPage() {
 		[listParams],
 	);
 
-        const listQuery = useQuery<
-                AdminUsersListOutput,
-                Error,
-                AdminUsersListOutput,
-                typeof listKey
-        >({
-                queryKey: listKey,
-                queryFn: () => trpcClient.adminUsers.list.query(listParams),
-                placeholderData: (
-                        previous: AdminUsersListOutput | undefined,
-                ) => previous,
-        });
+	const listQuery = useQuery<
+		AdminUsersListOutput,
+		Error,
+		AdminUsersListOutput,
+		typeof listKey
+	>({
+		queryKey: listKey,
+		queryFn: () => trpcClient.adminUsers.list.query(listParams),
+		placeholderData: (previous: AdminUsersListOutput | undefined) => previous,
+	});
 
-        const rolesQuery = useQuery<RolesOptionsOutput>({
-                queryKey: ["adminUsers", "rolesOptions"],
-                queryFn: () => trpcClient.adminUsers.rolesOptions.query(),
-        });
+	const rolesQuery = useQuery<RolesOptionsOutput>({
+		queryKey: ["adminUsers", "rolesOptions"],
+		queryFn: () => trpcClient.adminUsers.rolesOptions.query(),
+	});
 
-        const calendarsQuery = useQuery<CalendarsOptionsOutput>({
-                queryKey: ["adminUsers", "calendarsOptions"],
-                queryFn: () => trpcClient.adminUsers.calendarsOptions.query(),
-        });
+	const calendarsQuery = useQuery<CalendarsOptionsOutput>({
+		queryKey: ["adminUsers", "calendarsOptions"],
+		queryFn: () => trpcClient.adminUsers.calendarsOptions.query(),
+	});
 
-        const listData: AdminUsersListOutput | undefined = listQuery.data;
+	const listData: AdminUsersListOutput | undefined = listQuery.data;
 
-        const banMutation = useMutation({
-                mutationKey: ["adminUsers", "ban"],
-                mutationFn: (input: BanUserInput) =>
-                        trpcClient.adminUsers.ban.mutate(input),
-                onMutate: async ({ userId }) => {
-                        await queryClient.cancelQueries({ queryKey: listKey });
-                        const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
-                        queryClient.setQueryData<AdminUsersListOutput>(
-                                listKey,
-                                (current: AdminUsersListOutput | undefined) => {
-                                        if (!current) return current;
-                                        return {
-                                                ...current,
-                                                items: current.items.map(
-                                                        (
-                                                                item: AdminUsersListOutput["items"][number],
-                                                        ) =>
-                                                        item.userId === userId
-                                                                ? { ...item, isBanned: true }
-                                                                : item,
-                                                ),
-                                        } satisfies AdminUsersListOutput;
-                                },
-                        );
-                        return { previous };
-                },
-                onError: (error, _variables, context) => {
-                        if (context?.previous) {
-                                queryClient.setQueryData<AdminUsersListOutput>(
-                                        listKey,
-                                        context.previous,
-                                );
-                        }
+	const banMutation = useMutation({
+		mutationKey: ["adminUsers", "ban"],
+		mutationFn: (input: BanUserInput) =>
+			trpcClient.adminUsers.ban.mutate(input),
+		onMutate: async ({ userId }) => {
+			await queryClient.cancelQueries({ queryKey: listKey });
+			const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
+			queryClient.setQueryData<AdminUsersListOutput>(
+				listKey,
+				(current: AdminUsersListOutput | undefined) => {
+					if (!current) return current;
+					return {
+						...current,
+						items: current.items.map(
+							(item: AdminUsersListOutput["items"][number]) =>
+								item.userId === userId ? { ...item, isBanned: true } : item,
+						),
+					} satisfies AdminUsersListOutput;
+				},
+			);
+			return { previous };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData<AdminUsersListOutput>(
+					listKey,
+					context.previous,
+				);
+			}
 			toast.error(
 				error instanceof Error ? error.message : "Unable to ban user",
 			);
@@ -211,39 +205,35 @@ export default function AdminUsersPage() {
 		},
 	});
 
-        const reactivateMutation = useMutation({
-                mutationKey: ["adminUsers", "reactivate"],
-                mutationFn: (input: ReactivateUserInput) =>
-                        trpcClient.adminUsers.reactivate.mutate(input),
-                onMutate: async ({ userId }) => {
-                        await queryClient.cancelQueries({ queryKey: listKey });
-                        const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
-                        queryClient.setQueryData<AdminUsersListOutput>(
-                                listKey,
-                                (current: AdminUsersListOutput | undefined) => {
-                                        if (!current) return current;
-                                        return {
-                                                ...current,
-                                                items: current.items.map(
-                                                        (
-                                                                item: AdminUsersListOutput["items"][number],
-                                                        ) =>
-                                                        item.userId === userId
-                                                                ? { ...item, isBanned: false }
-                                                                : item,
-                                                ),
-                                        } satisfies AdminUsersListOutput;
-                                },
-                        );
-                        return { previous };
-                },
-                onError: (error, _variables, context) => {
-                        if (context?.previous) {
-                                queryClient.setQueryData<AdminUsersListOutput>(
-                                        listKey,
-                                        context.previous,
-                                );
-                        }
+	const reactivateMutation = useMutation({
+		mutationKey: ["adminUsers", "reactivate"],
+		mutationFn: (input: ReactivateUserInput) =>
+			trpcClient.adminUsers.reactivate.mutate(input),
+		onMutate: async ({ userId }) => {
+			await queryClient.cancelQueries({ queryKey: listKey });
+			const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
+			queryClient.setQueryData<AdminUsersListOutput>(
+				listKey,
+				(current: AdminUsersListOutput | undefined) => {
+					if (!current) return current;
+					return {
+						...current,
+						items: current.items.map(
+							(item: AdminUsersListOutput["items"][number]) =>
+								item.userId === userId ? { ...item, isBanned: false } : item,
+						),
+					} satisfies AdminUsersListOutput;
+				},
+			);
+			return { previous };
+		},
+		onError: (error, _variables, context) => {
+			if (context?.previous) {
+				queryClient.setQueryData<AdminUsersListOutput>(
+					listKey,
+					context.previous,
+				);
+			}
 			toast.error(
 				error instanceof Error ? error.message : "Unable to reactivate user",
 			);
@@ -256,9 +246,9 @@ export default function AdminUsersPage() {
 		},
 	});
 
-        const totalPages = listData
-                ? Math.max(1, Math.ceil(listData.total / listData.pageSize))
-                : 1;
+	const totalPages = listData
+		? Math.max(1, Math.ceil(listData.total / listData.pageSize))
+		: 1;
 
 	const handleToggleRole = React.useCallback((role: string) => {
 		setSelectedRoles((prev) => {
@@ -278,16 +268,16 @@ export default function AdminUsersPage() {
 		});
 	}, []);
 
-        const isLoading = listQuery.isPending;
-        const rows = (listData?.items ?? []) as AdminUsersListOutput["items"];
-        const summaryStart =
-                listData && listData.total > 0
-                        ? (listData.page - 1) * listData.pageSize + 1
-                        : 0;
-        const summaryEnd =
-                listData && listData.total > 0
-                        ? Math.min(listData.total, listData.page * listData.pageSize)
-                        : 0;
+	const isLoading = listQuery.isPending;
+	const rows = (listData?.items ?? []) as AdminUsersListOutput["items"];
+	const summaryStart =
+		listData && listData.total > 0
+			? (listData.page - 1) * listData.pageSize + 1
+			: 0;
+	const summaryEnd =
+		listData && listData.total > 0
+			? Math.min(listData.total, listData.page * listData.pageSize)
+			: 0;
 
 	const handleSendReset = React.useCallback(
 		async (userId: string, email: string) => {
@@ -354,7 +344,7 @@ export default function AdminUsersPage() {
 							<DropdownMenuContent className="w-56">
 								<DropdownMenuLabel>Filter by role</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-                                                                {rolesQuery.data?.map((role: RolesOptionsOutput[number]) => (
+								{rolesQuery.data?.map((role: RolesOptionsOutput[number]) => (
 									<DropdownMenuCheckboxItem
 										key={role}
 										checked={selectedRoles.includes(role)}
@@ -399,11 +389,13 @@ export default function AdminUsersPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All calendars</SelectItem>
-                                                                {calendarsQuery.data?.map((calendar: CalendarsOptionsOutput[number]) => (
-									<SelectItem key={calendar.id} value={calendar.id}>
-										{calendar.name}
-									</SelectItem>
-								))}
+								{calendarsQuery.data?.map(
+									(calendar: CalendarsOptionsOutput[number]) => (
+										<SelectItem key={calendar.id} value={calendar.id}>
+											{calendar.name}
+										</SelectItem>
+									),
+								)}
 								{calendarsQuery.isLoading ? (
 									<SelectItem value="loading" disabled>
 										Loading calendars…
@@ -550,8 +542,8 @@ export default function AdminUsersPage() {
 											search.
 										</TableCell>
 									</TableRow>
-                                                                ) : (
-                                                                        rows.map((item: AdminUsersListOutput["items"][number]) => {
+								) : (
+									rows.map((item: AdminUsersListOutput["items"][number]) => {
 										const statusLabel = item.isBanned ? "Banned" : "Active";
 										const statusVariant = item.isBanned
 											? "destructive"
@@ -585,45 +577,49 @@ export default function AdminUsersPage() {
 															<div className="font-medium text-foreground text-sm">
 																{item.name || "Unnamed user"}
 															</div>
-                                                                                                                        <a
-                                                                                                                               href={`mailto:${item.email}`}
-                                                                                                                               className="text-muted-foreground text-sm hover:underline"
-                                                                                                                        >
-                                                                                                                               {item.email}
-                                                                                                                        </a>
+															<a
+																href={`mailto:${item.email}`}
+																className="text-muted-foreground text-sm hover:underline"
+															>
+																{item.email}
+															</a>
 														</div>
 													</div>
 												</TableCell>
 												<TableCell>
 													<div className="flex flex-wrap gap-2">
-                                                {item.roles.length === 0 ? (
-                                                        <Badge variant="outline">user</Badge>
-                                                ) : (
-                                                        item.roles.map((
-                                                                role: AdminUsersListOutput["items"][number]["roles"][number],
-                                                        ) => (
-                                                                <Badge key={role} variant="outline">
-                                                                        {role}
-                                                                </Badge>
-                                                        ))
-                                                )}
+														{item.roles.length === 0 ? (
+															<Badge variant="outline">user</Badge>
+														) : (
+															item.roles.map(
+																(
+																	role: AdminUsersListOutput["items"][number]["roles"][number],
+																) => (
+																	<Badge key={role} variant="outline">
+																		{role}
+																	</Badge>
+																),
+															)
+														)}
 													</div>
 												</TableCell>
 												<TableCell>
 													<div className="flex flex-wrap gap-2">
-                                                {item.calendars.map((
-                                                        calendar: AdminUsersListOutput["items"][number]["calendars"][number],
-                                                ) => (
-                                                        <Badge
-                                                                key={calendar.id}
-                                                                variant="secondary"
-                                                                className="max-w-[120px] truncate"
-                                                        >
-																<span title={calendar.name}>
-																	{calendar.name}
-																</span>
-															</Badge>
-														))}
+														{item.calendars.map(
+															(
+																calendar: AdminUsersListOutput["items"][number]["calendars"][number],
+															) => (
+																<Badge
+																	key={calendar.id}
+																	variant="secondary"
+																	className="max-w-[120px] truncate"
+																>
+																	<span title={calendar.name}>
+																		{calendar.name}
+																	</span>
+																</Badge>
+															),
+														)}
 														{item.calendarsOverflow > 0 ? (
 															<Badge variant="outline">
 																+{item.calendarsOverflow}

@@ -22,16 +22,18 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
 			return;
 		}
 
-                const userRole = (session.user as typeof session.user & {
-                        role?: string | null;
-                })?.role;
-                const roles = userRole ? [userRole] : [];
+		const userRole = (
+			session.user as typeof session.user & {
+				role?: string | null;
+			}
+		)?.role;
+		const roles = userRole ? [userRole] : [];
 
-                if (!roles.includes("admin")) {
-                        toast.error("Administrator access required");
-                        router.replace("/");
-                        return;
-                }
+		if (!roles.includes("admin")) {
+			toast.error("Administrator access required");
+			router.replace("/");
+			return;
+		}
 
 		setIsAuthorized(true);
 	}, [isPending, router, session]);

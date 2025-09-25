@@ -13,7 +13,7 @@ const baseFlagSchema = z.object({
 	slug: z.string().trim().min(1, "Slug is required"),
 	description: z.string().trim().optional(),
 	priority: z
-		.number({ invalid_type_error: "Priority is required" })
+		.number({ error: "Priority is required" })
 		.int("Priority must be an integer")
 		.min(1, "Priority must be between 1 and 5")
 		.max(5, "Priority must be between 1 and 5"),

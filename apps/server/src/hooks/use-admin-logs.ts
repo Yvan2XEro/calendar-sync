@@ -49,7 +49,7 @@ export function useAdminLogs(filters: LogFilters) {
 			trpcClient.adminLogs.list.query({
 				providerId: queryFilters.providerId ?? undefined,
 				level: queryFilters.level ?? undefined,
-				cursor: pageParam ?? undefined,
+				cursor: (pageParam as any) ?? undefined,
 			}),
 	});
 }
@@ -136,7 +136,7 @@ export function useAdminLogStream(
 
 	const queryKey = useMemo(() => logsKeys.list(queryFilters), [queryFilters]);
 
-	const sinceRef = useRef<string | undefined>();
+	const sinceRef = useRef<string | undefined>(undefined);
 	const isInitialLoadingRef = useRef(Boolean(isInitialLoading));
 	const bufferRef = useRef<LogEntry[]>([]);
 
@@ -178,7 +178,7 @@ export function useAdminLogStream(
 			return;
 		}
 
-		const value = latest.ts instanceof Date ? latest.ts : new Date(latest.ts);
+		const value = new Date(latest.ts);
 
 		if (Number.isNaN(value.valueOf())) {
 			sinceRef.current = undefined;
@@ -226,8 +226,8 @@ export function useAdminLogStream(
 
 					const normalized: LogEntry = {
 						...payload,
-						ts: new Date(payload.ts),
-						data: payload.data ?? null,
+						ts: new Date(payload.ts).toISOString(),
+						data: (payload.data as any) ?? null,
 					};
 
 					if (isInitialLoadingRef.current) {

@@ -24,17 +24,19 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-        const userRole = (ctx.session.user as typeof ctx.session.user & {
-                role?: string | null;
-        })?.role;
-        const roles = userRole ? [userRole] : [];
+	const userRole = (
+		ctx.session.user as typeof ctx.session.user & {
+			role?: string | null;
+		}
+	)?.role;
+	const roles = userRole ? [userRole] : [];
 
-        if (!roles.includes("admin")) {
-                throw new TRPCError({
-                        code: "FORBIDDEN",
-                        message: "Administrator permissions are required",
-                });
-        }
+	if (!roles.includes("admin")) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Administrator permissions are required",
+		});
+	}
 
 	return next();
 });

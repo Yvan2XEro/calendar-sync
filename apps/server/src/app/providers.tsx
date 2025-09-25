@@ -1,13 +1,13 @@
 "use client";
 
+import { authClient } from "@/lib/auth-client";
 import { AuthUIProvider } from "@daveyplate/better-auth-ui";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
-import { authClient } from "@/lib/auth-client";
 
 const queryClient = new QueryClient({
 	defaultOptions: {
@@ -33,10 +33,10 @@ export function Providers({ children }: { children: ReactNode }) {
 						pathMode: "slug",
 						basePath: "/admin/cals",
 						logo: {
-							upload: async (file) => {
+							upload: async (_file) => {
 								return "https://unsplash.com/photos/1";
 							},
-							delete: async (url) => {},
+							delete: async (_url) => {},
 							size: 256,
 							extension: "png",
 						},

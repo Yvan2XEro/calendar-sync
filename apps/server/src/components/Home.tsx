@@ -1,15 +1,15 @@
 "use client";
 
-import {
-        BarChart3,
-        CalendarDays,
-        LayoutDashboard,
-        MessageSquare,
-        Settings,
-        ShieldCheck,
-        Users,
-} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+	BarChart3,
+	CalendarDays,
+	LayoutDashboard,
+	MessageSquare,
+	Settings,
+	ShieldCheck,
+	Users,
+} from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -48,66 +48,66 @@ import {
 } from "@/components/ui/sidebar";
 
 type NavigationItem = {
-        title: string;
-        icon: LucideIcon;
-        href: Route | `#${string}` | `http${string}`;
+	title: string;
+	icon: LucideIcon;
+	href: Route | `#${string}` | `http${string}`;
 };
 
 type NavigationGroup = {
-        label: string;
-        items: NavigationItem[];
+	label: string;
+	items: NavigationItem[];
 };
 
 const navigation: NavigationGroup[] = [
-        {
-                label: "Workspace",
-                items: [
-                        {
-                                title: "Dashboard",
-                                href: "/" satisfies Route,
-                                icon: LayoutDashboard,
-                        },
-                        {
-                                title: "Calendar",
-                                href: "#calendar",
-                                icon: CalendarDays,
-                        },
-                        {
-                                title: "Messages",
-                                href: "#messages",
-                                icon: MessageSquare,
-                        },
-                ],
-        },
-        {
-                label: "Management",
-                items: [
-                        {
-                                title: "Users",
-                                href: "#users",
-                                icon: Users,
-                        },
-                        {
-                                title: "Security",
-                                href: "#security",
-                                icon: ShieldCheck,
-                        },
-                        {
-                                title: "Reports",
-                                href: "#reports",
-                                icon: BarChart3,
-                        },
-                        {
-                                title: "Settings",
-                                href: "#settings",
-                                icon: Settings,
-                        },
-                ],
-        },
+	{
+		label: "Workspace",
+		items: [
+			{
+				title: "Dashboard",
+				href: "/" satisfies Route,
+				icon: LayoutDashboard,
+			},
+			{
+				title: "Calendar",
+				href: "#calendar",
+				icon: CalendarDays,
+			},
+			{
+				title: "Messages",
+				href: "#messages",
+				icon: MessageSquare,
+			},
+		],
+	},
+	{
+		label: "Management",
+		items: [
+			{
+				title: "Users",
+				href: "#users",
+				icon: Users,
+			},
+			{
+				title: "Security",
+				href: "#security",
+				icon: ShieldCheck,
+			},
+			{
+				title: "Reports",
+				href: "#reports",
+				icon: BarChart3,
+			},
+			{
+				title: "Settings",
+				href: "#settings",
+				icon: Settings,
+			},
+		],
+	},
 ];
 
 function isRoute(href: NavigationItem["href"]): href is Route {
-        return href.startsWith("/");
+	return href.startsWith("/");
 }
 
 const highlights = [
@@ -150,33 +150,33 @@ export default function Home() {
 								<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
 								<SidebarGroupContent>
 									<SidebarMenu>
-                                                                                {group.items.map((item) => (
-                                                                                        <SidebarMenuItem key={item.title}>
-                                                                                                <SidebarMenuButton asChild isActive={item.href === "/"}>
-                                                                                                        {isRoute(item.href) ? (
-                                                                                                                <Link
-                                                                                                                        href={item.href}
-                                                                                                                        className="flex items-center gap-2"
-                                                                                                                >
-                                                                                                                        <item.icon className="size-4" />
-                                                                                                                        <span>{item.title}</span>
-                                                                                                                </Link>
-                                                                                                        ) : (
-                                                                                                                <a
-                                                                                                                        href={item.href}
-                                                                                                                        className="flex items-center gap-2"
-                                                                                                                >
-                                                                                                                        <item.icon className="size-4" />
-                                                                                                                        <span>{item.title}</span>
-                                                                                                                </a>
-                                                                                                        )}
-                                                                                                </SidebarMenuButton>
-                                                                                        </SidebarMenuItem>
-                                                                                ))}
-                                                                        </SidebarMenu>
-                                                                </SidebarGroupContent>
-                                                        </SidebarGroup>
-                                                ))}
+										{group.items.map((item) => (
+											<SidebarMenuItem key={item.title}>
+												<SidebarMenuButton asChild isActive={item.href === "/"}>
+													{isRoute(item.href) ? (
+														<Link
+															href={item.href}
+															className="flex items-center gap-2"
+														>
+															<item.icon className="size-4" />
+															<span>{item.title}</span>
+														</Link>
+													) : (
+														<a
+															href={item.href}
+															className="flex items-center gap-2"
+														>
+															<item.icon className="size-4" />
+															<span>{item.title}</span>
+														</a>
+													)}
+												</SidebarMenuButton>
+											</SidebarMenuItem>
+										))}
+									</SidebarMenu>
+								</SidebarGroupContent>
+							</SidebarGroup>
+						))}
 					</SidebarContent>
 					<SidebarFooter>
 						<div className="rounded-lg border border-dashed p-3 text-sidebar-foreground/80 text-xs">
@@ -231,9 +231,9 @@ export default function Home() {
 											Launch the console
 										</Link>
 									</Button>
-                                                                        <Button asChild variant="outline" size="lg">
-                                                                                <a href="#highlights">Explore features</a>
-                                                                        </Button>
+									<Button asChild variant="outline" size="lg">
+										<a href="#highlights">Explore features</a>
+									</Button>
 								</CardContent>
 							</Card>
 							<Card>
@@ -303,16 +303,16 @@ export default function Home() {
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-3">
-                                                                <Button asChild>
-                                                                        <Link href="/auth/sign-in">Sign in to continue</Link>
-                                                                </Button>
-                                                                <Button asChild variant="ghost">
-                                                                        <a href="mailto:team@calendarsync.app">Contact support</a>
-                                                                </Button>
-                                                        </div>
-                                                </section>
-                                        </div>
-                                </SidebarInset>
+								<Button asChild>
+									<Link href="/auth/sign-in">Sign in to continue</Link>
+								</Button>
+								<Button asChild variant="ghost">
+									<a href="mailto:team@calendarsync.app">Contact support</a>
+								</Button>
+							</div>
+						</section>
+					</div>
+				</SidebarInset>
 			</div>
 		</SidebarProvider>
 	);

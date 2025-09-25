@@ -1,10 +1,6 @@
 "use client";
 
-import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,8 +10,12 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { UserAvatar } from "@/components/UserAvatar";
 import { highlights } from "@/config/ui";
 import { trpcClient } from "@/lib/trpc-client";
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 
 export default function HomePage() {
 	const query = useQuery({
@@ -51,9 +51,9 @@ export default function HomePage() {
 								Launch the console
 							</Link>
 						</Button>
-                                                <Button asChild variant="outline" size="lg">
-                                                        <a href="#highlights">Explore features</a>
-                                                </Button>
+						<Button asChild variant="outline" size="lg">
+							<a href="#highlights">Explore features</a>
+						</Button>
 					</CardContent>
 				</Card>
 
@@ -90,7 +90,7 @@ export default function HomePage() {
 				</Card>
 			</section>
 
-			<section id="highlights" className="grid gap-6 lg:grid-cols-3">
+			<section className="grid gap-6 lg:grid-cols-3">
 				{highlights.map((h) => (
 					<Card key={h.title}>
 						<CardHeader>
@@ -117,9 +117,9 @@ export default function HomePage() {
 					<Button asChild>
 						<Link href="/auth/sign-in">Sign in to continue</Link>
 					</Button>
-                                        <Button asChild variant="ghost">
-                                                <a href="mailto:team@calendarsync.app">Contact support</a>
-                                        </Button>
+					<Button asChild variant="ghost">
+						<a href="mailto:team@calendarsync.app">Contact support</a>
+					</Button>
 				</div>
 			</section>
 		</AppShell>

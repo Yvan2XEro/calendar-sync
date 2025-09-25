@@ -22,7 +22,7 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Logs", href: "/admin/logs", icon: MessageSquare },
-                        { title: "Events", href: "/admin/events", icon: ListTodo },
+			{ title: "Events", href: "/admin/events", icon: ListTodo },
 		],
 	},
 	{

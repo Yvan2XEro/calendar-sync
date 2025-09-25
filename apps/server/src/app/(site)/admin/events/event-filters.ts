@@ -14,18 +14,18 @@ export const statusOptionMap: Record<
 };
 
 export interface EventsListFilters {
-        providerId?: string;
-        status?: EventStatus;
-        flagId?: string | null;
-        isPublished?: boolean;
-        isAllDay?: boolean;
-        q?: string;
-        startFrom?: string;
-        startTo?: string;
-        priority?: {
-                min?: number;
-                max?: number;
-        };
+	providerId?: string;
+	status?: EventStatus;
+	flagId?: string | null;
+	isPublished?: boolean;
+	isAllDay?: boolean;
+	q?: string;
+	startFrom?: string;
+	startTo?: string;
+	priority?: {
+		min?: number;
+		max?: number;
+	};
 }
 
 export type Filters = {
@@ -144,25 +144,25 @@ export function readStoredFilters(): Filters | null {
 }
 
 export function buildListInput(
-        filters: Filters,
+	filters: Filters,
 ): EventsListFilters | undefined {
-        const input: EventsListFilters = {};
-        if (filters.q.trim()) input.q = filters.q.trim();
-        if (filters.status !== "all") input.status = filters.status;
-        if (filters.providerId) input.providerId = filters.providerId;
-        if (filters.publishedOnly) input.isPublished = true;
-        if (filters.allDayOnly) input.isAllDay = true;
-        if (filters.startFrom) {
-                input.startFrom = new Date(`${filters.startFrom}T00:00:00Z`).toISOString();
-        }
-        if (filters.startTo) {
-                input.startTo = new Date(`${filters.startTo}T23:59:59Z`).toISOString();
-        }
-        if (filters.priorityMin !== null || filters.priorityMax !== null) {
-                const priority: NonNullable<EventsListFilters["priority"]> = {};
-                if (filters.priorityMin !== null) priority.min = filters.priorityMin;
-                if (filters.priorityMax !== null) priority.max = filters.priorityMax;
-                input.priority = priority;
-        }
-        return Object.keys(input).length ? input : undefined;
+	const input: EventsListFilters = {};
+	if (filters.q.trim()) input.q = filters.q.trim();
+	if (filters.status !== "all") input.status = filters.status;
+	if (filters.providerId) input.providerId = filters.providerId;
+	if (filters.publishedOnly) input.isPublished = true;
+	if (filters.allDayOnly) input.isAllDay = true;
+	if (filters.startFrom) {
+		input.startFrom = new Date(`${filters.startFrom}T00:00:00Z`).toISOString();
+	}
+	if (filters.startTo) {
+		input.startTo = new Date(`${filters.startTo}T23:59:59Z`).toISOString();
+	}
+	if (filters.priorityMin !== null || filters.priorityMax !== null) {
+		const priority: NonNullable<EventsListFilters["priority"]> = {};
+		if (filters.priorityMin !== null) priority.min = filters.priorityMin;
+		if (filters.priorityMax !== null) priority.max = filters.priorityMax;
+		input.priority = priority;
+	}
+	return Object.keys(input).length ? input : undefined;
 }

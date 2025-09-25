@@ -82,13 +82,13 @@ const flagFormSchema = z.object({
 	slug: z.string().min(1, "Slug is required"),
 	description: z.string().optional(),
 	priority: z.coerce
-                .number()
-                .refine((value) => !Number.isNaN(value), {
-                        message: "Priority is required",
-                })
-                .int("Priority must be an integer")
-                .min(1, "Priority must be between 1 and 5")
-                .max(5, "Priority must be between 1 and 5"),
+		.number()
+		.refine((value) => !Number.isNaN(value), {
+			message: "Priority is required",
+		})
+		.int("Priority must be an integer")
+		.min(1, "Priority must be between 1 and 5")
+		.max(5, "Priority must be between 1 and 5"),
 });
 
 type FlagFormValues = z.input<typeof flagFormSchema>;

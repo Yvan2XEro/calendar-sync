@@ -1,15 +1,15 @@
 import { TRPCError } from "@trpc/server";
 import {
-        SQL,
-        and,
-        asc,
-        count,
-        desc,
-        eq,
-        ilike,
-        inArray,
-        isNull,
-        or,
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	ilike,
+	inArray,
+	isNull,
+	or,
+	type SQL,
 } from "drizzle-orm";
 import { z } from "zod";
 
@@ -57,25 +57,25 @@ export const adminUsersRouter = router({
 			};
 		}
 
-                const conditions: SQL<unknown>[] = [];
+		const conditions: SQL<unknown>[] = [];
 
-                if (input.q) {
-                        const term = `%${input.q}%`;
-                        const clause = or(ilike(user.name, term), ilike(user.email, term));
-                        if (clause) {
-                                conditions.push(clause);
-                        }
-                }
+		if (input.q) {
+			const term = `%${input.q}%`;
+			const clause = or(ilike(user.name, term), ilike(user.email, term));
+			if (clause) {
+				conditions.push(clause);
+			}
+		}
 
 		if (input.roles?.length) {
 			conditions.push(inArray(user.role, input.roles));
 		}
 
 		if (input.status === "active") {
-                        const clause = or(eq(user.banned, false), isNull(user.banned));
-                        if (clause) {
-                                conditions.push(clause);
-                        }
+			const clause = or(eq(user.banned, false), isNull(user.banned));
+			if (clause) {
+				conditions.push(clause);
+			}
 		} else if (input.status === "banned") {
 			conditions.push(eq(user.banned, true));
 		}

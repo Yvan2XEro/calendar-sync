@@ -10,13 +10,13 @@ import {
 function createLog(id: number, overrides: Partial<LogEntry> = {}): LogEntry {
 	const base: LogEntry = {
 		id,
-		ts: new Date(id * 1000),
+		ts: new Date(id * 1000).toISOString(),
 		level: "info",
 		providerId: null,
 		sessionId: null,
 		msg: `log-${id}`,
 		data: null,
-	} as LogEntry;
+	} satisfies LogEntry;
 
 	return {
 		...base,

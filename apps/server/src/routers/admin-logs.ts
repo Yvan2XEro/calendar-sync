@@ -23,32 +23,32 @@ export const adminLogsRouter = router({
 	list: adminProcedure
 		.input(filterSchema.optional())
 		.query(async ({ input }) => {
-                        const filters = input ?? ({} as z.infer<typeof filterSchema>);
-                        const {
-                                limit = DEFAULT_PAGE_SIZE,
-                                providerId,
-                                level,
-                                since,
-                                cursor,
-                        } = filters;
+			const filters = input ?? ({} as z.infer<typeof filterSchema>);
+			const {
+				limit = DEFAULT_PAGE_SIZE,
+				providerId,
+				level,
+				since,
+				cursor,
+			} = filters;
 
-                        const whereClauses: SQL[] = [];
+			const whereClauses: SQL[] = [];
 
-                        if (providerId) {
-                                whereClauses.push(eq(workerLog.providerId, providerId));
-                        }
+			if (providerId) {
+				whereClauses.push(eq(workerLog.providerId, providerId));
+			}
 
-                        if (level) {
-                                whereClauses.push(eq(workerLog.level, level));
-                        }
+			if (level) {
+				whereClauses.push(eq(workerLog.level, level));
+			}
 
-                        if (since) {
-                                whereClauses.push(gt(workerLog.ts, since));
-                        }
+			if (since) {
+				whereClauses.push(gt(workerLog.ts, since));
+			}
 
-                        if (cursor) {
-                                whereClauses.push(lt(workerLog.id, cursor));
-                        }
+			if (cursor) {
+				whereClauses.push(lt(workerLog.id, cursor));
+			}
 
 			const rows = await db
 				.select()
