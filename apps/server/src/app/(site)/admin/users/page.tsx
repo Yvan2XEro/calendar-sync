@@ -2,6 +2,7 @@
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { formatDistanceToNow } from "date-fns";
 import { MoreHorizontal } from "lucide-react";
 import * as React from "react";
@@ -59,6 +60,15 @@ import {
 } from "@/components/ui/tooltip";
 import { authClient } from "@/lib/auth-client";
 import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
+
+type RouterInputs = inferRouterInputs<AppRouter>;
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type AdminUsersListOutput = RouterOutputs["adminUsers"]["list"];
+type RolesOptionsOutput = RouterOutputs["adminUsers"]["rolesOptions"];
+type CalendarsOptionsOutput = RouterOutputs["adminUsers"]["calendarsOptions"];
+type BanUserInput = RouterInputs["adminUsers"]["ban"];
+type ReactivateUserInput = RouterInputs["adminUsers"]["reactivate"];
 
 const statusOptions = [
 	{ label: "All statuses", value: "all" },
@@ -131,45 +141,58 @@ export default function AdminUsersPage() {
 		[listParams],
 	);
 
-	const listQuery = useQuery({
-		queryKey: listKey,
-		queryFn: () => trpcClient.adminUsers.list.query(listParams),
-		keepPreviousData: true,
-	});
+        const listQuery = useQuery<
+                AdminUsersListOutput,
+                Error,
+                AdminUsersListOutput,
+                ReturnType<typeof listKey>
+        >({
+                queryKey: listKey,
+                queryFn: () => trpcClient.adminUsers.list.query(listParams),
+        });
 
-	const rolesQuery = useQuery({
-		queryKey: ["adminUsers", "rolesOptions"],
-		queryFn: () => trpcClient.adminUsers.rolesOptions.query(),
-	});
+        const rolesQuery = useQuery<RolesOptionsOutput>({
+                queryKey: ["adminUsers", "rolesOptions"],
+                queryFn: () => trpcClient.adminUsers.rolesOptions.query(),
+        });
 
-	const calendarsQuery = useQuery({
-		queryKey: ["adminUsers", "calendarsOptions"],
-		queryFn: () => trpcClient.adminUsers.calendarsOptions.query(),
-	});
+        const calendarsQuery = useQuery<CalendarsOptionsOutput>({
+                queryKey: ["adminUsers", "calendarsOptions"],
+                queryFn: () => trpcClient.adminUsers.calendarsOptions.query(),
+        });
 
-	const banMutation = useMutation({
-		mutationKey: ["adminUsers", "ban"],
-		mutationFn: (input: { userId: string }) =>
-			trpcClient.adminUsers.ban.mutate(input),
-		onMutate: async ({ userId }) => {
-			await queryClient.cancelQueries({ queryKey: listKey });
-			const previous = queryClient.getQueryData(listKey) as
-				| Awaited<typeof listQuery.data>
-				| undefined;
-			if (previous) {
-				queryClient.setQueryData(listKey, {
-					...previous,
-					items: previous.items.map((item) =>
-						item.userId === userId ? { ...item, isBanned: true } : item,
-					),
-				});
-			}
-			return { previous };
-		},
-		onError: (error, _variables, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(listKey, context.previous);
-			}
+        const listData: AdminUsersListOutput | undefined = listQuery.data;
+
+        const banMutation = useMutation({
+                mutationKey: ["adminUsers", "ban"],
+                mutationFn: (input: BanUserInput) =>
+                        trpcClient.adminUsers.ban.mutate(input),
+                onMutate: async ({ userId }) => {
+                        await queryClient.cancelQueries({ queryKey: listKey });
+                        const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
+                        queryClient.setQueryData<AdminUsersListOutput>(
+                                listKey,
+                                (current) => {
+                                        if (!current) return current;
+                                        return {
+                                                ...current,
+                                                items: current.items.map((item) =>
+                                                        item.userId === userId
+                                                                ? { ...item, isBanned: true }
+                                                                : item,
+                                                ),
+                                        } satisfies AdminUsersListOutput;
+                                },
+                        );
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData<AdminUsersListOutput>(
+                                        listKey,
+                                        context.previous,
+                                );
+                        }
 			toast.error(
 				error instanceof Error ? error.message : "Unable to ban user",
 			);
@@ -182,29 +205,36 @@ export default function AdminUsersPage() {
 		},
 	});
 
-	const reactivateMutation = useMutation({
-		mutationKey: ["adminUsers", "reactivate"],
-		mutationFn: (input: { userId: string }) =>
-			trpcClient.adminUsers.reactivate.mutate(input),
-		onMutate: async ({ userId }) => {
-			await queryClient.cancelQueries({ queryKey: listKey });
-			const previous = queryClient.getQueryData(listKey) as
-				| Awaited<typeof listQuery.data>
-				| undefined;
-			if (previous) {
-				queryClient.setQueryData(listKey, {
-					...previous,
-					items: previous.items.map((item) =>
-						item.userId === userId ? { ...item, isBanned: false } : item,
-					),
-				});
-			}
-			return { previous };
-		},
-		onError: (error, _variables, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(listKey, context.previous);
-			}
+        const reactivateMutation = useMutation({
+                mutationKey: ["adminUsers", "reactivate"],
+                mutationFn: (input: ReactivateUserInput) =>
+                        trpcClient.adminUsers.reactivate.mutate(input),
+                onMutate: async ({ userId }) => {
+                        await queryClient.cancelQueries({ queryKey: listKey });
+                        const previous = queryClient.getQueryData<AdminUsersListOutput>(listKey);
+                        queryClient.setQueryData<AdminUsersListOutput>(
+                                listKey,
+                                (current) => {
+                                        if (!current) return current;
+                                        return {
+                                                ...current,
+                                                items: current.items.map((item) =>
+                                                        item.userId === userId
+                                                                ? { ...item, isBanned: false }
+                                                                : item,
+                                                ),
+                                        } satisfies AdminUsersListOutput;
+                                },
+                        );
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData<AdminUsersListOutput>(
+                                        listKey,
+                                        context.previous,
+                                );
+                        }
 			toast.error(
 				error instanceof Error ? error.message : "Unable to reactivate user",
 			);
@@ -217,9 +247,9 @@ export default function AdminUsersPage() {
 		},
 	});
 
-	const totalPages = listQuery.data
-		? Math.max(1, Math.ceil(listQuery.data.total / listQuery.data.pageSize))
-		: 1;
+        const totalPages = listData
+                ? Math.max(1, Math.ceil(listData.total / listData.pageSize))
+                : 1;
 
 	const handleToggleRole = React.useCallback((role: string) => {
 		setSelectedRoles((prev) => {
@@ -239,19 +269,16 @@ export default function AdminUsersPage() {
 		});
 	}, []);
 
-	const isLoading = listQuery.isPending;
-	const rows = listQuery.data?.items ?? [];
-	const summaryStart =
-		listQuery.data && listQuery.data.total > 0
-			? (listQuery.data.page - 1) * listQuery.data.pageSize + 1
-			: 0;
-	const summaryEnd =
-		listQuery.data && listQuery.data.total > 0
-			? Math.min(
-					listQuery.data.total,
-					listQuery.data.page * listQuery.data.pageSize,
-				)
-			: 0;
+        const isLoading = listQuery.isPending;
+        const rows = listData?.items ?? [];
+        const summaryStart =
+                listData && listData.total > 0
+                        ? (listData.page - 1) * listData.pageSize + 1
+                        : 0;
+        const summaryEnd =
+                listData && listData.total > 0
+                        ? Math.min(listData.total, listData.page * listData.pageSize)
+                        : 0;
 
 	const handleSendReset = React.useCallback(
 		async (userId: string, email: string) => {
@@ -318,7 +345,7 @@ export default function AdminUsersPage() {
 							<DropdownMenuContent className="w-56">
 								<DropdownMenuLabel>Filter by role</DropdownMenuLabel>
 								<DropdownMenuSeparator />
-								{rolesQuery.data?.map((role) => (
+                                                                {rolesQuery.data?.map((role: RolesOptionsOutput[number]) => (
 									<DropdownMenuCheckboxItem
 										key={role}
 										checked={selectedRoles.includes(role)}
@@ -363,7 +390,7 @@ export default function AdminUsersPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All calendars</SelectItem>
-								{calendarsQuery.data?.map((calendar) => (
+                                                                {calendarsQuery.data?.map((calendar: CalendarsOptionsOutput[number]) => (
 									<SelectItem key={calendar.id} value={calendar.id}>
 										{calendar.name}
 									</SelectItem>
@@ -514,8 +541,8 @@ export default function AdminUsersPage() {
 											search.
 										</TableCell>
 									</TableRow>
-								) : (
-									rows.map((item) => {
+                                                                ) : (
+                                                                        rows.map((item: AdminUsersListOutput["items"][number]) => {
 										const statusLabel = item.isBanned ? "Banned" : "Active";
 										const statusVariant = item.isBanned
 											? "destructive"

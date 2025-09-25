@@ -2,12 +2,12 @@
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import {
-	type QueryClient,
-	useMutation,
-	useQuery,
-	useQueryClient,
+        type QueryClient,
+        useMutation,
+        useQuery,
+        useQueryClient,
 } from "@tanstack/react-query";
-import type { inferRouterInputs } from "@trpc/server";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -57,21 +57,22 @@ import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
 import {
-	type EventStatus,
-	eventStatuses,
-	statusOptionMap,
+        type EventsListFilters,
+        type EventStatus,
+        eventStatuses,
+        statusOptionMap,
 } from "./event-filters";
 import { useEventFilters } from "./useEventFilters";
 
 type RouterInputs = inferRouterInputs<AppRouter>;
+type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 const DEFAULT_PAGE_SIZE = 25;
 
-type EventsListInput = RouterInputs["events"]["list"];
-type EventsListFilters = Omit<NonNullable<EventsListInput>, "page" | "limit">;
 type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
 type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
+type ProvidersCatalogListOutput = RouterOutputs["providers"]["catalog"]["list"];
 
 const adminEventKeys = {
 	all: ["adminEvents"] as const,
@@ -83,37 +84,43 @@ const adminEventKeys = {
 } as const;
 
 function patchEventsInCache(
-	queryClient: QueryClient,
-	queryKey: unknown,
-	ids: Iterable<string>,
-	patch: Partial<EventListItem>,
+        queryClient: QueryClient,
+        queryKey: ReturnType<typeof adminEventKeys.list>,
+        ids: Iterable<string>,
+        patch: Partial<EventListItem>,
 ) {
-	const idSet = new Set(ids);
-	queryClient.setQueryData<EventsListOutput>(queryKey, (previous) => {
-		if (!previous) return previous;
-		return {
-			...previous,
-			items: previous.items.map((item) =>
-				idSet.has(item.id) ? { ...item, ...patch } : item,
-			),
-		} satisfies EventsListOutput;
-	});
+        const idSet = new Set(ids);
+        queryClient.setQueryData<EventsListOutput>(
+                queryKey,
+                (previous: EventsListOutput | undefined) => {
+                if (!previous) return previous;
+                return {
+                        ...previous,
+                        items: previous.items.map((item) =>
+                                idSet.has(item.id) ? { ...item, ...patch } : item,
+                        ),
+                } satisfies EventsListOutput;
+                },
+        );
 }
 
 function replaceEventInCache(
-	queryClient: QueryClient,
-	queryKey: unknown,
-	updated: EventListItem,
+        queryClient: QueryClient,
+        queryKey: ReturnType<typeof adminEventKeys.list>,
+        updated: EventListItem,
 ) {
-	queryClient.setQueryData<EventsListOutput>(queryKey, (previous) => {
-		if (!previous) return previous;
-		return {
-			...previous,
-			items: previous.items.map((item) =>
-				item.id === updated.id ? updated : item,
-			),
-		} satisfies EventsListOutput;
-	});
+        queryClient.setQueryData<EventsListOutput>(
+                queryKey,
+                (previous: EventsListOutput | undefined) => {
+                if (!previous) return previous;
+                return {
+                        ...previous,
+                        items: previous.items.map((item) =>
+                                item.id === updated.id ? updated : item,
+                        ),
+                } satisfies EventsListOutput;
+                },
+        );
 }
 
 export default function AdminEventsPage() {
@@ -135,29 +142,28 @@ export default function AdminEventsPage() {
 		handleViewChange,
 	} = useEventFilters({ defaultLimit: DEFAULT_PAGE_SIZE });
 
-	const providersQuery = useQuery({
-		queryKey: providerKeys.catalog.list(),
-		queryFn: () => trpcClient.providers.catalog.list.query(),
-	});
+        const providersQuery = useQuery<ProvidersCatalogListOutput>({
+                queryKey: providerKeys.catalog.list(),
+                queryFn: () => trpcClient.providers.catalog.list.query(),
+        });
 
-	const providerOptions = useMemo<ProviderOption[]>(() => {
-		if (!providersQuery.data) return [];
-		return providersQuery.data.map((provider) => ({
-			id: (provider as ProviderOption).id,
-			name: (provider as ProviderOption).name,
-		}));
-	}, [providersQuery.data]);
+        const providerOptions = useMemo<ProviderOption[]>(() => {
+                if (!providersQuery.data) return [];
+                return providersQuery.data.map((provider) => ({
+                        id: provider.id,
+                        name: provider.name,
+                } satisfies ProviderOption));
+        }, [providersQuery.data]);
 
-	const listQueryKey = useMemo(
-		() => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
-		[limit, listFilters, page],
-	);
+        const listQueryKey = useMemo<ReturnType<typeof adminEventKeys.list>>(
+                () => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
+                [limit, listFilters, page],
+        );
 
-	const eventsQuery = useQuery({
-		queryKey: listQueryKey,
-		queryFn: () => trpcClient.events.list.query(listParams),
-		keepPreviousData: true,
-	});
+        const eventsQuery = useQuery<EventsListOutput>({
+                queryKey: listQueryKey,
+                queryFn: () => trpcClient.events.list.query(listParams),
+        });
 
 	const events = useMemo(
 		() => eventsQuery.data?.items ?? [],
@@ -182,7 +188,9 @@ export default function AdminEventsPage() {
 		}
 	}, [eventsQuery.data, limit, setLimit]);
 
-	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+        const [selectedIds, setSelectedIds] = useState<
+                Array<EventsListOutput["items"][number]["id"]>
+        >([]);
 
 	useEffect(() => {
 		setPage(1);
@@ -256,22 +264,25 @@ export default function AdminEventsPage() {
 		setEditingEvent(null);
 	}, []);
 
-	const updateStatusMutation = useMutation({
-		mutationFn: (variables: UpdateStatusInput) =>
-			trpcClient.events.updateStatus.mutate(variables),
-		onMutate: async (variables) => {
-			await queryClient.cancelQueries({ queryKey: listQueryKey });
-			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			patchEventsInCache(queryClient, listQueryKey, [variables.id], {
-				status: variables.status,
-				updatedAt: new Date().toISOString() as unknown as Date,
-			});
-			return { previous };
-		},
-		onError: (error, _variables, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(listQueryKey, context.previous);
-			}
+        const updateStatusMutation = useMutation({
+                mutationFn: (variables: UpdateStatusInput) =>
+                        trpcClient.events.updateStatus.mutate(variables),
+                onMutate: async (variables) => {
+                        await queryClient.cancelQueries({ queryKey: listQueryKey });
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+                        patchEventsInCache(queryClient, listQueryKey, [variables.id], {
+                                status: variables.status,
+                                updatedAt: new Date().toISOString(),
+                        });
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData<EventsListOutput>(
+                                        listQueryKey,
+                                        context.previous,
+                                );
+                        }
 			toast.error(
 				error instanceof Error
 					? error.message
@@ -291,19 +302,22 @@ export default function AdminEventsPage() {
 	const bulkStatusMutation = useMutation({
 		mutationFn: (variables: BulkUpdateStatusInput) =>
 			trpcClient.events.bulkUpdateStatus.mutate(variables),
-		onMutate: async (variables) => {
-			await queryClient.cancelQueries({ queryKey: listQueryKey });
-			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			patchEventsInCache(queryClient, listQueryKey, variables.ids, {
-				status: variables.status,
-				updatedAt: new Date().toISOString() as unknown as Date,
-			});
-			return { previous, ids: variables.ids };
-		},
-		onError: (error, _variables, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(listQueryKey, context.previous);
-			}
+                onMutate: async (variables) => {
+                        await queryClient.cancelQueries({ queryKey: listQueryKey });
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+                        patchEventsInCache(queryClient, listQueryKey, variables.ids, {
+                                status: variables.status,
+                                updatedAt: new Date().toISOString(),
+                        });
+                        return { previous, ids: variables.ids };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData<EventsListOutput>(
+                                        listQueryKey,
+                                        context.previous,
+                                );
+                        }
 			toast.error(
 				error instanceof Error ? error.message : "Unable to update events",
 			);
@@ -326,43 +340,67 @@ export default function AdminEventsPage() {
 	const updateEventMutation = useMutation({
 		mutationFn: (variables: UpdateEventInput) =>
 			trpcClient.events.update.mutate(variables),
-		onMutate: async (variables) => {
-			await queryClient.cancelQueries({ queryKey: listQueryKey });
-			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			const patch: Partial<EventListItem> = {
-				updatedAt: new Date().toISOString() as unknown as Date,
-			};
-			if (variables.title !== undefined) patch.title = variables.title;
-			if (variables.description !== undefined)
-				patch.description =
-					typeof variables.description === "string"
-						? variables.description
-						: (variables.description ?? null);
-			if (variables.location !== undefined)
-				patch.location =
-					typeof variables.location === "string"
-						? variables.location
-						: (variables.location ?? null);
-			if (variables.url !== undefined)
-				patch.url =
-					typeof variables.url === "string"
-						? variables.url
-						: (variables.url ?? null);
-			if (variables.startAt !== undefined) patch.startAt = variables.startAt;
-			if (variables.endAt !== undefined) patch.endAt = variables.endAt;
-			if (variables.isAllDay !== undefined) patch.isAllDay = variables.isAllDay;
-			if (variables.isPublished !== undefined)
-				patch.isPublished = variables.isPublished;
-			if (variables.externalId !== undefined)
-				patch.externalId = variables.externalId ?? null;
-			if (variables.priority !== undefined) patch.priority = variables.priority;
-			patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
-			return { previous };
-		},
-		onError: (error, _variables, context) => {
-			if (context?.previous) {
-				queryClient.setQueryData(listQueryKey, context.previous);
-			}
+                onMutate: async (variables) => {
+                        await queryClient.cancelQueries({ queryKey: listQueryKey });
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+                        const patch: Partial<EventListItem> = {
+                                updatedAt: new Date().toISOString(),
+                                ...(variables.title !== undefined
+                                        ? { title: variables.title }
+                                        : {}),
+                                ...(variables.description !== undefined
+                                        ? {
+                                                  description:
+                                                          typeof variables.description === "string"
+                                                                  ? variables.description
+                                                                  : variables.description ?? null,
+                                          }
+                                        : {}),
+                                ...(variables.location !== undefined
+                                        ? {
+                                                  location:
+                                                          typeof variables.location === "string"
+                                                                  ? variables.location
+                                                                  : variables.location ?? null,
+                                          }
+                                        : {}),
+                                ...(variables.url !== undefined
+                                        ? {
+                                                  url:
+                                                          typeof variables.url === "string"
+                                                                  ? variables.url
+                                                                  : variables.url ?? null,
+                                          }
+                                        : {}),
+                                ...(variables.startAt !== undefined
+                                        ? { startAt: variables.startAt }
+                                        : {}),
+                                ...(variables.endAt !== undefined
+                                        ? { endAt: variables.endAt }
+                                        : {}),
+                                ...(variables.isAllDay !== undefined
+                                        ? { isAllDay: variables.isAllDay }
+                                        : {}),
+                                ...(variables.isPublished !== undefined
+                                        ? { isPublished: variables.isPublished }
+                                        : {}),
+                                ...(variables.externalId !== undefined
+                                        ? { externalId: variables.externalId ?? null }
+                                        : {}),
+                                ...(variables.priority !== undefined
+                                        ? { priority: variables.priority }
+                                        : {}),
+                        };
+                        patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData<EventsListOutput>(
+                                        listQueryKey,
+                                        context.previous,
+                                );
+                        }
 			toast.error(
 				error instanceof Error ? error.message : "Unable to update event",
 			);

@@ -1,8 +1,10 @@
 "use client";
 
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import type { inferRouterOutputs } from "@trpc/server";
 
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -42,7 +44,12 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { useAdminLogStream, useAdminLogs } from "@/hooks/use-admin-logs";
-import { useCatalogList } from "@/hooks/use-provider-admin";
+import { providerKeys } from "@/lib/query-keys/providers";
+import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
+
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type ProvidersCatalogListOutput = RouterOutputs["providers"]["catalog"]["list"];
 
 const LOG_LEVELS = [
 	{ value: "debug", label: "Debug" },
@@ -85,7 +92,10 @@ export default function AdminLogsPage() {
 	const [providerFilter, setProviderFilter] = useState<string | null>(null);
 	const [levelFilter, setLevelFilter] = useState<string | null>(null);
 
-	const providerQuery = useCatalogList();
+        const providerQuery = useQuery<ProvidersCatalogListOutput>({
+                queryKey: providerKeys.catalog.list(),
+                queryFn: () => trpcClient.providers.catalog.list.query(),
+        });
 	const logsQuery = useAdminLogs({
 		providerId: providerFilter,
 		level: levelFilter,
