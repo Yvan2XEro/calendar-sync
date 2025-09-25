@@ -1,17 +1,17 @@
 import { TRPCError } from "@trpc/server";
 import {
-        and,
-        count,
-        desc,
-        eq,
-        gte,
-        ilike,
-        inArray,
-        isNull,
-        lte,
-        or,
-        type SQL,
-        sql,
+	and,
+	count,
+	desc,
+	eq,
+	gte,
+	ilike,
+	inArray,
+	isNull,
+	lte,
+	or,
+	type SQL,
+	sql,
 } from "drizzle-orm";
 import { z } from "zod";
 
@@ -22,8 +22,8 @@ import { adminProcedure, router } from "@/lib/trpc";
 const DEFAULT_PAGE_SIZE = 25;
 
 const filterSchema = z.object({
-        providerId: z.string().min(1).optional(),
-        status: z.enum(event.status.enumValues).optional(),
+	providerId: z.string().min(1).optional(),
+	status: z.enum(event.status.enumValues).optional(),
 	flagId: z.union([z.string().min(1), z.literal(null)]).optional(),
 	isPublished: z.boolean().optional(),
 	isAllDay: z.boolean().optional(),
@@ -80,8 +80,8 @@ type EventSelection = {
 };
 
 const listInputSchema = filterSchema.extend({
-        page: z.number().int().min(1).optional(),
-        limit: z.number().int().min(1).max(200).optional(),
+	page: z.number().int().min(1).optional(),
+	limit: z.number().int().min(1).max(200).optional(),
 });
 
 type ListInput = z.infer<typeof listInputSchema>;
@@ -227,13 +227,14 @@ function buildEventFilters(filters: EventFilterInput): SQL[] {
 
 	if (filters.q) {
 		const term = `%${filters.q}%`;
-		clauses.push(
-			or(
-				ilike(event.title, term),
-				ilike(event.description, term),
-				ilike(event.location, term),
-			),
+		const searchClause = or(
+			ilike(event.title, term),
+			ilike(event.description, term),
+			ilike(event.location, term),
 		);
+		if (searchClause) {
+			clauses.push(searchClause);
+		}
 	}
 
 	return clauses;
@@ -260,18 +261,18 @@ function mapEvent(row: EventSelection) {
 		updatedAt: row.updatedAt,
 		provider: row.providerName
 			? {
-					id: row.providerId,
-					name: row.providerName,
-					category: row.providerCategory,
-					status: row.providerStatus,
-				}
+				id: row.providerId,
+				name: row.providerName,
+				category: row.providerCategory,
+				status: row.providerStatus,
+			}
 			: null,
 		flag: row.flagId
 			? {
-					id: row.flagId,
-					label: row.flagLabel,
-					priority: row.flagPriority,
-				}
+				id: row.flagId,
+				label: row.flagLabel,
+				priority: row.flagPriority,
+			}
 			: null,
 	} as const;
 }
@@ -294,54 +295,45 @@ async function fetchEventOrThrow(id: string) {
 }
 
 export const eventsRouter = router({
-        list: adminProcedure
-                .input(listInputSchema.optional())
-                .query(async ({ input }) => {
-                        const filters: ListInput = { ...(input ?? {}) };
-                        const {
-                                page: requestedPage,
-                                limit: requestedLimit,
-                                ...restFilters
-                        } = filters;
-                        const page = requestedPage ?? 1;
-                        const limit = requestedLimit ?? DEFAULT_PAGE_SIZE;
+	list: adminProcedure
+		.input(listInputSchema.optional())
+		.query(async ({ input }) => {
+			const filters: ListInput = { ...(input ?? {}) };
+			const {
+				page: requestedPage,
+				limit: requestedLimit,
+				...restFilters
+			} = filters;
+			const page = requestedPage ?? 1;
+			const limit = requestedLimit ?? DEFAULT_PAGE_SIZE;
 
-                        const whereClauses = buildEventFilters(
-                                restFilters as EventFilterInput,
-                        );
-                        const whereCondition =
-                                whereClauses.length > 0 ? and(...whereClauses) : undefined;
+			const whereClauses = buildEventFilters(restFilters as EventFilterInput);
+			const whereCondition =
+				whereClauses.length > 0 ? and(...whereClauses) : undefined;
 
-                        const [totalResult, rows] = await Promise.all([
-                                db
-                                        .select({ value: count() })
-                                        .from(event)
-                                        .where(whereCondition),
-                                db
-                                        .select(eventSelection)
-                                        .from(event)
-                                        .leftJoin(provider, eq(provider.id, event.provider))
-                                        .leftJoin(flag, eq(flag.id, event.flag))
-                                        .where(whereCondition)
-                                        .orderBy(
-                                                desc(event.startAt),
-                                                desc(event.createdAt),
-                                                desc(event.id),
-                                        )
-                                        .offset((page - 1) * limit)
-                                        .limit(limit),
-                        ]);
+			const [totalResult, rows] = await Promise.all([
+				db.select({ value: count() }).from(event).where(whereCondition),
+				db
+					.select(eventSelection)
+					.from(event)
+					.leftJoin(provider, eq(provider.id, event.provider))
+					.leftJoin(flag, eq(flag.id, event.flag))
+					.where(whereCondition)
+					.orderBy(desc(event.startAt), desc(event.createdAt), desc(event.id))
+					.offset((page - 1) * limit)
+					.limit(limit),
+			]);
 
-                        const total = Number(totalResult.at(0)?.value ?? 0);
-                        const items = rows.map((row) => mapEvent(row as EventSelection));
+			const total = Number(totalResult.at(0)?.value ?? 0);
+			const items = rows.map((row) => mapEvent(row as EventSelection));
 
-                        return {
-                                items,
-                                total,
-                                page,
-                                limit,
-                        } as const;
-                }),
+			return {
+				items,
+				total,
+				page,
+				limit,
+			} as const;
+		}),
 	get: adminProcedure.input(getEventInput).query(async ({ input }) => {
 		return fetchEventOrThrow(input.id);
 	}),
