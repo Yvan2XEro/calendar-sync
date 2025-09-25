@@ -42,9 +42,9 @@ export const adminUsersRouter = router({
 
 		const calendarUserIds = input.calendarId
 			? await db
-					.select({ userId: member.userId })
-					.from(member)
-					.where(eq(member.organizationId, input.calendarId))
+				.select({ userId: member.userId })
+				.from(member)
+				.where(eq(member.organizationId, input.calendarId))
 			: null;
 
 		if (calendarUserIds && calendarUserIds.length === 0) {
@@ -60,7 +60,8 @@ export const adminUsersRouter = router({
 
 		if (input.q) {
 			const term = `%${input.q}%`;
-			conditions.push(or(ilike(user.name, term), ilike(user.email, term)));
+			const whereClause = or(ilike(user.name, term), ilike(user.email, term));
+			if (whereClause) conditions.push(whereClause);
 		}
 
 		if (input.roles?.length) {
@@ -68,7 +69,8 @@ export const adminUsersRouter = router({
 		}
 
 		if (input.status === "active") {
-			conditions.push(or(eq(user.banned, false), isNull(user.banned)));
+			const whereClause = or(eq(user.banned, false), isNull(user.banned));
+			if (whereClause) conditions.push(whereClause);
 		} else if (input.status === "banned") {
 			conditions.push(eq(user.banned, true));
 		}
