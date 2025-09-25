@@ -133,23 +133,37 @@ export default function Home() {
 								<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
 								<SidebarGroupContent>
 									<SidebarMenu>
-										{group.items.map((item) => (
-											<SidebarMenuItem key={item.title}>
-												<SidebarMenuButton asChild isActive={item.href === "/"}>
-													<Link
-														href={item.href}
-														className="flex items-center gap-2"
-													>
-														<item.icon className="size-4" />
-														<span>{item.title}</span>
-													</Link>
-												</SidebarMenuButton>
-											</SidebarMenuItem>
-										))}
-									</SidebarMenu>
-								</SidebarGroupContent>
-							</SidebarGroup>
-						))}
+                                                                                {group.items.map((item) => {
+                                                                                        const isAnchorLink = item.href.startsWith("#");
+
+                                                                                        return (
+                                                                                                <SidebarMenuItem key={item.title}>
+                                                                                                        <SidebarMenuButton asChild isActive={item.href === "/"}>
+                                                                                                                {isAnchorLink ? (
+                                                                                                                        <a
+                                                                                                                                href={item.href}
+                                                                                                                                className="flex items-center gap-2"
+                                                                                                                        >
+                                                                                                                                <item.icon className="size-4" />
+                                                                                                                                <span>{item.title}</span>
+                                                                                                                        </a>
+                                                                                                                ) : (
+                                                                                                                        <Link
+                                                                                                                                href={item.href}
+                                                                                                                                className="flex items-center gap-2"
+                                                                                                                        >
+                                                                                                                                <item.icon className="size-4" />
+                                                                                                                                <span>{item.title}</span>
+                                                                                                                        </Link>
+                                                                                                                )}
+                                                                                                        </SidebarMenuButton>
+                                                                                                </SidebarMenuItem>
+                                                                                        );
+                                                                                })}
+                                                                        </SidebarMenu>
+                                                                </SidebarGroupContent>
+                                                        </SidebarGroup>
+                                                ))}
 					</SidebarContent>
 					<SidebarFooter>
 						<div className="rounded-lg border border-dashed p-3 text-sidebar-foreground/80 text-xs">
@@ -204,9 +218,9 @@ export default function Home() {
 											Launch the console
 										</Link>
 									</Button>
-									<Button asChild variant="outline" size="lg">
-										<Link href="#highlights">Explore features</Link>
-									</Button>
+                                                                        <Button asChild variant="outline" size="lg">
+                                                                                <a href="#highlights">Explore features</a>
+                                                                        </Button>
 								</CardContent>
 							</Card>
 							<Card>
@@ -276,18 +290,16 @@ export default function Home() {
 								</p>
 							</div>
 							<div className="flex flex-wrap gap-3">
-								<Button asChild>
-									<Link href="/auth/sign-in">Sign in to continue</Link>
-								</Button>
-								<Button asChild variant="ghost">
-									<Link href="mailto:team@calendarsync.app">
-										Contact support
-									</Link>
-								</Button>
-							</div>
-						</section>
-					</div>
-				</SidebarInset>
+                                                                <Button asChild>
+                                                                        <Link href="/auth/sign-in">Sign in to continue</Link>
+                                                                </Button>
+                                                                <Button asChild variant="ghost">
+                                                                        <a href="mailto:team@calendarsync.app">Contact support</a>
+                                                                </Button>
+                                                        </div>
+                                                </section>
+                                        </div>
+                                </SidebarInset>
 			</div>
 		</SidebarProvider>
 	);

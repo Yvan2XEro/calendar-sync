@@ -51,9 +51,9 @@ export default function HomePage() {
 								Launch the console
 							</Link>
 						</Button>
-						<Button asChild variant="outline" size="lg">
-							<Link href="#highlights">Explore features</Link>
-						</Button>
+                                                <Button asChild variant="outline" size="lg">
+                                                        <a href="#highlights">Explore features</a>
+                                                </Button>
 					</CardContent>
 				</Card>
 
@@ -117,9 +117,9 @@ export default function HomePage() {
 					<Button asChild>
 						<Link href="/auth/sign-in">Sign in to continue</Link>
 					</Button>
-					<Button asChild variant="ghost">
-						<Link href="mailto:team@calendarsync.app">Contact support</Link>
-					</Button>
+                                        <Button asChild variant="ghost">
+                                                <a href="mailto:team@calendarsync.app">Contact support</a>
+                                        </Button>
 				</div>
 			</section>
 		</AppShell>
