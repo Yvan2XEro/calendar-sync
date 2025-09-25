@@ -18,15 +18,14 @@ export default async function AdminLayout({
 		redirect("/auth/sign-in");
 	}
 
-	const roles = Array.isArray(session.user?.roles)
-		? session.user.roles
-		: session.user?.role
-			? [session.user.role]
-			: [];
+        const userRole = (session.user as typeof session.user & {
+                role?: string | null;
+        })?.role;
+        const roles = userRole ? [userRole] : [];
 
-	if (!roles?.includes("admin")) {
-		redirect("/");
-	}
+        if (!roles.includes("admin")) {
+                redirect("/");
+        }
 
 	return <RequireAdmin>{children}</RequireAdmin>;
 }
