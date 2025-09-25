@@ -1,14 +1,16 @@
 "use client";
 
 import {
-	BarChart3,
-	CalendarDays,
-	LayoutDashboard,
-	MessageSquare,
-	Settings,
-	ShieldCheck,
-	Users,
+        BarChart3,
+        CalendarDays,
+        LayoutDashboard,
+        MessageSquare,
+        Settings,
+        ShieldCheck,
+        Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import type { Route } from "next";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -45,53 +47,68 @@ import {
 	SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const navigation = [
-	{
-		label: "Workspace",
-		items: [
-			{
-				title: "Dashboard",
-				href: "/",
-				icon: LayoutDashboard,
-			},
-			{
-				title: "Calendar",
-				href: "#calendar",
-				icon: CalendarDays,
-			},
-			{
-				title: "Messages",
-				href: "#messages",
-				icon: MessageSquare,
-			},
-		],
-	},
-	{
-		label: "Management",
-		items: [
-			{
-				title: "Users",
-				href: "#users",
-				icon: Users,
-			},
-			{
-				title: "Security",
-				href: "#security",
-				icon: ShieldCheck,
-			},
-			{
-				title: "Reports",
-				href: "#reports",
-				icon: BarChart3,
-			},
-			{
-				title: "Settings",
-				href: "#settings",
-				icon: Settings,
-			},
-		],
-	},
+type NavigationItem = {
+        title: string;
+        icon: LucideIcon;
+        href: Route | `#${string}` | `http${string}`;
+};
+
+type NavigationGroup = {
+        label: string;
+        items: NavigationItem[];
+};
+
+const navigation: NavigationGroup[] = [
+        {
+                label: "Workspace",
+                items: [
+                        {
+                                title: "Dashboard",
+                                href: "/" satisfies Route,
+                                icon: LayoutDashboard,
+                        },
+                        {
+                                title: "Calendar",
+                                href: "#calendar",
+                                icon: CalendarDays,
+                        },
+                        {
+                                title: "Messages",
+                                href: "#messages",
+                                icon: MessageSquare,
+                        },
+                ],
+        },
+        {
+                label: "Management",
+                items: [
+                        {
+                                title: "Users",
+                                href: "#users",
+                                icon: Users,
+                        },
+                        {
+                                title: "Security",
+                                href: "#security",
+                                icon: ShieldCheck,
+                        },
+                        {
+                                title: "Reports",
+                                href: "#reports",
+                                icon: BarChart3,
+                        },
+                        {
+                                title: "Settings",
+                                href: "#settings",
+                                icon: Settings,
+                        },
+                ],
+        },
 ];
+
+function isRoute(href: NavigationItem["href"]): href is Route {
+        return href.startsWith("/");
+}
 
 const highlights = [
 	{
@@ -133,33 +150,29 @@ export default function Home() {
 								<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
 								<SidebarGroupContent>
 									<SidebarMenu>
-                                                                                {group.items.map((item) => {
-                                                                                        const isAnchorLink = item.href.startsWith("#");
-
-                                                                                        return (
-                                                                                                <SidebarMenuItem key={item.title}>
-                                                                                                        <SidebarMenuButton asChild isActive={item.href === "/"}>
-                                                                                                                {isAnchorLink ? (
-                                                                                                                        <a
-                                                                                                                                href={item.href}
-                                                                                                                                className="flex items-center gap-2"
-                                                                                                                        >
-                                                                                                                                <item.icon className="size-4" />
-                                                                                                                                <span>{item.title}</span>
-                                                                                                                        </a>
-                                                                                                                ) : (
-                                                                                                                        <Link
-                                                                                                                                href={item.href}
-                                                                                                                                className="flex items-center gap-2"
-                                                                                                                        >
-                                                                                                                                <item.icon className="size-4" />
-                                                                                                                                <span>{item.title}</span>
-                                                                                                                        </Link>
-                                                                                                                )}
-                                                                                                        </SidebarMenuButton>
-                                                                                                </SidebarMenuItem>
-                                                                                        );
-                                                                                })}
+                                                                                {group.items.map((item) => (
+                                                                                        <SidebarMenuItem key={item.title}>
+                                                                                                <SidebarMenuButton asChild isActive={item.href === "/"}>
+                                                                                                        {isRoute(item.href) ? (
+                                                                                                                <Link
+                                                                                                                        href={item.href}
+                                                                                                                        className="flex items-center gap-2"
+                                                                                                                >
+                                                                                                                        <item.icon className="size-4" />
+                                                                                                                        <span>{item.title}</span>
+                                                                                                                </Link>
+                                                                                                        ) : (
+                                                                                                                <a
+                                                                                                                        href={item.href}
+                                                                                                                        className="flex items-center gap-2"
+                                                                                                                >
+                                                                                                                        <item.icon className="size-4" />
+                                                                                                                        <span>{item.title}</span>
+                                                                                                                </a>
+                                                                                                        )}
+                                                                                                </SidebarMenuButton>
+                                                                                        </SidebarMenuItem>
+                                                                                ))}
                                                                         </SidebarMenu>
                                                                 </SidebarGroupContent>
                                                         </SidebarGroup>
