@@ -4,7 +4,6 @@ import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { MoreHorizontal } from "lucide-react";
-import Link from "next/link";
 import * as React from "react";
 import { toast } from "sonner";
 
@@ -550,12 +549,12 @@ export default function AdminUsersPage() {
 															<div className="font-medium text-foreground text-sm">
 																{item.name || "Unnamed user"}
 															</div>
-															<Link
-																href={`mailto:${item.email}`}
-																className="text-muted-foreground text-sm hover:underline"
-															>
-																{item.email}
-															</Link>
+                                                                                                                        <a
+                                                                                                                               href={`mailto:${item.email}`}
+                                                                                                                               className="text-muted-foreground text-sm hover:underline"
+                                                                                                                        >
+                                                                                                                               {item.email}
+                                                                                                                        </a>
 														</div>
 													</div>
 												</TableCell>
