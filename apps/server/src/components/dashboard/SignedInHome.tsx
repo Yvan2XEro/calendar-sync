@@ -3,11 +3,16 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
+  Building2,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
+  Loader2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
+import { format } from "date-fns";
 
 import AppShell from "@/components/layout/AppShell";
 import { EventCard } from "@/components/events/EventCard";
@@ -20,6 +25,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UserAvatar } from "@/components/UserAvatar";
 import { OrganizationsOverview } from "@/components/organizations/OrganizationsOverview";
@@ -39,6 +46,25 @@ type SessionData = {
     roles?: string[] | null;
   } & Record<string, unknown>;
 } & Record<string, unknown>;
+
+type JoinedOrganization = {
+  id: string;
+  name: string;
+  role: string;
+  slug: string;
+  logo: string | null;
+  metadata: Record<string, unknown> | null;
+  joinedAt: string | Date | null;
+};
+
+type DiscoverOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  metadata: Record<string, unknown> | null;
+  membersCount: number | null;
+};
 
 export function SignedInHome({ session }: { session: SessionData }) {
   const userName = session.user?.name ?? session.user?.email ?? "there";
@@ -246,23 +272,44 @@ function JoinedOrganizationCard({
   const tagline =
     getOrganizationTagline(organization.metadata) ??
     "Stay in sync with upcoming activity.";
+  const initials = getOrganizationInitials(organization.name);
+  const logoSrc =
+    typeof organization.logo === "string" && organization.logo.trim().length > 0
+      ? organization.logo
+      : undefined;
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-lg">{organization.name}</CardTitle>
-          <Badge variant="outline" className="uppercase text-xs">
-            {organization.role}
-          </Badge>
+        <div className="flex items-start gap-3">
+          <Avatar className="h-10 w-10 border">
+            <AvatarImage src={logoSrc} alt={`${organization.name} logo`} />
+            <AvatarFallback className="bg-muted text-foreground">
+              {initials ? (
+                <span className="font-medium uppercase">{initials}</span>
+              ) : (
+                <Building2 className="size-4" aria-hidden />
+              )}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="truncate text-lg">
+                {organization.name}
+              </CardTitle>
+              <Badge variant="outline" className="shrink-0 uppercase text-xs">
+                {organization.role}
+              </Badge>
+            </div>
+            <CardDescription className="line-clamp-2">
+              {tagline}
+            </CardDescription>
+          </div>
         </div>
-        <CardDescription className="line-clamp-2">{tagline}</CardDescription>
       </CardHeader>
       <CardContent className="mt-auto space-y-3 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <CalendarDays className="size-4" aria-hidden />
-          <span>
-            Joined {format(new Date(organization.joinedAt), "MMM d, yyyy")}
-          </span>
+          <span>Joined {formatDate(organization.joinedAt)}</span>
         </div>
         <Button asChild variant="ghost" size="sm" className="w-fit px-0">
           <Link href={`/organizations/${organization.slug}` as any}>
@@ -289,12 +336,33 @@ function DiscoverOrganizationCard({
   const membersLabel = new Intl.NumberFormat().format(
     organization.membersCount ?? 0,
   );
+  const initials = getOrganizationInitials(organization.name);
+  const logoSrc =
+    typeof organization.logo === "string" && organization.logo.trim().length > 0
+      ? organization.logo
+      : undefined;
 
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="space-y-2">
-        <CardTitle className="text-lg">{organization.name}</CardTitle>
-        <CardDescription className="line-clamp-2">{tagline}</CardDescription>
+        <div className="flex items-start gap-3">
+          <Avatar className="h-10 w-10 border">
+            <AvatarImage src={logoSrc} alt={`${organization.name} logo`} />
+            <AvatarFallback className="bg-muted text-foreground">
+              {initials ? (
+                <span className="font-medium uppercase">{initials}</span>
+              ) : (
+                <Building2 className="size-4" aria-hidden />
+              )}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 space-y-1">
+            <CardTitle className="truncate text-lg">
+              {organization.name}
+            </CardTitle>
+            <CardDescription className="line-clamp-2">{tagline}</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="mt-auto space-y-4 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
@@ -326,14 +394,58 @@ function DiscoverOrganizationCard({
   );
 }
 
+function getOrganizationInitials(name: string | null | undefined) {
+  if (!name) return null;
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(/\s+/);
+  const [first, second] = parts;
+  const initials = `${first?.[0] ?? ""}${second?.[0] ?? ""}`.trim();
+  if (initials.length === 0) return null;
+  return initials.slice(0, 2).toUpperCase();
+}
+
+function formatDate(date: string | Date | null | undefined) {
+  if (!date) return "Unknown";
+  const value = typeof date === "string" ? new Date(date) : date;
+  try {
+    return format(value, "MMM d, yyyy");
+  } catch {
+    return "Unknown";
+  }
+}
+
+function getOrganizationTagline(
+  metadata: Record<string, unknown> | null | undefined,
+) {
+  if (!metadata) return null;
+  const tagline = metadata.tagline;
+  if (typeof tagline === "string" && tagline.trim().length > 0) {
+    return tagline;
+  }
+  const description = metadata.description;
+  if (typeof description === "string" && description.trim().length > 0) {
+    return description;
+  }
+  return null;
+}
+
 function OrganizationSkeletonGrid() {
   return (
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: 3 }).map((_, index) => (
         <Card key={index} className="flex h-full flex-col">
-          <CardHeader className="space-y-3">
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-2/3" />
+          <CardHeader className="space-y-2">
+            <div className="flex items-start gap-3">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-5 w-3/4" />
+                  <Skeleton className="h-5 w-16" />
+                </div>
+                <Skeleton className="h-4 w-2/3" />
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <Skeleton className="h-3 w-1/4" />
