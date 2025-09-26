@@ -1,11 +1,11 @@
+import { CalendarProvidersCard } from "@/components/admin/CalendarProvidersCard";
+import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import {
 	OrganizationMembersCard,
 	OrganizationSettingsCards,
 	RedirectToSignIn,
 } from "@daveyplate/better-auth-ui";
-import { CalendarProvidersCard } from "@/components/admin/CalendarProvidersCard";
-import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 
 type SettingsPageParams = Promise<{ slug: string }>;
 
@@ -16,8 +16,8 @@ export default async function Page({ params }: { params: SettingsPageParams }) {
 		<AppShell
 			breadcrumbs={[
 				{ label: "Admin", href: "/admin/overview" },
-				{ label: "Calendars", href: "/admin/cals" },
-				{ label: slug, href: `/admin/cals/${slug}/settings`, current: true },
+				{ label: "Calendars", href: "/admin/orgs" },
+				{ label: slug, href: `/admin/orgs/${slug}/settings`, current: true },
 			]}
 			headerRight={<UserAvatar />}
 		>

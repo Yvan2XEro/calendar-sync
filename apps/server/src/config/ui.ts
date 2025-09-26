@@ -1,35 +1,30 @@
+import type { NavGroup } from "@/components/layout/AppShell";
 import {
-	BarChart3,
-	CalendarDays,
+	Building2,
 	FlagIcon,
 	LayoutDashboard,
 	ListTodo,
-	MapPin,
 	MessageSquare,
 	Network,
-	ShieldCheck,
-	Users,
+	Users
 } from "lucide-react";
-import type { NavGroup } from "@/components/layout/AppShell";
 
 export const defaultNavigation: NavGroup[] = [
 	{
 		label: "Admin",
 		items: [
 			{ title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
-			{ title: "Calendars", href: "/admin/cals", icon: CalendarDays },
+			{ title: "Organizations", href: "/admin/orgs", icon: Building2 },
 			{ title: "Users", href: "/admin/users", icon: Users },
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
-			{ title: "Logs", href: "/admin/logs", icon: MessageSquare },
-			{ title: "Events", href: "/admin/events", icon: ListTodo },
 		],
 	},
 	{
 		label: "Activities",
 		items: [
-			{ title: "Background", href: "/admin/background", icon: ShieldCheck },
-			{ title: "Jobs", href: "/admin/background/jobs", icon: BarChart3 },
+			{ title: "Logs", href: "/admin/logs", icon: MessageSquare },
+			{ title: "Events queue", href: "/admin/events", icon: ListTodo },
 		],
 	},
 ];
