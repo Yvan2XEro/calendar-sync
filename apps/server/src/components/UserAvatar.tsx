@@ -29,7 +29,7 @@ export const UserAvatar = () => {
 		  <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={()=>authClient.signOut()}>
 			<LogOut />
-            <span>Manage Account</span>
+            <span>Sign out</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

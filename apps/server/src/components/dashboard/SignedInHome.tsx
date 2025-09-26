@@ -1,21 +1,21 @@
 "use client";
 
 import {
-        type InfiniteData,
-        useInfiniteQuery,
-        useMutation,
-        useQuery,
-        useQueryClient,
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 import type { inferRouterOutputs } from "@trpc/server";
 import { format } from "date-fns";
 import {
-        AlertCircle,
-        CalendarDays,
-        ChevronLeft,
-        ChevronRight,
-        Loader2,
-        Users,
+  AlertCircle,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
@@ -26,11 +26,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-        Card,
-        CardContent,
-        CardDescription,
-        CardHeader,
-        CardTitle,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,7 +92,7 @@ export function SignedInHome({ session }: { session: SessionData }) {
       limit: ORGANIZATION_PAGE_SIZE,
       sort: "recent" as const,
     }),
-    [deferredSearch]
+    [deferredSearch],
   );
 
   const discoverFilters = React.useMemo(
@@ -103,7 +103,7 @@ export function SignedInHome({ session }: { session: SessionData }) {
       limit: ORGANIZATION_PAGE_SIZE,
       sort: "name-asc" as const,
     }),
-    [deferredSearch]
+    [deferredSearch],
   );
 
   const joinedKey = React.useMemo(
@@ -114,7 +114,7 @@ export function SignedInHome({ session }: { session: SessionData }) {
         limit: joinedFilters.limit ?? null,
         sort: joinedFilters.sort ?? null,
       }),
-    [joinedFilters]
+    [joinedFilters],
   );
 
   const discoverKey = React.useMemo(
@@ -125,7 +125,7 @@ export function SignedInHome({ session }: { session: SessionData }) {
         limit: discoverFilters.limit ?? null,
         sort: discoverFilters.sort ?? null,
       }),
-    [discoverFilters]
+    [discoverFilters],
   );
 
   const joinedQuery = useInfiniteQuery<JoinedPage>({
@@ -165,16 +165,16 @@ export function SignedInHome({ session }: { session: SessionData }) {
         optimisticOrg: organization,
       });
     },
-    [joinMutation]
+    [joinMutation],
   );
 
   const joinedItems = React.useMemo(
     () => joinedQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [joinedQuery.data]
+    [joinedQuery.data],
   );
   const discoverItems = React.useMemo(
     () => discoverQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [discoverQuery.data]
+    [discoverQuery.data],
   );
 
   return (
@@ -393,7 +393,7 @@ function useJoinOrganizationMutation({
             items: [
               optimisticJoined,
               ...firstPage.items.filter(
-                (item) => item.id !== optimisticJoined.id
+                (item) => item.id !== optimisticJoined.id,
               ),
             ],
           };
@@ -405,12 +405,12 @@ function useJoinOrganizationMutation({
               ...restPages.map((page) => ({
                 ...page,
                 items: page.items.filter(
-                  (item) => item.id !== optimisticJoined.id
+                  (item) => item.id !== optimisticJoined.id,
                 ),
               })),
             ],
           };
-        }
+        },
       );
 
       queryClient.setQueryData<InfiniteData<DiscoverPage>>(
@@ -422,11 +422,11 @@ function useJoinOrganizationMutation({
             pages: existing.pages.map((page) => ({
               ...page,
               items: page.items.filter(
-                (item) => item.id !== variables.optimisticOrg.id
+                (item) => item.id !== variables.optimisticOrg.id,
               ),
             })),
           };
-        }
+        },
       );
 
       return { previousJoined, previousDiscover } satisfies JoinContext;
@@ -473,10 +473,10 @@ function useJoinOrganizationMutation({
                 : {
                     ...page,
                     items: page.items.filter((item) => item.id !== result.id),
-                  }
+                  },
             ),
           };
-        }
+        },
       );
     },
     onSettled: () => {
@@ -521,7 +521,7 @@ function RecentEventsCarousel({
         scroll("prev");
       }
     },
-    [scroll]
+    [scroll],
   );
 
   if (isLoading) {
@@ -623,11 +623,9 @@ function RecentEventsCarousel({
         aria-label="Recent events"
         tabIndex={0}
         onKeyDown={handleKeyDown}
-        className="flex min-w-0 w-full max-w-[calc(100vw-20rem)] gap-4 overflow-x-auto pb-2"
+        className="flex min-w-0 w-full md:max-w-[calc(100vw-20rem)] gap-4 overflow-x-auto pb-2"
       >
-        {events?.map((event) => (
-          <EventCard key={event.id} event={event} />
-        ))}
+        {events?.map((event) => <EventCard key={event.id} event={event} />)}
       </div>
     </section>
   );
@@ -682,7 +680,7 @@ function DiscoverOrganizationCard({
     getOrganizationTagline(organization.metadata) ??
     "Add this workspace to keep tabs on new events.";
   const membersLabel = new Intl.NumberFormat().format(
-    organization.membersCount ?? 0
+    organization.membersCount ?? 0,
   );
 
   return (
@@ -803,7 +801,7 @@ function ErrorState({
 }
 
 function getOrganizationTagline(
-  metadata: Record<string, unknown> | null | undefined
+  metadata: Record<string, unknown> | null | undefined,
 ) {
   if (!metadata) return null;
   const tagline = metadata.tagline;

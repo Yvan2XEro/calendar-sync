@@ -1,20 +1,20 @@
 "use client";
 
-import * as React from "react";
-import { CalendarPlus, CalendarRange, MapPin } from "lucide-react";
+import { Calendar, CalendarPlus, CalendarRange, MailOpen, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   downloadICS,
+  formatEventDateRange,
+  getEventTimezone,
   getGoogleCalendarUrl,
   getOutlookCalendarUrl,
   getYahooCalendarUrl,
-  getEventTimezone,
-  formatEventDateRange,
 } from "@/lib/calendar-links";
 import type { UpcomingEvent } from "@/types/events";
 
@@ -115,6 +115,7 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
               rel="noopener noreferrer"
               aria-label="Add to Google Calendar"
             >
+            <Calendar />
               Google
             </a>
           </Button>
@@ -125,6 +126,7 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
               rel="noopener noreferrer"
               aria-label="Add to Outlook Calendar"
             >
+              <MailOpen />
               Outlook
             </a>
           </Button>
@@ -149,7 +151,7 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
           </Button>
           {event.url ? (
             <Button asChild size="sm" variant="ghost" className="ml-auto text-primary">
-              <Link href={event.url as string} target="_blank" rel="noopener noreferrer">
+              <Link href={event.url as any} target="_blank" rel="noopener noreferrer">
                 View details
               </Link>
             </Button>
