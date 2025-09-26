@@ -7,7 +7,6 @@ import { format } from "date-fns";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ import {
 	DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
 	Select,
 	SelectContent,
@@ -43,6 +43,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useAdminLogStream, useAdminLogs } from "@/hooks/use-admin-logs";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
@@ -267,7 +268,7 @@ export default function AdminLogsPage() {
 							</AlertDescription>
 						</Alert>
 					) : (
-						<div className="space-y-4">
+						<ScrollArea className="space-y-4 h-[61vh]">
 							<Table>
 								<TableHeader>
 									<TableRow>
@@ -317,7 +318,7 @@ export default function AdminLogsPage() {
 									You&apos;ve reached the end of the available history.
 								</p>
 							) : null}
-						</div>
+						</ScrollArea>
 					)}
 				</CardContent>
 			</Card>

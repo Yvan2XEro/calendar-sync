@@ -9,7 +9,6 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +57,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { UserAvatar } from "@/components/UserAvatar";
 import { authClient } from "@/lib/auth-client";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
@@ -385,10 +385,10 @@ export default function AdminUsersPage() {
 							}}
 						>
 							<SelectTrigger size="sm" className="w-44">
-								<SelectValue placeholder="All calendars" />
+								<SelectValue placeholder="All organizations" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="all">All calendars</SelectItem>
+								<SelectItem value="all">All organizations</SelectItem>
 								{calendarsQuery.data?.map(
 									(calendar: CalendarsOptionsOutput[number]) => (
 										<SelectItem key={calendar.id} value={calendar.id}>
@@ -398,7 +398,7 @@ export default function AdminUsersPage() {
 								)}
 								{calendarsQuery.isLoading ? (
 									<SelectItem value="loading" disabled>
-										Loading calendars…
+										Loading organizations…
 									</SelectItem>
 								) : null}
 							</SelectContent>
@@ -477,7 +477,7 @@ export default function AdminUsersPage() {
 										</button>
 									</TableHead>
 									<TableHead>Roles</TableHead>
-									<TableHead>Calendars</TableHead>
+									<TableHead>Organizations</TableHead>
 									<TableHead>Status</TableHead>
 									<TableHead>
 										<button

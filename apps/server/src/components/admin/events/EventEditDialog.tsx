@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { formatDateTimeLocal } from "@/lib/datetime";
+import { useEffect, useState } from "react";
 import type { EventListItem } from "./types";
 
 export type EventEditFormValues = {
@@ -105,7 +105,7 @@ export function EventEditDialog({
 				if (!nextOpen) onClose();
 			}}
 		>
-			<DialogContent className="sm:max-w-lg">
+			<DialogContent className="sm:max-w-lg md:min-w-[50vw]">
 				<form
 					onSubmit={(formEvent) => {
 						formEvent.preventDefault();
@@ -245,7 +245,7 @@ export function EventEditDialog({
 									<SelectValue placeholder="Select provider" />
 								</SelectTrigger>
 								<SelectContent>
-									<SelectItem value="">Unassigned</SelectItem>
+									{/* <SelectItem value="all">Unassigned</SelectItem> */}
 									{providers.map((provider) => (
 										<SelectItem key={provider.id} value={provider.id}>
 											{provider.name}
