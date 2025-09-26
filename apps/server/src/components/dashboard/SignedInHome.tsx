@@ -15,14 +15,13 @@ import {
         ChevronLeft,
         ChevronRight,
         Loader2,
-        MapPin,
         Users,
 } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
 
 import AppShell from "@/components/layout/AppShell";
+import { EventCard } from "@/components/events/EventCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,13 +39,14 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { eventKeys } from "@/lib/query-keys/events";
 import { orgsKeys } from "@/lib/query-keys/orgs";
 import { eventsApi, orgsApi } from "@/lib/trpc-client";
+import { getUserRoles } from "@/lib/session";
+import type { UpcomingEvent } from "@/types/events";
 import type { AppRouter } from "@/routers";
 
 const RECENT_EVENTS_LIMIT = 8;
 const ORGANIZATION_PAGE_SIZE = 6;
 
 type RouterOutputs = inferRouterOutputs<AppRouter>;
-type RecentEvent = RouterOutputs["events"]["listRecentForUser"][number];
 type OrgListResult = RouterOutputs["orgs"]["listForUser"];
 type JoinedPage = Extract<OrgListResult, { segment: "joined" }>;
 type DiscoverPage = Extract<OrgListResult, { segment: "discover" }>;
@@ -74,7 +74,7 @@ type SessionData = {
 
 export function SignedInHome({ session }: { session: SessionData }) {
   const userName = session.user?.name ?? session.user?.email ?? "there";
-  const roles = React.useMemo(() => extractRoles(session), [session]);
+  const roles = React.useMemo(() => getUserRoles(session), [session]);
   const isAdmin = roles.includes("admin");
 
   const recentEventsQuery = useQuery({
@@ -327,27 +327,6 @@ export function SignedInHome({ session }: { session: SessionData }) {
   );
 }
 
-function extractRoles(session: SessionData) {
-  const sessionUser = session.user ?? {};
-  const rolesFromArray = Array.isArray(
-    (sessionUser as Record<string, unknown>).roles
-  )
-    ? ((sessionUser as { roles: unknown }).roles as unknown[]).filter(
-        (value): value is string => typeof value === "string"
-      )
-    : [];
-
-  if (rolesFromArray.length > 0) {
-    return rolesFromArray;
-  }
-
-  if (typeof sessionUser.role === "string" && sessionUser.role.length > 0) {
-    return [sessionUser.role];
-  }
-
-  return [];
-}
-
 function useJoinOrganizationMutation({
   queryClient,
   joinedKey,
@@ -513,7 +492,7 @@ function RecentEventsCarousel({
   isError,
   onRetry,
 }: {
-  events: RecentEvent[] | undefined;
+  events: UpcomingEvent[] | undefined;
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
@@ -647,64 +626,10 @@ function RecentEventsCarousel({
         className="flex min-w-0 w-full max-w-[calc(100vw-20rem)] gap-4 overflow-x-auto pb-2"
       >
         {events?.map((event) => (
-          <RecentEventCard key={event.id} event={event} />
+          <EventCard key={event.id} event={event} />
         ))}
       </div>
     </section>
-  );
-}
-
-function RecentEventCard({ event }: { event: RecentEvent }) {
-  const eventDate = new Date(event.startAt);
-  const formattedDate = Number.isNaN(eventDate.getTime())
-    ? "TBA"
-    : format(eventDate, "EEE, MMM d · p");
-  const imageUrl = event.imageUrl;
-
-  return (
-    <Card className="flex h-full min-w-[260px] flex-1 flex-col overflow-hidden md:min-w-[300px]">
-      <div className="relative h-32 w-full bg-muted">
-        {imageUrl ? (
-          <Image
-            src={imageUrl}
-            alt={event.title}
-            fill
-            className="object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-            <CalendarDays className="size-6" aria-hidden />
-          </div>
-        )}
-      </div>
-      <CardHeader className="space-y-2">
-        <Badge variant="secondary" className="w-fit text-xs uppercase">
-          {event.organization.name}
-        </Badge>
-        <CardTitle className="line-clamp-2 text-base">{event.title}</CardTitle>
-        <CardDescription>{formattedDate}</CardDescription>
-      </CardHeader>
-      <CardContent className="mt-auto space-y-3 text-sm text-muted-foreground">
-        {event.location ? (
-          <div className="flex items-center gap-2">
-            <MapPin className="size-4" aria-hidden />
-            <span className="line-clamp-1">{event.location}</span>
-          </div>
-        ) : null}
-        {event.url ? (
-          <Button asChild variant="link" size="sm" className="px-0">
-            <Link target="_blank" href={event.url as any}>
-              View details
-            </Link>
-          </Button>
-        ) : (
-          <span className="text-muted-foreground text-xs">
-            Registration link coming soon
-          </span>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
