@@ -1,21 +1,10 @@
 "use client";
 
-import {
-  type InfiniteData,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import type { inferRouterOutputs } from "@trpc/server";
-import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
-  Loader2,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
@@ -23,7 +12,6 @@ import * as React from "react";
 import AppShell from "@/components/layout/AppShell";
 import { EventCard } from "@/components/events/EventCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,35 +20,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserAvatar } from "@/components/UserAvatar";
+import { OrganizationsOverview } from "@/components/organizations/OrganizationsOverview";
 import { eventKeys } from "@/lib/query-keys/events";
-import { orgsKeys } from "@/lib/query-keys/orgs";
-import { eventsApi, orgsApi } from "@/lib/trpc-client";
+import { eventsApi } from "@/lib/trpc-client";
 import { getUserRoles } from "@/lib/session";
 import type { UpcomingEvent } from "@/types/events";
-import type { AppRouter } from "@/routers";
 
 const RECENT_EVENTS_LIMIT = 8;
-const ORGANIZATION_PAGE_SIZE = 6;
-
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-type OrgListResult = RouterOutputs["orgs"]["listForUser"];
-type JoinedPage = Extract<OrgListResult, { segment: "joined" }>;
-type DiscoverPage = Extract<OrgListResult, { segment: "discover" }>;
-type JoinedOrganization = JoinedPage["items"][number];
-type DiscoverOrganization = DiscoverPage["items"][number];
-
-type JoinVariables = {
-  organizationId: string;
-  optimisticOrg: DiscoverOrganization;
-};
-type JoinContext = {
-  previousJoined?: InfiniteData<JoinedPage>;
-  previousDiscover?: InfiniteData<DiscoverPage>;
-};
 
 type SessionData = {
   user: {
@@ -81,101 +49,6 @@ export function SignedInHome({ session }: { session: SessionData }) {
     queryKey: eventKeys.recentForUser({ limit: RECENT_EVENTS_LIMIT }),
     queryFn: () => eventsApi.listRecentForUser({ limit: RECENT_EVENTS_LIMIT }),
   });
-
-  const [search, setSearch] = React.useState("");
-  const deferredSearch = React.useDeferredValue(search);
-  const joinedFilters = React.useMemo(
-    () => ({
-      segment: "joined" as const,
-      search:
-        deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
-      limit: ORGANIZATION_PAGE_SIZE,
-      sort: "recent" as const,
-    }),
-    [deferredSearch],
-  );
-
-  const discoverFilters = React.useMemo(
-    () => ({
-      segment: "discover" as const,
-      search:
-        deferredSearch.trim().length > 0 ? deferredSearch.trim() : undefined,
-      limit: ORGANIZATION_PAGE_SIZE,
-      sort: "name-asc" as const,
-    }),
-    [deferredSearch],
-  );
-
-  const joinedKey = React.useMemo(
-    () =>
-      orgsKeys.list({
-        segment: joinedFilters.segment,
-        search: joinedFilters.search ?? null,
-        limit: joinedFilters.limit ?? null,
-        sort: joinedFilters.sort ?? null,
-      }),
-    [joinedFilters],
-  );
-
-  const discoverKey = React.useMemo(
-    () =>
-      orgsKeys.list({
-        segment: discoverFilters.segment,
-        search: discoverFilters.search ?? null,
-        limit: discoverFilters.limit ?? null,
-        sort: discoverFilters.sort ?? null,
-      }),
-    [discoverFilters],
-  );
-
-  const joinedQuery = useInfiniteQuery<JoinedPage>({
-    queryKey: joinedKey,
-    initialPageParam: 1,
-    queryFn: ({ pageParam }) =>
-      orgsApi.listForUser({
-        ...joinedFilters,
-        page: typeof pageParam === "number" ? pageParam : 1,
-      }),
-    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
-  });
-
-  const discoverQuery = useInfiniteQuery<DiscoverPage>({
-    queryKey: discoverKey,
-    initialPageParam: 1,
-    queryFn: ({ pageParam }) =>
-      orgsApi.listForUser({
-        ...discoverFilters,
-        page: typeof pageParam === "number" ? pageParam : 1,
-      }),
-    getNextPageParam: (lastPage) => lastPage.nextPage ?? undefined,
-  });
-
-  const queryClient = useQueryClient();
-  const joinMutation = useJoinOrganizationMutation({
-    queryClient,
-    joinedKey,
-    discoverKey,
-    joinedFilters,
-  });
-
-  const handleJoin = React.useCallback(
-    (organization: DiscoverOrganization) => {
-      joinMutation.mutate({
-        organizationId: organization.id,
-        optimisticOrg: organization,
-      });
-    },
-    [joinMutation],
-  );
-
-  const joinedItems = React.useMemo(
-    () => joinedQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [joinedQuery.data],
-  );
-  const discoverItems = React.useMemo(
-    () => discoverQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [discoverQuery.data],
-  );
 
   return (
     <AppShell
@@ -215,275 +88,9 @@ export function SignedInHome({ session }: { session: SessionData }) {
         />
       </section>
 
-      <section className="space-y-4">
-        <header className="space-y-1">
-          <h2 className="font-semibold text-2xl tracking-tight">
-            Organizations
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Manage the workspaces you already belong to or discover new ones to
-            follow.
-          </p>
-        </header>
-        <Tabs defaultValue="joined" className="space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <TabsList>
-              <TabsTrigger value="joined">Joined</TabsTrigger>
-              <TabsTrigger value="discover">Discover</TabsTrigger>
-            </TabsList>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search organizations…"
-              className="md:max-w-xs"
-              aria-label="Search organizations"
-            />
-          </div>
-          <TabsContent value="joined" className="space-y-4">
-            {joinedQuery.isLoading ? (
-              <OrganizationSkeletonGrid />
-            ) : joinedQuery.isError ? (
-              <ErrorState
-                message="We couldn’t load your organizations."
-                onRetry={joinedQuery.refetch}
-              />
-            ) : joinedItems.length === 0 ? (
-              <EmptyState
-                title="No organizations yet"
-                description="You haven’t joined any organizations. Discover new workspaces to collaborate with."
-              />
-            ) : (
-              <React.Fragment>
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {joinedItems.map((org) => (
-                    <JoinedOrganizationCard key={org.id} organization={org} />
-                  ))}
-                </div>
-                {joinedQuery.hasNextPage ? (
-                  <Button
-                    onClick={() => joinedQuery.fetchNextPage()}
-                    disabled={joinedQuery.isFetchingNextPage}
-                  >
-                    {joinedQuery.isFetchingNextPage ? "Loading…" : "Load more"}
-                  </Button>
-                ) : null}
-              </React.Fragment>
-            )}
-          </TabsContent>
-          <TabsContent value="discover" className="space-y-4">
-            {discoverQuery.isLoading ? (
-              <OrganizationSkeletonGrid />
-            ) : discoverQuery.isError ? (
-              <ErrorState
-                message="We couldn’t load suggested organizations."
-                onRetry={discoverQuery.refetch}
-              />
-            ) : discoverItems.length === 0 ? (
-              <EmptyState
-                title="Nothing to discover"
-                description="You’re already part of every organization that matches your filters."
-              />
-            ) : (
-              <React.Fragment>
-                {joinMutation.isError ? (
-                  <Alert variant="destructive">
-                    <AlertCircle className="size-4" />
-                    <AlertTitle>Join failed</AlertTitle>
-                    <AlertDescription>
-                      Something went wrong while joining the organization.
-                      Please try again.
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {discoverItems.map((org) => (
-                    <DiscoverOrganizationCard
-                      key={org.id}
-                      organization={org}
-                      onJoin={handleJoin}
-                      isJoining={
-                        joinMutation.isPending &&
-                        joinMutation.variables?.organizationId === org.id
-                      }
-                    />
-                  ))}
-                </div>
-                {discoverQuery.hasNextPage ? (
-                  <Button
-                    onClick={() => discoverQuery.fetchNextPage()}
-                    disabled={discoverQuery.isFetchingNextPage}
-                  >
-                    {discoverQuery.isFetchingNextPage
-                      ? "Loading…"
-                      : "Load more"}
-                  </Button>
-                ) : null}
-              </React.Fragment>
-            )}
-          </TabsContent>
-        </Tabs>
-      </section>
+      <OrganizationsOverview />
     </AppShell>
   );
-}
-
-function useJoinOrganizationMutation({
-  queryClient,
-  joinedKey,
-  discoverKey,
-  joinedFilters,
-}: {
-  queryClient: ReturnType<typeof useQueryClient>;
-  joinedKey: ReturnType<typeof orgsKeys.list>;
-  discoverKey: ReturnType<typeof orgsKeys.list>;
-  joinedFilters: {
-    segment: "joined";
-    limit: number;
-    sort: JoinedPage["sort"];
-    search?: string | undefined;
-  };
-}) {
-  return useMutation<JoinedOrganization, unknown, JoinVariables, JoinContext>({
-    mutationFn: async ({ organizationId }) => {
-      return orgsApi.join({ organizationId });
-    },
-    onMutate: async (variables) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: joinedKey }),
-        queryClient.cancelQueries({ queryKey: discoverKey }),
-      ]);
-
-      const previousJoined =
-        queryClient.getQueryData<InfiniteData<JoinedPage>>(joinedKey);
-      const previousDiscover =
-        queryClient.getQueryData<InfiniteData<DiscoverPage>>(discoverKey);
-
-      const optimisticJoined: JoinedOrganization = {
-        id: variables.optimisticOrg.id,
-        name: variables.optimisticOrg.name,
-        slug: variables.optimisticOrg.slug,
-        logo: variables.optimisticOrg.logo,
-        metadata: variables.optimisticOrg.metadata,
-        joinedAt: new Date().toISOString(),
-        role: "member",
-      };
-
-      queryClient.setQueryData<InfiniteData<JoinedPage>>(
-        joinedKey,
-        (existing) => {
-          if (!existing) {
-            return {
-              pages: [
-                {
-                  items: [optimisticJoined],
-                  segment: joinedFilters.segment,
-                  page: 1,
-                  limit: joinedFilters.limit,
-                  sort: joinedFilters.sort,
-                  nextPage: null,
-                },
-              ],
-              pageParams: [1],
-            };
-          }
-
-          const [firstPage, ...restPages] = existing.pages;
-          const updatedFirstPage = {
-            ...firstPage,
-            items: [
-              optimisticJoined,
-              ...firstPage.items.filter(
-                (item) => item.id !== optimisticJoined.id,
-              ),
-            ],
-          };
-
-          return {
-            ...existing,
-            pages: [
-              updatedFirstPage,
-              ...restPages.map((page) => ({
-                ...page,
-                items: page.items.filter(
-                  (item) => item.id !== optimisticJoined.id,
-                ),
-              })),
-            ],
-          };
-        },
-      );
-
-      queryClient.setQueryData<InfiniteData<DiscoverPage>>(
-        discoverKey,
-        (existing) => {
-          if (!existing) return existing;
-          return {
-            ...existing,
-            pages: existing.pages.map((page) => ({
-              ...page,
-              items: page.items.filter(
-                (item) => item.id !== variables.optimisticOrg.id,
-              ),
-            })),
-          };
-        },
-      );
-
-      return { previousJoined, previousDiscover } satisfies JoinContext;
-    },
-    onError: (_error, _variables, context) => {
-      if (context?.previousJoined) {
-        queryClient.setQueryData(joinedKey, context.previousJoined);
-      }
-      if (context?.previousDiscover) {
-        queryClient.setQueryData(discoverKey, context.previousDiscover);
-      }
-    },
-    onSuccess: (result) => {
-      queryClient.setQueryData<InfiniteData<JoinedPage>>(
-        joinedKey,
-        (existing) => {
-          if (!existing) {
-            return {
-              pages: [
-                {
-                  items: [result],
-                  segment: joinedFilters.segment,
-                  page: 1,
-                  limit: joinedFilters.limit,
-                  sort: joinedFilters.sort,
-                  nextPage: null,
-                },
-              ],
-              pageParams: [1],
-            };
-          }
-
-          return {
-            ...existing,
-            pages: existing.pages.map((page, index) =>
-              index === 0
-                ? {
-                    ...page,
-                    items: [
-                      result,
-                      ...page.items.filter((item) => item.id !== result.id),
-                    ],
-                  }
-                : {
-                    ...page,
-                    items: page.items.filter((item) => item.id !== result.id),
-                  },
-            ),
-          };
-        },
-      );
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: joinedKey });
-      queryClient.invalidateQueries({ queryKey: discoverKey });
-    },
-  });
 }
 
 function RecentEventsCarousel({
@@ -800,17 +407,3 @@ function ErrorState({
   );
 }
 
-function getOrganizationTagline(
-  metadata: Record<string, unknown> | null | undefined,
-) {
-  if (!metadata) return null;
-  const tagline = metadata.tagline;
-  if (typeof tagline === "string" && tagline.trim().length > 0) {
-    return tagline;
-  }
-  const description = metadata.description;
-  if (typeof description === "string" && description.trim().length > 0) {
-    return description;
-  }
-  return null;
-}

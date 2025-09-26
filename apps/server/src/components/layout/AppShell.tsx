@@ -1,7 +1,7 @@
 "use client";
 
 import { OrganizationSwitcher } from "@daveyplate/better-auth-ui";
-import { CalendarDays, LayoutDashboard, Settings } from "lucide-react";
+import { Building2, CalendarDays, LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React from "react";
@@ -51,6 +51,7 @@ export type Crumb = { label: string; href?: string; current?: boolean };
 const WORKSPACE_ITEMS: NavItem[] = [
   { title: "Overview", href: "/", icon: LayoutDashboard },
   { title: "Events", href: "/events", icon: CalendarDays },
+  { title: "Organizations", href: "/organizations", icon: Building2 },
   { title: "Account settings", href: "/account/settings", icon: Settings },
 ];
 
