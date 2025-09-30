@@ -39,10 +39,11 @@ export interface ProviderConfig {
 }
 
 export interface ProviderRecord {
-	id: string;
-	name: string;
-	description?: string | null;
-	category: string;
-	status: ProviderStatus;
-	config: ProviderConfig;
+        id: string;
+        name: string;
+        description?: string | null;
+        category: string;
+        status: ProviderStatus;
+        trusted: boolean;
+        config: ProviderConfig;
 }

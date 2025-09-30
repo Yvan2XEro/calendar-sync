@@ -3,28 +3,30 @@ import { sql } from "bun";
 import type { ProviderRecord } from "../types/provider";
 
 interface RawProviderRow {
-	id: string;
-	name: string;
-	description: string | null;
-	category: string;
-	status: string;
-	config: Record<string, unknown> | null;
+        id: string;
+        name: string;
+        description: string | null;
+        category: string;
+        status: string;
+        config: Record<string, unknown> | null;
+        trusted: boolean;
 }
 
 function normalizeProvider(row: RawProviderRow): ProviderRecord {
-	return {
-		id: row.id,
-		name: row.name,
-		description: row.description,
-		category: row.category,
-		status: row.status as ProviderRecord["status"],
-		config: (row.config ?? {}) as ProviderRecord["config"],
-	};
+        return {
+                id: row.id,
+                name: row.name,
+                description: row.description,
+                category: row.category,
+                status: row.status as ProviderRecord["status"],
+                trusted: Boolean(row.trusted),
+                config: (row.config ?? {}) as ProviderRecord["config"],
+        };
 }
 
 export async function getActiveProviders(): Promise<ProviderRecord[]> {
-	const rows = await sql<RawProviderRow[]>`
-    SELECT id, name, description, category, status, config
+        const rows = await sql<RawProviderRow[]>`
+    SELECT id, name, description, category, status, config, trusted
     FROM provider
     WHERE status = 'active'
   `;
