@@ -39,8 +39,8 @@
   /* --sidebar-accent: oklch(0.88 0.02 180); */
   /* --sidebar-accent-foreground: oklch(0 0 0); */
 
-  --sidebar-border: oklch(0.9 0 0);
-  --sidebar-ring: oklch(0.13 0.05 240);
+  --calendar-today: 206 100% 96%;
+  --calendar-off-range: 210 6% 93%;
 }
 
 .dark {
@@ -76,6 +76,9 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.25 0.08 240);
+
+  --calendar-today: 220 65% 16%;
+  --calendar-off-range: 217 33% 17%;
 }
 
 @theme inline {

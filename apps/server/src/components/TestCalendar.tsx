@@ -7,6 +7,7 @@ import {
   withDragAndDrop,
 } from "@/components/BigCalendar";
 import { SlotInfo } from "react-big-calendar";
+import { BigCalendarToolbar } from "./BigCalendarToolbar";
 
 const DnDCalendar = withDragAndDrop(BigCalendar);
 const TestCalendar = () => {
