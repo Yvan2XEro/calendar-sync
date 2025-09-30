@@ -1,5 +1,16 @@
 "use client";
 
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
+import {
+	type QueryClient,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
+import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
 import {
 	EventEditDialog,
@@ -14,6 +25,7 @@ import type {
 	EventsListOutput,
 } from "@/components/admin/events/types";
 import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -41,21 +53,9 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { UserAvatar } from "@/components/UserAvatar";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
-import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
-import {
-	type QueryClient,
-	useMutation,
-	useQuery,
-	useQueryClient,
-} from "@tanstack/react-query";
-import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import {
 	type EventStatus,

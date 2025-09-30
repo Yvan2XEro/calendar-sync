@@ -56,9 +56,9 @@ const filterSchema = z.object({
 type EventFilterInput = z.infer<typeof filterSchema>;
 
 type EventSelection = {
-        id: string;
-        providerId: string;
-        flagId: string | null;
+	id: string;
+	providerId: string;
+	flagId: string | null;
 	title: string;
 	description: string | null;
 	location: string | null;
@@ -68,7 +68,7 @@ type EventSelection = {
 	isAllDay: boolean;
 	isPublished: boolean;
 	externalId: string | null;
-        metadata: Record<string, unknown> | null;
+	metadata: Record<string, unknown> | null;
 	status: (typeof event.status.enumValues)[number];
 	priority: number;
 	createdAt: Date;
@@ -81,32 +81,33 @@ type EventSelection = {
 };
 
 type AutoApprovalInfo = {
-        reason: string;
-        providerId: string | null;
-        at: string | null;
-        trustedProvider: boolean;
+	reason: string;
+	providerId: string | null;
+	at: string | null;
+	trustedProvider: boolean;
 };
 
 function parseAutoApproval(
-        metadata: Record<string, unknown> | null | undefined,
+	metadata: Record<string, unknown> | null | undefined,
 ): AutoApprovalInfo | null {
-        if (!metadata) return null;
-        const raw = metadata.auto_approval;
-        if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+	if (!metadata) return null;
+	const raw = metadata.auto_approval;
+	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 
-        const info = raw as Record<string, unknown>;
-        const reason = typeof info.reason === "string" ? info.reason : null;
-        if (!reason) return null;
+	const info = raw as Record<string, unknown>;
+	const reason = typeof info.reason === "string" ? info.reason : null;
+	if (!reason) return null;
 
-        const providerId = typeof info.provider_id === "string" ? info.provider_id : null;
-        const at = typeof info.at === "string" ? info.at : null;
+	const providerId =
+		typeof info.provider_id === "string" ? info.provider_id : null;
+	const at = typeof info.at === "string" ? info.at : null;
 
-        return {
-                reason,
-                providerId,
-                at,
-                trustedProvider: reason === "trusted_provider",
-        } satisfies AutoApprovalInfo;
+	return {
+		reason,
+		providerId,
+		at,
+		trustedProvider: reason === "trusted_provider",
+	} satisfies AutoApprovalInfo;
 }
 
 const listInputSchema = filterSchema.extend({
@@ -281,13 +282,13 @@ function buildEventFilters(filters: EventFilterInput): SQL[] {
 }
 
 function mapEvent(row: EventSelection) {
-        const metadata = (row.metadata ?? {}) as Record<string, unknown>;
-        const autoApproval = parseAutoApproval(metadata);
+	const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+	const autoApproval = parseAutoApproval(metadata);
 
-        return {
-                id: row.id,
-                providerId: row.providerId,
-                flagId: row.flagId,
+	return {
+		id: row.id,
+		providerId: row.providerId,
+		flagId: row.flagId,
 		title: row.title,
 		description: row.description,
 		location: row.location,
@@ -297,26 +298,26 @@ function mapEvent(row: EventSelection) {
 		isAllDay: row.isAllDay,
 		isPublished: row.isPublished,
 		externalId: row.externalId,
-                metadata,
-                autoApproval,
+		metadata,
+		autoApproval,
 		status: row.status,
 		priority: row.priority,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 		provider: row.providerName
 			? {
-				id: row.providerId,
-				name: row.providerName,
-				category: row.providerCategory,
-				status: row.providerStatus,
-			}
+					id: row.providerId,
+					name: row.providerName,
+					category: row.providerCategory,
+					status: row.providerStatus,
+				}
 			: null,
 		flag: row.flagId
 			? {
-				id: row.flagId,
-				label: row.flagLabel,
-				priority: row.flagPriority,
-			}
+					id: row.flagId,
+					label: row.flagLabel,
+					priority: row.flagPriority,
+				}
 			: null,
 	} as const;
 }

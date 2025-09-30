@@ -1,6 +1,10 @@
 "use client";
 
+import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,12 +14,8 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { UserAvatar } from "@/components/UserAvatar";
 import { highlights } from "@/config/ui";
 import { trpcClient } from "@/lib/trpc-client";
-import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 
 export default function HomePage() {
 	const query = useQuery({

@@ -51,19 +51,19 @@
 			"tag": "0006_fast_unus",
 			"breakpoints": true
 		},
-                {
-                        "idx": 7,
-                        "version": "7",
-                        "when": 1758712155992,
-                        "tag": "0007_married_vertigo",
-                        "breakpoints": true
-                },
-                {
-                        "idx": 8,
-                        "version": "7",
-                        "when": 1758800000000,
-                        "tag": "0008_trusted_providers",
-                        "breakpoints": true
-                }
-        ]
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1758712155992,
+			"tag": "0007_married_vertigo",
+			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1758800000000,
+			"tag": "0008_trusted_providers",
+			"breakpoints": true
+		}
+	]
 }

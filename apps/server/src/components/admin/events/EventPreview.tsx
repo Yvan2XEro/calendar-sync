@@ -48,12 +48,12 @@ export function EventPreview({
 		layout === "card"
 			? (event.location ?? "No location")
 			: (event.location ?? "");
-        const shouldRenderBadges =
-                Boolean(badgePrefix) ||
-                inlineTitle ||
-                event.isAllDay ||
-                Boolean(event.flag) ||
-                Boolean(event.autoApproval);
+	const shouldRenderBadges =
+		Boolean(badgePrefix) ||
+		inlineTitle ||
+		event.isAllDay ||
+		Boolean(event.flag) ||
+		Boolean(event.autoApproval);
 
 	return (
 		<div className={cn(containerClasses, className)}>
@@ -61,28 +61,28 @@ export function EventPreview({
 			{shouldRenderBadges ? (
 				<div className={badgeRowClasses}>
 					{badgePrefix}
-                                        {inlineTitle ? titleContent : null}
-                                        {event.isAllDay ? (
-                                                <Badge variant="outline" className="uppercase">
-                                                        All-day
-                                                </Badge>
-                                        ) : null}
-                                        {event.autoApproval ? (
-                                                <Badge variant="secondary" className="gap-1">
-                                                        <ShieldCheck className={badgeIconClasses} />
-                                                        <span className="min-w-0 break-words">
-                                                                Auto-approved
-                                                                {event.autoApproval.trustedProvider
-                                                                        ? " (trusted provider)"
-                                                                        : ""}
-                                                        </span>
-                                                </Badge>
-                                        ) : null}
-                                        {event.flag ? (
-                                                <Badge variant="secondary" className="gap-1">
-                                                        <Tag className={badgeIconClasses} />
-                                                        <span className="min-w-0 break-words">{event.flag.label}</span>
-                                                </Badge>
+					{inlineTitle ? titleContent : null}
+					{event.isAllDay ? (
+						<Badge variant="outline" className="uppercase">
+							All-day
+						</Badge>
+					) : null}
+					{event.autoApproval ? (
+						<Badge variant="secondary" className="gap-1">
+							<ShieldCheck className={badgeIconClasses} />
+							<span className="min-w-0 break-words">
+								Auto-approved
+								{event.autoApproval.trustedProvider
+									? " (trusted provider)"
+									: ""}
+							</span>
+						</Badge>
+					) : null}
+					{event.flag ? (
+						<Badge variant="secondary" className="gap-1">
+							<Tag className={badgeIconClasses} />
+							<span className="min-w-0 break-words">{event.flag.label}</span>
+						</Badge>
 					) : null}
 				</div>
 			) : null}

@@ -1,11 +1,11 @@
-import { CalendarProvidersCard } from "@/components/admin/CalendarProvidersCard";
-import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import {
 	OrganizationMembersCard,
 	OrganizationSettingsCards,
 	RedirectToSignIn,
 } from "@daveyplate/better-auth-ui";
+import { CalendarProvidersCard } from "@/components/admin/CalendarProvidersCard";
+import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 
 type SettingsPageParams = Promise<{ slug: string }>;
 

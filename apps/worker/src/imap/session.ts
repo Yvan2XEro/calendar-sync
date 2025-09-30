@@ -131,30 +131,32 @@ async function handleMessage(
 			internalDate,
 		});
 
-        const metadata = {
-                ...(extraction.metadata ?? {}),
-                imap_uid: uid,
-                mailbox,
-                message_id: messageId ?? null,
-                internal_date: internalDate ? internalDate.toISOString() : null,
-        } as Record<string, unknown>;
+	const metadata = {
+		...(extraction.metadata ?? {}),
+		imap_uid: uid,
+		mailbox,
+		message_id: messageId ?? null,
+		internal_date: internalDate ? internalDate.toISOString() : null,
+	} as Record<string, unknown>;
 
-        const status = provider.trusted ? "approved" : extraction.status ?? "pending";
+	const status = provider.trusted
+		? "approved"
+		: (extraction.status ?? "pending");
 
-        if (provider.trusted) {
-                metadata.auto_approval = {
-                        reason: "trusted_provider",
-                        provider_id: provider.id,
-                        at: new Date().toISOString(),
-                } satisfies Record<string, unknown>;
-        }
+	if (provider.trusted) {
+		metadata.auto_approval = {
+			reason: "trusted_provider",
+			provider_id: provider.id,
+			at: new Date().toISOString(),
+		} satisfies Record<string, unknown>;
+	}
 
-        const inserted = await insertEvent({
-                ...extraction,
-                status,
-                external_id: externalId,
-                metadata,
-        });
+	const inserted = await insertEvent({
+		...extraction,
+		status,
+		external_id: externalId,
+		metadata,
+	});
 
 	if (!inserted) {
 		log.debug("Event already existed", {

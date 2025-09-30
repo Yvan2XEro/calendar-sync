@@ -9,6 +9,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,6 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { UserAvatar } from "@/components/UserAvatar";
 import { authClient } from "@/lib/auth-client";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";

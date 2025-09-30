@@ -3,8 +3,8 @@ import { adminFlagsRouter } from "./admin-flags";
 import { adminLogsRouter } from "./admin-logs";
 import { adminUsersRouter } from "./admin-users";
 import { eventsRouter } from "./events";
-import { providersRouter } from "./providers";
 import { orgsRouter } from "./orgs";
+import { providersRouter } from "./providers";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -16,10 +16,10 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-        providers: providersRouter,
-        events: eventsRouter,
-        orgs: orgsRouter,
-        adminUsers: adminUsersRouter,
+	providers: providersRouter,
+	events: eventsRouter,
+	orgs: orgsRouter,
+	adminUsers: adminUsersRouter,
 	adminFlags: adminFlagsRouter,
 	adminLogs: adminLogsRouter,
 });

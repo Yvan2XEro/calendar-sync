@@ -19,13 +19,13 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import {
-        Form,
-        FormControl,
-        FormDescription,
-        FormField,
-        FormItem,
-        FormLabel,
-        FormMessage,
+	Form,
+	FormControl,
+	FormDescription,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -51,14 +51,14 @@ const providerCategories = [
 ] as const;
 
 type ProviderFormValues = {
-        id?: string;
-        category: string;
-        name: string;
-        description: string;
-        status: (typeof providerStatuses)[number];
-        trusted: boolean;
-        displayName: string;
-        email: string;
+	id?: string;
+	category: string;
+	name: string;
+	description: string;
+	status: (typeof providerStatuses)[number];
+	trusted: boolean;
+	displayName: string;
+	email: string;
 	imapHost: string;
 	imapPort: string;
 	imapSecure: boolean;
@@ -73,12 +73,12 @@ type ProviderFormValues = {
 };
 
 const emptyFormValues: ProviderFormValues = {
-        category: "",
-        name: "",
-        description: "",
-        status: "draft",
-        trusted: false,
-        displayName: "",
+	category: "",
+	name: "",
+	description: "",
+	status: "draft",
+	trusted: false,
+	displayName: "",
 	email: "",
 	imapHost: "",
 	imapPort: "993",
@@ -156,14 +156,14 @@ export default function ProviderDetailPage() {
 		const smtp = (config.smtp ?? {}) as Record<string, unknown>;
 		const smtpAuth = (smtp.auth ?? {}) as Record<string, unknown>;
 
-                form.reset({
-                        id: detail.id,
-                        category: detail.category,
-                        name: detail.name,
-                        description: detail.description ?? "",
-                        status: (detail.status as ProviderFormValues["status"]) ?? "draft",
-                        trusted: detail.trusted ?? false,
-                        displayName: asString(config.displayName, ""),
+		form.reset({
+			id: detail.id,
+			category: detail.category,
+			name: detail.name,
+			description: detail.description ?? "",
+			status: (detail.status as ProviderFormValues["status"]) ?? "draft",
+			trusted: detail.trusted ?? false,
+			displayName: asString(config.displayName, ""),
 			email: asString(config.email, ""),
 			imapHost: asString(imap.host, ""),
 			imapPort: asPortString(imap.port, "993"),
@@ -246,16 +246,16 @@ export default function ProviderDetailPage() {
 	}, [configFromValues, form, isNew, providerId, smtpTestMutation]);
 
 	const onSubmit = form.handleSubmit((values) => {
-                const payload = {
-                        id: isNew ? undefined : providerId,
-                        category: values.category,
-                        name: values.name,
-                        description:
-                                values.description.trim().length > 0 ? values.description : null,
-                        status: values.status,
-                        trusted: values.trusted,
-                        config: configFromValues(values),
-                } as const;
+		const payload = {
+			id: isNew ? undefined : providerId,
+			category: values.category,
+			name: values.name,
+			description:
+				values.description.trim().length > 0 ? values.description : null,
+			status: values.status,
+			trusted: values.trusted,
+			config: configFromValues(values),
+		} as const;
 
 		upsertMutation.mutate(payload);
 	});
@@ -357,72 +357,73 @@ export default function ProviderDetailPage() {
 											</FormItem>
 										)}
 									/>
-                                                                        <FormField
-                                                                                control={form.control}
-                                                                                name="status"
-                                                                                rules={{ required: "Status is required" }}
-                                                                                render={({ field }) => (
-                                                                                        <FormItem>
-                                                                                                <FormLabel>Status</FormLabel>
-                                                                                                <Select
-                                                                                                        value={field.value}
-                                                                                                        onValueChange={field.onChange}
-                                                                                                >
-                                                                                                        <FormControl>
-                                                                                                                <SelectTrigger className="w-full">
-                                                                                                                        <SelectValue placeholder="Select status" />
-                                                                                                                </SelectTrigger>
-                                                                                                        </FormControl>
-                                                                                                        <SelectContent>
-                                                                                                                {providerStatuses.map((status) => (
-                                                                                                                        <SelectItem
-                                                                                                                                key={status}
-                                                                                                                                value={status}
-                                                                                                                                className="capitalize"
-                                                                                                                        >
-                                                                                                                                {status}
-                                                                                                                        </SelectItem>
-                                                                                                                ))}
-                                                                                                        </SelectContent>
-                                                                                                </Select>
-                                                                                                <FormMessage />
-                                                                                        </FormItem>
-                                                                                )}
-                                                                        />
-                                                                        <FormField
-                                                                                control={form.control}
-                                                                                name="trusted"
-                                                                                render={({ field }) => (
-                                                                                        <FormItem className="md:col-span-2">
-                                                                                                <div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
-                                                                                                        <div className="flex flex-col gap-1">
-                                                                                                                <FormLabel className="text-base">
-                                                                                                                        Trusted provider
-                                                                                                                </FormLabel>
-                                                                                                                <FormDescription>
-                                                                                                                        When enabled, events ingested from this provider will be auto-approved without manual review.
-                                                                                                                </FormDescription>
-                                                                                                        </div>
-                                                                                                        <FormControl>
-                                                                                                                <div className="flex items-center justify-between gap-3">
-                                                                                                                        <span className="text-muted-foreground text-sm">
-                                                                                                                                Toggle to mark this provider as trusted.
-                                                                                                                        </span>
-                                                                                                                        <Switch
-                                                                                                                                checked={field.value}
-                                                                                                                                onCheckedChange={field.onChange}
-                                                                                                                        />
-                                                                                                                </div>
-                                                                                                        </FormControl>
-                                                                                                </div>
-                                                                                        </FormItem>
-                                                                                )}
-                                                                        />
-                                                                        <FormField
-                                                                                control={form.control}
-                                                                                name="description"
-                                                                                render={({ field }) => (
-                                                                                        <FormItem className="md:col-span-2">
+									<FormField
+										control={form.control}
+										name="status"
+										rules={{ required: "Status is required" }}
+										render={({ field }) => (
+											<FormItem>
+												<FormLabel>Status</FormLabel>
+												<Select
+													value={field.value}
+													onValueChange={field.onChange}
+												>
+													<FormControl>
+														<SelectTrigger className="w-full">
+															<SelectValue placeholder="Select status" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														{providerStatuses.map((status) => (
+															<SelectItem
+																key={status}
+																value={status}
+																className="capitalize"
+															>
+																{status}
+															</SelectItem>
+														))}
+													</SelectContent>
+												</Select>
+												<FormMessage />
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="trusted"
+										render={({ field }) => (
+											<FormItem className="md:col-span-2">
+												<div className="flex flex-col gap-3 rounded-lg border border-dashed p-4">
+													<div className="flex flex-col gap-1">
+														<FormLabel className="text-base">
+															Trusted provider
+														</FormLabel>
+														<FormDescription>
+															When enabled, events ingested from this provider
+															will be auto-approved without manual review.
+														</FormDescription>
+													</div>
+													<FormControl>
+														<div className="flex items-center justify-between gap-3">
+															<span className="text-muted-foreground text-sm">
+																Toggle to mark this provider as trusted.
+															</span>
+															<Switch
+																checked={field.value}
+																onCheckedChange={field.onChange}
+															/>
+														</div>
+													</FormControl>
+												</div>
+											</FormItem>
+										)}
+									/>
+									<FormField
+										control={form.control}
+										name="description"
+										render={({ field }) => (
+											<FormItem className="md:col-span-2">
 												<FormLabel>Description</FormLabel>
 												<FormControl>
 													<textarea

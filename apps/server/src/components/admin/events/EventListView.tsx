@@ -187,22 +187,22 @@ export function EventListView({
 										) : null}
 									</div>
 								</TableCell>
-                                                                <TableCell>
-                                                                        <div className="flex flex-col gap-1">
-                                                                                <Badge variant={statusOptionMap[event.status].badgeVariant}>
-                                                                                        {statusOptionMap[event.status].label}
-                                                                                </Badge>
-                                                                                {event.autoApproval ? (
-                                                                                        <span className="flex items-center gap-1 text-muted-foreground text-xs">
-                                                                                                <ShieldCheck className="size-3" />
-                                                                                                Auto-approved
-                                                                                                {event.autoApproval.trustedProvider
-                                                                                                        ? " (trusted provider)"
-                                                                                                        : ""}
-                                                                                        </span>
-                                                                                ) : null}
-                                                                        </div>
-                                                                </TableCell>
+								<TableCell>
+									<div className="flex flex-col gap-1">
+										<Badge variant={statusOptionMap[event.status].badgeVariant}>
+											{statusOptionMap[event.status].label}
+										</Badge>
+										{event.autoApproval ? (
+											<span className="flex items-center gap-1 text-muted-foreground text-xs">
+												<ShieldCheck className="size-3" />
+												Auto-approved
+												{event.autoApproval.trustedProvider
+													? " (trusted provider)"
+													: ""}
+											</span>
+										) : null}
+									</div>
+								</TableCell>
 								<TableCell>
 									<Badge variant="outline">{event.priority}</Badge>
 								</TableCell>

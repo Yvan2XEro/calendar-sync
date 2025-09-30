@@ -29,20 +29,20 @@ export const eventStatus = pgEnum("event_status", [
 ]);
 
 export const provider = pgTable("provider", {
-        id: text("id").primaryKey(),
-        category: text("category").notNull(),
-        name: text("name").notNull(),
-        description: text("description"),
-        config: jsonb("config")
-                .$type<Record<string, unknown>>()
-                .notNull()
-                .default(sql`'{}'::jsonb`),
-        status: providerStatus("status").notNull().default("draft"),
-        trusted: boolean("trusted").notNull().default(false),
-        lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
-        createdAt: timestamp("created_at", { withTimezone: true })
-                .notNull()
-                .defaultNow(),
+	id: text("id").primaryKey(),
+	category: text("category").notNull(),
+	name: text("name").notNull(),
+	description: text("description"),
+	config: jsonb("config")
+		.$type<Record<string, unknown>>()
+		.notNull()
+		.default(sql`'{}'::jsonb`),
+	status: providerStatus("status").notNull().default("draft"),
+	trusted: boolean("trusted").notNull().default(false),
+	lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
+	createdAt: timestamp("created_at", { withTimezone: true })
+		.notNull()
+		.defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true })
 		.notNull()
 		.defaultNow(),

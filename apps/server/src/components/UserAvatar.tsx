@@ -1,8 +1,8 @@
-"use client"
-import { authClient } from "@/lib/auth-client";
+"use client";
 import { UserAvatar as UIUserAvatar } from "@daveyplate/better-auth-ui";
 import { LogOut, User } from "lucide-react";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -13,26 +13,26 @@ import {
 } from "./ui/dropdown-menu";
 
 export const UserAvatar = () => {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger>
-        {/* <Link href="/account/settings"> */}
-        <UIUserAvatar />
-        {/* </Link> */}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent>
-        <DropdownMenuGroup>
-          <DropdownMenuItem>
-			<User />
-            <Link href="/account/settings">Manage Account</Link>
-          </DropdownMenuItem>
-		  <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={()=>authClient.signOut()}>
-			<LogOut />
-            <span>Sign out</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+	return (
+		<DropdownMenu>
+			<DropdownMenuTrigger>
+				{/* <Link href="/account/settings"> */}
+				<UIUserAvatar />
+				{/* </Link> */}
+			</DropdownMenuTrigger>
+			<DropdownMenuContent>
+				<DropdownMenuGroup>
+					<DropdownMenuItem>
+						<User />
+						<Link href="/account/settings">Manage Account</Link>
+					</DropdownMenuItem>
+					<DropdownMenuSeparator />
+					<DropdownMenuItem onSelect={() => authClient.signOut()}>
+						<LogOut />
+						<span>Sign out</span>
+					</DropdownMenuItem>
+				</DropdownMenuGroup>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	);
 };

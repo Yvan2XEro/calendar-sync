@@ -1,9 +1,9 @@
-import AppShell from "@/components/layout/AppShell";
-import { UserAvatar } from "@/components/UserAvatar";
 import {
 	OrganizationsCard,
 	RedirectToSignIn,
 } from "@daveyplate/better-auth-ui";
+import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export default function page() {
 	return (

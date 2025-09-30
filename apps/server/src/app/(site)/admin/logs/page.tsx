@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import AppShell from "@/components/layout/AppShell";
+import { UserAvatar } from "@/components/UserAvatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,6 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
-import { UserAvatar } from "@/components/UserAvatar";
 import { useAdminLogStream, useAdminLogs } from "@/hooks/use-admin-logs";
 import { providerKeys } from "@/lib/query-keys/providers";
 import { trpcClient } from "@/lib/trpc-client";
@@ -268,7 +268,7 @@ export default function AdminLogsPage() {
 							</AlertDescription>
 						</Alert>
 					) : (
-						<ScrollArea className="space-y-4 h-[61vh]">
+						<ScrollArea className="h-[61vh] space-y-4">
 							<Table>
 								<TableHeader>
 									<TableRow>

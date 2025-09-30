@@ -1,6 +1,6 @@
 {
-        "id": "4c2d4d1e-9c53-4dc5-a3f0-4ce2bb7d84c6",
-        "prevId": "ecd76f55-9317-47b7-8cc7-302e18c90adf",
+	"id": "4c2d4d1e-9c53-4dc5-a3f0-4ce2bb7d84c6",
+	"prevId": "ecd76f55-9317-47b7-8cc7-302e18c90adf",
 	"version": "7",
 	"dialect": "postgresql",
 	"tables": {
@@ -491,26 +491,26 @@
 					"notNull": true,
 					"default": "'{}'::jsonb"
 				},
-                                "status": {
-                                        "name": "status",
-                                        "type": "provider_status",
-                                        "typeSchema": "public",
-                                        "primaryKey": false,
-                                        "notNull": true,
-                                        "default": "'draft'"
-                                },
-                                "trusted": {
-                                        "name": "trusted",
-                                        "type": "boolean",
-                                        "primaryKey": false,
-                                        "notNull": true,
-                                        "default": false
-                                },
-                                "last_tested_at": {
-                                        "name": "last_tested_at",
-                                        "type": "timestamp with time zone",
-                                        "primaryKey": false,
-                                        "notNull": false
+				"status": {
+					"name": "status",
+					"type": "provider_status",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'draft'"
+				},
+				"trusted": {
+					"name": "trusted",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"last_tested_at": {
+					"name": "last_tested_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
 				},
 				"created_at": {
 					"name": "created_at",

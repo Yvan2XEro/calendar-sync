@@ -1,4 +1,3 @@
-import type { NavGroup } from "@/components/layout/AppShell";
 import {
 	Building2,
 	FlagIcon,
@@ -6,8 +5,9 @@ import {
 	ListTodo,
 	MessageSquare,
 	Network,
-	Users
+	Users,
 } from "lucide-react";
+import type { NavGroup } from "@/components/layout/AppShell";
 
 export const defaultNavigation: NavGroup[] = [
 	{
