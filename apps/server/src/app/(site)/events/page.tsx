@@ -25,77 +25,14 @@ import { eventKeys } from "@/lib/query-keys/events";
 import { eventsApi } from "@/lib/trpc-client";
 import { formatDateBadge, getEventTimezone } from "@/lib/calendar-links";
 import type { UpcomingEvent } from "@/types/events";
-import {
-  BigCalendar,
-  localizer,
-  Views,
-  withDragAndDrop,
-} from "@/components/BigCalendar";
-import { SlotInfo } from "react-big-calendar";
+import TestCalendar from "@/components/TestCalendar";
 
 const EVENTS_LIMIT = 20;
 
 function getEventDateKey(event: UpcomingEvent): string {
   return formatDateBadge(event);
 }
-const DnDCalendar = withDragAndDrop(BigCalendar);
 export default function EventsPage() {
-  // Just for testing
-  const [view, setView] = React.useState(Views.WEEK);
-  const [calendarDate, setCalendarDate] = React.useState(new Date());
-  const [calendarEvents, setCalendarEvents] = React.useState<
-    {
-      title: string;
-      start: Date;
-      end: Date;
-    }[]
-  >([]);
-  const [selectedSlot, setSelectedSlot] = React.useState<SlotInfo | null>(null);
-  const handleNavigate = (newDate: Date) => {
-    setCalendarDate(newDate);
-  };
-
-  const handleViewChange = (newView: React.SetStateAction<any>) => {
-    setView(newView);
-  };
-
-  const handleSelectSlot = (slotInfo: SlotInfo) => {
-    setSelectedSlot(slotInfo);
-  };
-
-  const handleCreateEvent = (data: {
-    title: string;
-    start: string;
-    end: string;
-  }) => {
-    const newEvent = {
-      title: data.title,
-      start: new Date(data.start),
-      end: new Date(data.end),
-    };
-    setCalendarEvents([...calendarEvents, newEvent]);
-    setSelectedSlot(null);
-  };
-
-  const handleEventDrop = ({ event, start, end }: any) => {
-    const updatedEvents = calendarEvents.map((existingEvent) =>
-      existingEvent === event
-        ? { ...existingEvent, start, end }
-        : existingEvent,
-    );
-    setCalendarEvents(updatedEvents);
-  };
-
-  const handleEventResize = ({ event, start, end }: any) => {
-    const updatedEvents = calendarEvents.map((existingEvent) =>
-      existingEvent === event
-        ? { ...existingEvent, start, end }
-        : existingEvent,
-    );
-    setCalendarEvents(updatedEvents);
-  };
-  //End testing
-
   const [search, setSearch] = React.useState("");
   const [location, setLocation] = React.useState("all");
   const [date, setDate] = React.useState("");
@@ -167,26 +104,8 @@ export default function EventsPage() {
       ]}
       headerRight={<UserAvatar />}
     >
+      <TestCalendar />
       <RedirectToSignIn />
-      {/* Just for testing */}
-      <DnDCalendar
-        localizer={localizer}
-        style={{ height: 600, width: "100%" }}
-        className="border-border border-rounded-md border-solid border-2 rounded-lg" // Optional border
-        selectable
-        date={calendarDate}
-        onNavigate={handleNavigate}
-        view={view}
-        onView={handleViewChange}
-        resizable
-        draggableAccessor={() => true}
-        resizableAccessor={() => true}
-        events={events}
-        onSelectSlot={handleSelectSlot}
-        onEventDrop={handleEventDrop}
-        onEventResize={handleEventResize}
-      />
-
       <section className="space-y-6">
         <Card className="space-y-3 rounded-3xl border-none bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-8 text-foreground shadow-sm">
           <div className="flex flex-col gap-2">
