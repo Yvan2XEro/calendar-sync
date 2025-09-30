@@ -187,19 +187,14 @@ const updateEventInput = z
 const statsInputSchema = filterSchema;
 
 const RECENT_EVENTS_DEFAULT_LIMIT = 8;
-const RECENT_EVENTS_MAX_LIMIT = 20;
+const RECENT_EVENTS_MAX_LIMIT = 500;
 const RECENT_EVENTS_WINDOW_DAYS = 30;
 
 const recentEventsInput = z
-        .object({
-                limit: z
-                        .number()
-                        .int()
-                        .min(1)
-                        .max(RECENT_EVENTS_MAX_LIMIT)
-                        .optional(),
-        })
-        .optional();
+	.object({
+		limit: z.number().int().min(1).max(RECENT_EVENTS_MAX_LIMIT).optional(),
+	})
+	.optional();
 
 const eventSelection = {
 	id: event.id,
@@ -310,18 +305,18 @@ function mapEvent(row: EventSelection) {
 		updatedAt: row.updatedAt,
 		provider: row.providerName
 			? {
-					id: row.providerId,
-					name: row.providerName,
-					category: row.providerCategory,
-					status: row.providerStatus,
-				}
+				id: row.providerId,
+				name: row.providerName,
+				category: row.providerCategory,
+				status: row.providerStatus,
+			}
 			: null,
 		flag: row.flagId
 			? {
-					id: row.flagId,
-					label: row.flagLabel,
-					priority: row.flagPriority,
-				}
+				id: row.flagId,
+				label: row.flagLabel,
+				priority: row.flagPriority,
+			}
 			: null,
 	} as const;
 }
@@ -344,83 +339,83 @@ async function fetchEventOrThrow(id: string) {
 }
 
 export const eventsRouter = router({
-        listRecentForUser: protectedProcedure
-                .input(recentEventsInput)
-                .query(async ({ ctx, input }) => {
-                        const userId = ctx.session.user.id;
-                        const limit = input?.limit ?? RECENT_EVENTS_DEFAULT_LIMIT;
+	listRecentForUser: protectedProcedure
+		.input(recentEventsInput)
+		.query(async ({ ctx, input }) => {
+			const userId = ctx.session.user.id;
+			const limit = input?.limit ?? RECENT_EVENTS_DEFAULT_LIMIT;
 
-                        const now = new Date();
-                        const windowEnd = new Date(
-                                now.getTime() + RECENT_EVENTS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
-                        );
+			const now = new Date();
+			const windowEnd = new Date(
+				now.getTime() + RECENT_EVENTS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+			);
 
-                        const rows = await db
-                                .select({
-                                        id: event.id,
-                                        title: event.title,
-                                        description: event.description,
-                                        location: event.location,
-                                        url: event.url,
-                                        startAt: event.startAt,
-                                        endAt: event.endAt,
-                                        metadata: event.metadata,
-                                        organizationId: organization.id,
-                                        organizationName: organization.name,
-                                        organizationSlug: organization.slug,
-                                        providerName: provider.name,
-                                })
-                                .from(event)
-                                .innerJoin(provider, eq(provider.id, event.provider))
-                                .innerJoin(
-                                        organizationProvider,
-                                        eq(organizationProvider.providerId, provider.id),
-                                )
-                                .innerJoin(
-                                        organization,
-                                        eq(organization.id, organizationProvider.organizationId),
-                                )
-                                .innerJoin(
-                                        member,
-                                        and(
-                                                eq(member.organizationId, organization.id),
-                                                eq(member.userId, userId),
-                                        ),
-                                )
-                                .where(
-                                        and(
-                                                eq(event.status, "approved"),
-                                                eq(event.isPublished, true),
-                                                gte(event.startAt, now),
-                                                lte(event.startAt, windowEnd),
-                                        ),
-                                )
-                                .orderBy(event.startAt, event.id)
-                                .limit(limit);
+			const rows = await db
+				.select({
+					id: event.id,
+					title: event.title,
+					description: event.description,
+					location: event.location,
+					url: event.url,
+					startAt: event.startAt,
+					endAt: event.endAt,
+					metadata: event.metadata,
+					organizationId: organization.id,
+					organizationName: organization.name,
+					organizationSlug: organization.slug,
+					providerName: provider.name,
+				})
+				.from(event)
+				.innerJoin(provider, eq(provider.id, event.provider))
+				.innerJoin(
+					organizationProvider,
+					eq(organizationProvider.providerId, provider.id),
+				)
+				.innerJoin(
+					organization,
+					eq(organization.id, organizationProvider.organizationId),
+				)
+				.innerJoin(
+					member,
+					and(
+						eq(member.organizationId, organization.id),
+						eq(member.userId, userId),
+					),
+				)
+				.where(
+					and(
+						eq(event.status, "approved"),
+						eq(event.isPublished, true),
+						gte(event.startAt, now),
+						lte(event.startAt, windowEnd),
+					),
+				)
+				.orderBy(event.startAt, event.id)
+				.limit(limit);
 
-                        return rows.map((row) => ({
-                                id: row.id,
-                                title: row.title,
-                                description: row.description,
-                                location: row.location,
-                                url: row.url,
-                                startAt: row.startAt,
-                                endAt: row.endAt,
-                                organization: {
-                                        id: row.organizationId,
-                                        name: row.organizationName,
-                                        slug: row.organizationSlug,
-                                },
-                                providerName: row.providerName,
-                                imageUrl:
-                                        typeof row.metadata?.imageUrl === "string"
-                                                ? (row.metadata.imageUrl as string)
-                                                : null,
-                        }));
-                }),
-        list: adminProcedure
-                .input(listInputSchema.optional())
-                .query(async ({ input }) => {
+			return rows.map((row) => ({
+				id: row.id,
+				title: row.title,
+				description: row.description,
+				location: row.location,
+				url: row.url,
+				startAt: row.startAt,
+				endAt: row.endAt,
+				organization: {
+					id: row.organizationId,
+					name: row.organizationName,
+					slug: row.organizationSlug,
+				},
+				providerName: row.providerName,
+				imageUrl:
+					typeof row.metadata?.imageUrl === "string"
+						? (row.metadata.imageUrl as string)
+						: null,
+			}));
+		}),
+	list: adminProcedure
+		.input(listInputSchema.optional())
+		.query(async ({ input }) => {
 			const filters: ListInput = { ...(input ?? {}) };
 			const {
 				page: requestedPage,
