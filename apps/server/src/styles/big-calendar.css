@@ -32,9 +32,9 @@
   background-color: hsl(var(--calendar-today));
 }
 
-/* .rbc-event-label {
+.rbc-event-label {
   padding: 1px 4px !important;
-} */
+}
 
 /* .rbc-event-content{
 } */
@@ -61,10 +61,15 @@
 .rbc-toolbar button.rbc-active,
 .rbc-toolbar button.rbc-active:hover,
 .rbc-toolbar button:hover {
+  /* border-color: hsl(var(--border)) !important; */
   background-color: hsl(var(--primary));
   color: hsl(var(--primary-foreground));
 }
 
-.rbc-toolbar button:hover {
-  background-color: hsl(var(--primary) / 0.9);
+/* .rbc-toolbar button:hover { */
+/*   background-color: hsl(var(--primary) / 0.9); */
+/* } */
+.rbc-toolbar button.rbc-active {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
 }

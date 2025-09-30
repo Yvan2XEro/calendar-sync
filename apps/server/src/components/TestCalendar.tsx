@@ -72,7 +72,10 @@ const TestCalendar = () => {
       <DnDCalendar
         localizer={localizer}
         style={{ height: 600, width: "100%" }}
-        className="border-border border-rounded-md border-solid border-2 rounded-lg" // Optional border
+        // className="border-border border-rounded-md border-solid border-2 rounded-lg" // Optional border
+        components={{
+          toolbar: BigCalendarToolbar,
+        }}
         selectable
         date={calendarDate}
         onNavigate={handleNavigate}
