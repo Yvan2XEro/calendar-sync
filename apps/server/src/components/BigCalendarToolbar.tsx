@@ -1,105 +1,72 @@
-import { Navigate, ToolbarProps } from "react-big-calendar";
-
-import { Views } from "react-big-calendar";
-import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { Navigate, ToolbarProps, Views } from "react-big-calendar";
 import { format } from "date-fns";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export const BigCalendarToolbar = (props: ToolbarProps) => {
-  const [viewState, setViewState] = useState<string>(Views.MONTH);
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-  const goToDayView = () => {
-    props.onView(Views.DAY);
-    setViewState(Views.DAY);
-  };
-  const goToWeekView = () => {
-    props.onView(Views.WEEK);
-    setViewState(Views.WEEK);
-  };
-  const goToMonthView = () => {
-    props.onView(Views.MONTH);
-    setViewState(Views.MONTH);
-  };
-  const goToAgendaView = () => {
-    props.onView(Views.AGENDA);
-    setViewState(Views.AGENDA);
-  };
-
-  const goToBack = () => {
-    props.onNavigate(Navigate.PREVIOUS);
-  };
-
-  const goToNext = () => {
-    props.onNavigate(Navigate.NEXT);
-  };
-
-  const goToToday = () => {
-    // props.onView(Views.DAY);
-    // setViewState(Views.DAY);
-    props.onNavigate(Navigate.TODAY);
-  };
-
-  // if you decided to inject a datepicker such as MUI or React Widgets ones, use this function on datepicker onChange
-  const goToSpecificDate = (newDate: Date) => {
-    props.onNavigate(Navigate.DATE, newDate);
-  };
-
-  const messages = {
-    today: "Today",
-    month: "Month",
-    week: "Week",
-    day: "Day",
-    agenda: "Agenda",
-    next: "Next",
-    back: "Back",
-  };
+export const BigCalendarToolbar = ({ date, view, views, onNavigate, onView }: ToolbarProps) => {
+  const availableViews = (Array.isArray(views) && views.length > 0
+    ? views
+    : Object.values(Views)) as string[];
+  const currentView = view ?? Views.MONTH;
 
   return (
-    <div className="rbc-toolbar flex !px-0 !justify-between">
-      <div className="flex space-x-1">
-        <button type="button">&#8249;</button>
-        <button
+    <div className="flex flex-col gap-3 border-b border-border/60 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-2">
+        <Button
           type="button"
-          className={cn({ "rbc-active": viewState === Views.AGENDA })}
-          onClick={goToToday}
+          variant="outline"
+          size="icon"
+          onClick={() => onNavigate?.(Navigate.PREVIOUS)}
+          aria-label="Go to previous period"
+          className="rounded-full shadow-sm"
         >
-          {messages.today}
-        </button>
-        <button type="button" onClick={goToNext}>
-          &#8250;
-        </button>
+          <ChevronLeft className="size-4" aria-hidden />
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => onNavigate?.(Navigate.TODAY)}
+          className="rounded-full shadow-sm"
+        >
+          Today
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => onNavigate?.(Navigate.NEXT)}
+          aria-label="Go to next period"
+          className="rounded-full shadow-sm"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </Button>
       </div>
-      <label>{format(props.date, "MMMM yyyy")}</label>
 
-      <div className="flex space-x-1">
-        <button
-          type="button"
-          className={cn({ "rbc-active": viewState === Views.MONTH })}
-          onClick={goToMonthView}
-        >
-          {messages.month}
-        </button>
-        <button
-          type="button"
-          className={cn({ "rbc-active": viewState === Views.WEEK })}
-          onClick={goToWeekView}
-        >
-          {messages.week}
-        </button>
-        <button
-          type="button"
-          className={cn({ "rbc-active": viewState === Views.DAY })}
-          onClick={goToDayView}
-        >
-          {messages.day}
-        </button>
-        <button
-          type="button"
-          className={cn({ "rbc-active": viewState === Views.AGENDA })}
-          onClick={goToAgendaView}
-        >
-          {messages.agenda}
-        </button>
+      <div className="text-center font-semibold text-lg tracking-tight text-foreground sm:text-left">
+        {format(date ?? new Date(), "MMMM yyyy")}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {availableViews.map((availableView) => (
+          <Button
+            key={availableView}
+            type="button"
+            variant={currentView === availableView ? "default" : "ghost"}
+            size="sm"
+            onClick={() => onView?.(availableView)}
+            className={cn(
+              "rounded-full shadow-sm",
+              currentView === availableView
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {availableView.charAt(0).toUpperCase() + availableView.slice(1)}
+          </Button>
+        ))}
       </div>
     </div>
   );
