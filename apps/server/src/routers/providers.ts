@@ -46,11 +46,12 @@ type ProviderRow = typeof provider.$inferSelect;
 const elevatedRoles = new Set(["owner", "admin"]);
 
 const catalogSummarySelection = {
-	id: provider.id,
-	name: provider.name,
-	category: provider.category,
-	status: provider.status,
-	lastTestedAt: provider.lastTestedAt,
+        id: provider.id,
+        name: provider.name,
+        category: provider.category,
+        status: provider.status,
+        trusted: provider.trusted,
+        lastTestedAt: provider.lastTestedAt,
 };
 
 function redactConfig(config: ProviderRow["config"]) {
@@ -236,13 +237,14 @@ export const providersRouter = router({
 				.from(provider)
 				.orderBy(provider.name);
 
-			return rows.map((row) => ({
-				id: row.id,
-				name: row.name,
-				category: row.category,
-				status: row.status,
-				lastTestedAt: row.lastTestedAt ?? null,
-			}));
+                        return rows.map((row) => ({
+                                id: row.id,
+                                name: row.name,
+                                category: row.category,
+                                status: row.status,
+                                trusted: row.trusted,
+                                lastTestedAt: row.lastTestedAt ?? null,
+                        }));
 		}),
 		get: adminProcedure.input(providerIdInput).query(async ({ ctx, input }) => {
 			if (!ctx.session) {
@@ -251,17 +253,18 @@ export const providersRouter = router({
 
 			const record = await fetchProviderOrThrow(input.providerId);
 
-			return {
-				id: record.id,
-				category: record.category,
-				name: record.name,
-				description: record.description ?? null,
-				status: record.status,
-				lastTestedAt: record.lastTestedAt ?? null,
-				createdAt: record.createdAt,
-				updatedAt: record.updatedAt,
-				config: redactConfig(record.config),
-			};
+                        return {
+                                id: record.id,
+                                category: record.category,
+                                name: record.name,
+                                description: record.description ?? null,
+                                status: record.status,
+                                trusted: record.trusted,
+                                lastTestedAt: record.lastTestedAt ?? null,
+                                createdAt: record.createdAt,
+                                updatedAt: record.updatedAt,
+                                config: redactConfig(record.config),
+                        };
 		}),
 		upsert: adminProcedure
 			.input(
@@ -275,10 +278,11 @@ export const providersRouter = router({
 						.transform((value) => (value.length === 0 ? null : value))
 						.nullable()
 						.optional(),
-					status: z.enum(providerStatuses).optional(),
-					config: providerConfigSchema,
-				}),
-			)
+                                        status: z.enum(providerStatuses).optional(),
+                                        trusted: z.boolean().optional(),
+                                        config: providerConfigSchema,
+                                }),
+                        )
 			.mutation(async ({ ctx, input }) => {
 				if (!ctx.session) {
 					throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -296,24 +300,28 @@ export const providersRouter = router({
 					await db
 						.update(provider)
 						.set({
-							category: input.category,
-							name: input.name,
-							description: input.description ?? null,
-							status: input.status ?? existing.status,
-							config,
-							updatedAt: now,
-						})
-						.where(eq(provider.id, providerId));
-				} else {
-					await db.insert(provider).values({
-						id: providerId,
-						category: input.category,
-						name: input.name,
-						description: input.description ?? null,
-						status: input.status ?? "draft",
-						config,
-						lastTestedAt: null,
-						createdAt: now,
+                                                        category: input.category,
+                                                        name: input.name,
+                                                        description: input.description ?? null,
+                                                        status: input.status ?? existing.status,
+                                                        trusted:
+                                                                input.trusted ??
+                                                                (existing.trusted ?? false),
+                                                        config,
+                                                        updatedAt: now,
+                                                })
+                                                .where(eq(provider.id, providerId));
+                                } else {
+                                        await db.insert(provider).values({
+                                                id: providerId,
+                                                category: input.category,
+                                                name: input.name,
+                                                description: input.description ?? null,
+                                                status: input.status ?? "draft",
+                                                trusted: input.trusted ?? false,
+                                                config,
+                                                lastTestedAt: null,
+                                                createdAt: now,
 						updatedAt: now,
 					});
 				}

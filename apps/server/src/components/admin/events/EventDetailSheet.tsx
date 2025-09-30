@@ -4,6 +4,7 @@ import type { EventStatus } from "@/app/(site)/admin/events/event-filters";
 import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ShieldCheck } from "lucide-react";
 import {
         Sheet,
         SheetContent,
@@ -32,6 +33,11 @@ export function EventDetailSheet({
   onClose,
   statusLoading,
 }: EventDetailSheetProps) {
+  const autoApproval = event?.autoApproval ?? null;
+  const autoApprovalReason = autoApproval?.reason.replace(/_/g, " ") ?? "Unknown";
+  const autoApprovalTimestamp = autoApproval?.at
+    ? new Date(autoApproval.at)
+    : null;
   return (
     <Sheet
       open={event != null}
@@ -70,7 +76,31 @@ export function EventDetailSheet({
                 {event.isAllDay ? (
                   <Badge variant="outline">All-day</Badge>
                 ) : null}
+                {autoApproval ? (
+                  <Badge variant="secondary" className="gap-1">
+                    <ShieldCheck className="size-3" />
+                    Auto-approved
+                    {autoApproval.trustedProvider ? " (trusted provider)" : ""}
+                  </Badge>
+                ) : null}
               </div>
+              {autoApproval ? (
+                <div className="rounded-md border border-dashed bg-muted/40 p-3 text-muted-foreground text-sm">
+                  <p className="flex items-center gap-2 font-medium text-foreground">
+                    <ShieldCheck className="size-4" />
+                    Auto-approval details
+                  </p>
+                  <p>
+                    Reason: {autoApprovalReason}
+                    {autoApproval.providerId
+                      ? ` • Provider ID: ${autoApproval.providerId}`
+                      : ""}
+                  </p>
+                  {autoApprovalTimestamp ? (
+                    <p>Recorded at: {autoApprovalTimestamp.toLocaleString()}</p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="space-y-1 text-sm">
               <p className="font-semibold text-foreground">Schedule</p>

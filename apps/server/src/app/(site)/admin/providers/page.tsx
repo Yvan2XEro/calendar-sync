@@ -168,7 +168,16 @@ export default function ProvidersAdminPage() {
 											<TableCell className="text-muted-foreground text-sm">
 												{row.category}
 											</TableCell>
-											<TableCell>{renderStatusBadge(row.status)}</TableCell>
+                                                                                        <TableCell>
+                                                                                                <div className="flex flex-col gap-1">
+                                                                                                        {renderStatusBadge(row.status)}
+                                                                                                        {row.trusted ? (
+                                                                                                                <Badge variant="secondary">
+                                                                                                                        Trusted
+                                                                                                                </Badge>
+                                                                                                        ) : null}
+                                                                                                </div>
+                                                                                        </TableCell>
 											<TableCell className="text-muted-foreground text-sm">
 												{renderLastTestedAt(row.lastTestedAt)}
 											</TableCell>
