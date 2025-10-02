@@ -10,10 +10,10 @@
 		"db:studio": "drizzle-kit studio",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate && bun ./src/db/seeds/providers.ts",
-		"db:start": "docker compose up -d",
-		"db:watch": "docker compose up",
-		"db:stop": "docker compose stop",
-		"db:down": "docker compose down",
+                "db:start": "docker compose --project-directory ../.. up -d postgres",
+                "db:watch": "docker compose --project-directory ../.. up postgres",
+                "db:stop": "docker compose --project-directory ../.. stop postgres",
+                "db:down": "docker compose --project-directory ../.. down",
 		"db:seed": "bun ./src/db/seeds/providers.ts"
 	},
 	"dependencies": {
