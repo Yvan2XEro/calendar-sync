@@ -147,6 +147,7 @@ flowchart TD
 | `WORKER_IDLE_KEEPALIVE_MS`        | `15000`  | IMAP idle heartbeat to avoid server disconnects.             |
 | `WORKER_BACKOFF_MIN_MS`           | `1000`   | Starting delay for exponential backoff.                      |
 | `WORKER_BACKOFF_MAX_MS`           | `60000`  | Maximum delay between reconnect attempts.                    |
+| `WORKER_USE_FAKE_EXTRACTOR`       | `false`  | Enables the Faker-based email parser when AI credentials are unavailable. |
 | `GOOGLE_GENERATIVE_AI_API_KEY`    | —        | Required by the AI SDK when enabling real Gemini extraction. |
 
 **Deployment Notes**
@@ -175,7 +176,7 @@ flowchart TD
 
 ## 11. Known Gaps & Future Work
 
-- The worker’s AI extraction currently references a Faker-based stub (`extractEventFromEmailFake`) because `IS_DEV` is hard-coded to `true`. Flip to the Gemini-backed parser when production credentials are ready.
+- The worker’s AI extraction defaults to Gemini but can fall back to the Faker-based stub (`extractEventFromEmailFake`) by setting `WORKER_USE_FAKE_EXTRACTOR=true` when the Gemini API key is unavailable.
 - Provider UI lacks detail views for linked organizations or historical test results; consider extending schema to capture audit trails.
 - Change-log alignment awaits the official PDF; until then, any signed-off scope changes must be tracked manually.
 - Flag usage is defined but events currently insert with `flag_id = null`; extend ingestion or admin workflows to classify events post-ingest.
