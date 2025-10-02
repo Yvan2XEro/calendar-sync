@@ -1,0 +1,9 @@
+.git
+node_modules
+apps/server/.next
+apps/server/out
+apps/server/.turbo
+apps/worker/node_modules
+apps/worker/dist
+.tmp
+.DS_Store

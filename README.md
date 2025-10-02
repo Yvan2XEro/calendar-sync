@@ -21,6 +21,16 @@ First, install the dependencies:
 bun install
 ```
 
+## Running with Docker Compose
+
+The repository now includes a root-level `docker-compose.yml` that builds the admin server and worker images alongside PostgreSQL. To boot the entire stack in the background run:
+
+```bash
+docker compose up --build -d
+```
+
+All of the runtime environment variables documented in the [wiki](WIKI.md#8-environment--deployment) are exposed through the compose file. Override them by exporting variables locally or creating a `.env` file next to `docker-compose.yml` before running the command above.
+
 ## Monitoring worker activity
 
 Administrators can open [`/admin/logs`](apps/server/src/app/(site)/admin/logs/page.tsx) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
@@ -47,7 +57,13 @@ Open the drawer or dialog actions in each row/card to see the complete metadata,
 
 This project uses PostgreSQL with Drizzle ORM.
 
-1. Make sure you have a PostgreSQL database set up.
+1. Start PostgreSQL with Docker if you haven't provisioned one yet:
+
+   ```bash
+   docker compose up -d postgres
+   ```
+
+   This uses the same configuration baked into the application containers so local testing mirrors production defaults.
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
 
 3. Apply the schema to your database:

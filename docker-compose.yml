@@ -1,0 +1,89 @@
+name: calendar-sync
+
+services:
+  postgres:
+    image: postgres:16.2-alpine
+    container_name: calendar-sync-postgres
+    environment:
+      POSTGRES_DB: calendar-sync
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "54322:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/calendar-sync
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000/api/auth}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test:
+        - "CMD"
+        - "bun"
+        - "-e"
+        - "const res = await fetch('http://localhost:3000/api/trpc/healthCheck?input=%7B%7D'); if (!res.ok) throw new Error(`status $${res.status}`);"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      server:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://postgres:password@postgres:5432/calendar-sync
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-dev-secret}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000/api/auth}
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+    healthcheck:
+      test:
+        - "CMD"
+        - "bun"
+        - "-e"
+        - |
+          const {createConnection} = await import('node:net');
+          await new Promise((resolve, reject) => {
+            const socket = createConnection({host: 'postgres', port: 5432});
+            socket.once('connect', () => {
+              socket.end();
+              resolve();
+            });
+            socket.once('error', reject);
+            setTimeout(() => {
+              socket.destroy();
+              reject(new Error('timeout'));
+            }, 5000);
+          });
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: calendar-sync_postgres_data
