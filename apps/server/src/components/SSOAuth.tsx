@@ -16,7 +16,7 @@ export const SSOAuth = () => {
       <Button
         onClick={async () => {
           const { data, error } = await authClient.signIn.oauth2({
-            providerId: "logto",
+            providerId: process.env.NEXT_PUBLIC_OIDC_PROVIDER_ID!,
             callbackURL: "/",
           });
         }}

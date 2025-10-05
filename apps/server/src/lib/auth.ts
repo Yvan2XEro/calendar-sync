@@ -33,7 +33,7 @@ export const auth = betterAuth<BetterAuthOptions>({
     genericOAuth({
       config: [
         {
-          providerId: process.env.OIDC_PROVIDER_ID!,
+          providerId: process.env.NEXT_PUBLIC_OIDC_PROVIDER_ID!,
           clientId: process.env.OIDC_CLIENT_ID!,
           clientSecret: process.env.OIDC_CLIENT_SECRET,
           discoveryUrl: process.env.OIDC_DISCOVERY_URL,
