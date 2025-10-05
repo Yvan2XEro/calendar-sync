@@ -9,7 +9,7 @@ COPY bunfig.toml bunfig.toml
 COPY package.json package.json
 COPY apps/server/package.json apps/server/package.json
 COPY apps/worker/package.json apps/worker/package.json
-RUN bun install --frozen-lockfile
+RUN bun install --ci
 
 FROM base AS production-deps
 COPY bun.lock bun.lock
@@ -17,7 +17,7 @@ COPY bunfig.toml bunfig.toml
 COPY package.json package.json
 COPY apps/server/package.json apps/server/package.json
 COPY apps/worker/package.json apps/worker/package.json
-RUN bun install --frozen-lockfile --production
+RUN bun install --ci
 
 FROM base AS runner
 ENV NODE_ENV=production

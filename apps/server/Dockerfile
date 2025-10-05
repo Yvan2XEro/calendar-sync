@@ -9,7 +9,7 @@ COPY bunfig.toml bunfig.toml
 COPY package.json package.json
 COPY apps/server/package.json apps/server/package.json
 COPY apps/worker/package.json apps/worker/package.json
-RUN bun install --frozen-lockfile
+RUN bun install --ci
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
@@ -23,7 +23,7 @@ COPY bunfig.toml bunfig.toml
 COPY package.json package.json
 COPY apps/server/package.json apps/server/package.json
 COPY apps/worker/package.json apps/worker/package.json
-RUN bun install --frozen-lockfile --production
+RUN bun install --ci
 
 FROM base AS runner
 ENV NODE_ENV=production
@@ -42,5 +42,7 @@ COPY --from=builder /app/apps/server/tsconfig.json ./apps/server/tsconfig.json
 COPY --from=builder /app/apps/server/components.json ./apps/server/components.json
 COPY --from=builder /app/apps/server/public ./apps/server/public
 COPY --from=builder /app/apps/server/.next ./apps/server/.next
+COPY --from=builder /app/apps/server/src/db ./apps/server/src/db
+
 EXPOSE 3000
 CMD ["bun", "run", "--filter", "server", "start"]

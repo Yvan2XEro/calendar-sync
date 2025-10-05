@@ -12,9 +12,9 @@ import { extractEventFromEmail } from "../utils/mailparser";
 import { extractEventFromEmailFake } from "../utils/mailparser-test";
 
 export interface ProviderSessionOptions {
-        workerConfig: WorkerConfig;
-        signal: AbortSignal;
-        logger: WorkerLogger;
+	workerConfig: WorkerConfig;
+	signal: AbortSignal;
+	logger: WorkerLogger;
 }
 
 const FETCH_OPTIONS = {
@@ -76,11 +76,11 @@ function synthesizeExternalId(params: {
 type ExtractEventFn = typeof extractEventFromEmail;
 
 async function handleMessage(
-        provider: ProviderRecord,
-        mailbox: string,
-        message: FetchMessageObject,
-        log: WorkerLogger,
-        extractEvent: ExtractEventFn,
+	provider: ProviderRecord,
+	mailbox: string,
+	message: FetchMessageObject,
+	log: WorkerLogger,
+	extractEvent: ExtractEventFn,
 ): Promise<boolean> {
 	const uid = message.uid;
 	if (!uid) return false;
@@ -175,11 +175,11 @@ async function handleMessage(
 }
 
 export async function runProviderSession(
-        provider: ProviderRecord,
-        options: ProviderSessionOptions,
+	provider: ProviderRecord,
+	options: ProviderSessionOptions,
 ): Promise<void> {
-        const imapConfig = provider.config.imap;
-        if (!imapConfig) {
+	const imapConfig = provider.config.imap;
+	if (!imapConfig) {
 		options.logger.warn("Missing IMAP configuration");
 		return;
 	}
@@ -187,14 +187,14 @@ export async function runProviderSession(
 	const mailbox = resolveMailbox(imapConfig);
 	const { workerConfig, signal } = options;
 	const sessionLogger = options.logger;
-        const backoff = createBackoff({
-                minMs: workerConfig.backoffMinMs,
-                maxMs: workerConfig.backoffMaxMs,
-        });
+	const backoff = createBackoff({
+		minMs: workerConfig.backoffMinMs,
+		maxMs: workerConfig.backoffMaxMs,
+	});
 
-        const extractEvent: ExtractEventFn = workerConfig.useFakeExtractor
-                ? extractEventFromEmailFake
-                : extractEventFromEmail;
+	const extractEvent: ExtractEventFn = workerConfig.useFakeExtractor
+		? extractEventFromEmailFake
+		: extractEventFromEmail;
 
 	let stopRequested = signal.aborted;
 	const onAbort = () => {
@@ -270,13 +270,13 @@ export async function runProviderSession(
 						if (!message.uid) continue;
 
 						try {
-                                                        const inserted = await handleMessage(
-                                                                provider,
-                                                                mailbox,
-                                                                message,
-                                                                sessionLogger,
-                                                                extractEvent,
-                                                        );
+							const inserted = await handleMessage(
+								provider,
+								mailbox,
+								message,
+								sessionLogger,
+								extractEvent,
+							);
 							if (inserted) processed += 1;
 						} catch (error) {
 							fetchRequested = true;

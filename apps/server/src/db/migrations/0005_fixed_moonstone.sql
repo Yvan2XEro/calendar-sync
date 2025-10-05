@@ -1,1 +1,0 @@
-ALTER TABLE "event" ADD COLUMN "external_id" text;
