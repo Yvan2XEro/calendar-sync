@@ -12,6 +12,8 @@ COPY apps/worker/package.json apps/worker/package.json
 RUN bun install --ci
 
 FROM base AS builder
+ARG NEXT_PUBLIC_OIDC_PROVIDER_ID
+ENV NEXT_PUBLIC_OIDC_PROVIDER_ID=$NEXT_PUBLIC_OIDC_PROVIDER_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps ./apps
 COPY . .
