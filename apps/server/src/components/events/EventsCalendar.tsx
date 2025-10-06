@@ -252,7 +252,6 @@ export function EventsCalendar({
 						</div>
 					</Card>
 				)}
-
 				<Dialog
 					open={Boolean(selectedEvent)}
 					onOpenChange={handleModalOpenChange}
@@ -302,15 +301,25 @@ export function EventsCalendar({
 									</div>
 								</ScrollArea>
 								<DialogFooter className="gap-2">
-									{selectedEvent.url ? (
-										<Button asChild variant="outline">
+									{selectedEvent.slug ? (
+										<Button asChild>
 											<Link
-												href={selectedEvent.url as any}
+												href={`/events/${selectedEvent.slug}`}
 												target="_blank"
 												rel="noopener noreferrer"
 											>
-												<LinkIcon className="mr-2 size-4" aria-hidden /> View
-												event page
+												<LinkIcon className="mr-2 size-4" aria-hidden /> View landing page
+											</Link>
+										</Button>
+									) : null}
+									{selectedEvent.url ? (
+										<Button asChild variant="outline">
+											<Link
+													href={selectedEvent.url as any}
+													target="_blank"
+													rel="noopener noreferrer"
+											>
+												<LinkIcon className="mr-2 size-4" aria-hidden /> View event page
 											</Link>
 										</Button>
 									) : null}

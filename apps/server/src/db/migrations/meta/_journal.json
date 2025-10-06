@@ -12,8 +12,15 @@
 		{
 			"idx": 1,
 			"version": "7",
-			"when": 1759413125284,
-			"tag": "0001_event_registration_tables",
+			"when": 1759413124285,
+			"tag": "0001_event_landing_pages",
+			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1759413126284,
+			"tag": "0002_event_registration_tables",
 			"breakpoints": false
 		}
 	]

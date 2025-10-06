@@ -122,6 +122,7 @@ export const event = pgTable(
 	"event",
 	{
 		id: text("id").primaryKey(),
+		slug: text("slug").notNull(),
 		provider: text("provider_id")
 			.notNull()
 			.references(() => provider.id, { onDelete: "set null" }),
@@ -133,6 +134,14 @@ export const event = pgTable(
 		description: text("description"),
 		location: text("location"),
 		url: text("url"),
+		heroMedia: jsonb("hero_media")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		landingPage: jsonb("landing_page")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
 		startAt: timestamp("start_at", { withTimezone: true }).notNull(),
 		endAt: timestamp("end_at", { withTimezone: true }),
 		isAllDay: boolean("is_all_day").default(false).notNull(),
@@ -150,6 +159,7 @@ export const event = pgTable(
 		...timestamps,
 	},
 	(table) => ({
+		eventSlugUnique: uniqueIndex("event_slug_unique").on(table.slug),
 		eventProviderExternalIdUnique: uniqueIndex(
 			"event_provider_id_external_id_unique",
 		).on(table.provider, table.externalId),

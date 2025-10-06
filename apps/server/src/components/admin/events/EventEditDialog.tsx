@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -20,21 +20,33 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import type { EventHeroMediaType } from "@/lib/event-content";
 import { formatDateTimeLocal } from "@/lib/datetime";
 import type { EventListItem } from "./types";
 
 export type EventEditFormValues = {
-	title: string;
-	description: string;
-	location: string;
-	url: string;
-	startAt: string;
-	endAt: string;
-	isAllDay: boolean;
-	isPublished: boolean;
-	externalId: string;
-	priority: number;
-	providerId: string;
+        title: string;
+        slug: string;
+        description: string;
+        location: string;
+        url: string;
+        startAt: string;
+        endAt: string;
+        isAllDay: boolean;
+        isPublished: boolean;
+        externalId: string;
+        priority: number;
+        providerId: string;
+        heroMediaType: EventHeroMediaType | "none";
+        heroMediaUrl: string;
+        heroMediaAlt: string;
+        heroMediaPosterUrl: string;
+        landingHeadline: string;
+        landingSubheadline: string;
+        landingBody: string;
+        landingSeoDescription: string;
+        landingCtaLabel: string;
+        landingCtaUrl: string;
 };
 
 export type ProviderOption = {
@@ -43,101 +55,208 @@ export type ProviderOption = {
 };
 
 type EventEditDialogProps = {
-	open: boolean;
-	event: EventListItem | null;
-	providers: ProviderOption[];
-	onSubmit: (values: EventEditFormValues) => void;
-	onClose: () => void;
-	isSaving: boolean;
+        open: boolean;
+        mode: "create" | "edit";
+        event: EventListItem | null;
+        providers: ProviderOption[];
+        onSubmit: (values: EventEditFormValues) => void;
+        onClose: () => void;
+        isSaving: boolean;
 };
 
 const defaultValues: EventEditFormValues = {
-	title: "",
-	description: "",
-	location: "",
-	url: "",
-	startAt: "",
-	endAt: "",
-	isAllDay: false,
-	isPublished: false,
-	externalId: "",
-	priority: 3,
-	providerId: "",
+        title: "",
+        slug: "",
+        description: "",
+        location: "",
+        url: "",
+        startAt: "",
+        endAt: "",
+        isAllDay: false,
+        isPublished: false,
+        externalId: "",
+        priority: 3,
+        providerId: "",
+        heroMediaType: "none",
+        heroMediaUrl: "",
+        heroMediaAlt: "",
+        heroMediaPosterUrl: "",
+        landingHeadline: "",
+        landingSubheadline: "",
+        landingBody: "",
+        landingSeoDescription: "",
+        landingCtaLabel: "",
+        landingCtaUrl: "",
 };
 
 export function EventEditDialog({
-	open,
-	event,
-	providers,
-	onSubmit,
-	onClose,
-	isSaving,
+        open,
+        mode,
+        event,
+        providers,
+        onSubmit,
+        onClose,
+        isSaving,
 }: EventEditDialogProps) {
-	const [values, setValues] = useState<EventEditFormValues>({
-		...defaultValues,
-	});
+        const [values, setValues] = useState<EventEditFormValues>({
+                ...defaultValues,
+        });
+        const [slugEdited, setSlugEdited] = useState(false);
 
-	useEffect(() => {
-		if (!event || !open) {
-			setValues({ ...defaultValues });
-			return;
-		}
+        const canGenerateSlug = useMemo(() => values.title.trim().length > 0, [values.title]);
 
-		setValues({
-			title: event.title,
-			description: event.description ?? "",
-			location: event.location ?? "",
-			url: event.url ?? "",
-			startAt: formatDateTimeLocal(event.startAt),
-			endAt: formatDateTimeLocal(event.endAt),
-			isAllDay: event.isAllDay,
-			isPublished: event.isPublished,
-			externalId: event.externalId ?? "",
-			priority: event.priority,
-			providerId: event.provider?.id ?? "",
-		});
-	}, [event, open]);
+        function slugify(value: string) {
+                return value
+                        .toLowerCase()
+                        .trim()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-+|-+$/g, "")
+                        .replace(/-{2,}/g, "-");
+        }
 
-	return (
-		<Dialog
+        useEffect(() => {
+                if (!event || !open) {
+                        setValues({ ...defaultValues });
+                        setSlugEdited(false);
+                        return;
+                }
+
+                setValues({
+                        title: event.title,
+                        slug: event.slug,
+                        description: event.description ?? "",
+                        location: event.location ?? "",
+                        url: event.url ?? "",
+                        startAt: formatDateTimeLocal(event.startAt),
+                        endAt: formatDateTimeLocal(event.endAt),
+                        isAllDay: event.isAllDay,
+                        isPublished: event.isPublished,
+                        externalId: event.externalId ?? "",
+                        priority: event.priority,
+                        providerId: event.provider?.id ?? "",
+                        heroMediaType: event.heroMedia?.type ?? "none",
+                        heroMediaUrl: event.heroMedia?.url ?? "",
+                        heroMediaAlt: event.heroMedia?.alt ?? "",
+                        heroMediaPosterUrl: event.heroMedia?.posterUrl ?? "",
+                        landingHeadline: event.landingPage?.headline ?? "",
+                        landingSubheadline: event.landingPage?.subheadline ?? "",
+                        landingBody: event.landingPage?.body ?? "",
+                        landingSeoDescription: event.landingPage?.seoDescription ?? "",
+                        landingCtaLabel: event.landingPage?.cta?.label ?? "",
+                        landingCtaUrl: event.landingPage?.cta?.href ?? "",
+                });
+                setSlugEdited(true);
+        }, [event, open]);
+
+        useEffect(() => {
+                if (!open && mode === "create") {
+                        setValues({ ...defaultValues });
+                        setSlugEdited(false);
+                }
+        }, [mode, open]);
+
+        const dialogTitle = mode === "edit" ? "Edit event" : "Create event";
+        const dialogDescription =
+                mode === "edit"
+                        ? "Update key event metadata before saving your moderation changes."
+                        : "Craft a new event landing page, assign a provider, and publish without waiting for the worker.";
+
+        return (
+                <Dialog
 			open={open}
 			onOpenChange={(nextOpen) => {
 				if (!nextOpen) onClose();
 			}}
 		>
 			<DialogContent className="sm:max-w-lg md:min-w-[50vw]">
-				<form
-					onSubmit={(formEvent) => {
-						formEvent.preventDefault();
-						if (!event) return;
-						onSubmit(values);
-					}}
-					className="space-y-4"
-				>
-					<DialogHeader>
-						<DialogTitle>Edit event</DialogTitle>
-						<DialogDescription>
-							Update key event metadata before saving your moderation changes.
-						</DialogDescription>
-					</DialogHeader>
-					<div className="space-y-2">
-						<Label htmlFor="event-title">Title</Label>
-						<Input
-							id="event-title"
-							value={values.title}
-							onChange={(changeEvent) =>
-								setValues((prev) => ({
-									...prev,
-									title: changeEvent.target.value,
-								}))
-							}
-							required
-						/>
-					</div>
-					<div className="space-y-2">
-						<Label htmlFor="event-description">Description</Label>
-						<textarea
-							id="event-description"
+                                <form
+                                        onSubmit={(formEvent) => {
+                                                formEvent.preventDefault();
+                                                if (mode === "edit" && !event) return;
+                                                const nextSlug = slugify(values.slug);
+                                                onSubmit({ ...values, slug: nextSlug });
+                                        }}
+                                        className="space-y-4"
+                                >
+                                        <DialogHeader>
+                                                <DialogTitle>{dialogTitle}</DialogTitle>
+                                                <DialogDescription>{dialogDescription}</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-2">
+                                                <Label htmlFor="event-title">Title</Label>
+                                                <Input
+                                                        id="event-title"
+                                                        value={values.title}
+                                                        onChange={(changeEvent) =>
+                                                                setValues((prev) => {
+                                                                        const nextTitle = changeEvent.target.value;
+                                                                        const nextState = {
+                                                                                ...prev,
+                                                                                title: nextTitle,
+                                                                        };
+                                                                        if (
+                                                                                (!slugEdited || prev.slug.length === 0) &&
+                                                                                nextTitle.trim().length > 0
+                                                                        ) {
+                                                                                const generated = slugify(nextTitle);
+                                                                                if (generated.length > 0) {
+                                                                                        nextState.slug = generated;
+                                                                                }
+                                                                        }
+                                                                        return nextState;
+                                                                })
+                                                        }
+                                                        required
+                                                />
+                                        </div>
+                                        <div className="space-y-2">
+                                                <Label htmlFor="event-slug">Slug</Label>
+                                                <div className="flex flex-col gap-2 sm:flex-row">
+                                                        <Input
+                                                                id="event-slug"
+                                                                value={values.slug}
+                                                                onChange={(changeEvent) => {
+                                                                        const raw = changeEvent.target.value;
+                                                                        setSlugEdited(true);
+                                                                        setValues((prev) => ({
+                                                                                ...prev,
+                                                                                slug: raw,
+                                                                        }));
+                                                                }}
+                                                                onBlur={() =>
+                                                                        setValues((prev) => ({
+                                                                                ...prev,
+                                                                                slug: slugify(prev.slug),
+                                                                        }))
+                                                                }
+                                                                placeholder="event-slug"
+                                                                required
+                                                        />
+                                                        <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                onClick={() => {
+                                                                        if (!canGenerateSlug) return;
+                                                                        const generated = slugify(values.title);
+                                                                        setSlugEdited(true);
+                                                                        setValues((prev) => ({
+                                                                                ...prev,
+                                                                                slug: generated,
+                                                                        }));
+                                                                }}
+                                                                disabled={!canGenerateSlug}
+                                                        >
+                                                                Generate slug
+                                                        </Button>
+                                                </div>
+                                                <p className="text-muted-foreground text-xs">
+                                                        Slugs appear in public URLs (e.g. <code>/events/{values.slug || "slug"}</code>).
+                                                </p>
+                                        </div>
+                                        <div className="space-y-2">
+                                                <Label htmlFor="event-description">Description</Label>
+                                                <textarea
+                                                        id="event-description"
 							value={values.description}
 							onChange={(changeEvent) =>
 								setValues((prev) => ({
@@ -206,11 +325,11 @@ export function EventEditDialog({
 							/>
 						</div>
 					</div>
-					<div className="grid gap-4 sm:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="event-priority">Priority</Label>
-							<Select
-								value={String(values.priority)}
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                        <Label htmlFor="event-priority">Priority</Label>
+                                                        <Select
+                                                                value={String(values.priority)}
 								onValueChange={(value) =>
 									setValues((prev) => ({
 										...prev,
@@ -252,13 +371,191 @@ export function EventEditDialog({
 										</SelectItem>
 									))}
 								</SelectContent>
-							</Select>
-						</div>
-					</div>
-					<div className="grid gap-4 sm:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="event-external">External ID</Label>
-							<Input
+                                                                </Select>
+                                                </div>
+                                        </div>
+                                        <div className="rounded-md border bg-muted/30 p-3">
+                                                <div className="space-y-1">
+                                                        <p className="font-semibold text-sm">Hero media</p>
+                                                        <p className="text-muted-foreground text-xs">
+                                                                Optional cover asset displayed at the top of the public landing page.
+                                                        </p>
+                                                </div>
+                                                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-hero-type">Media type</Label>
+                                                                <Select
+                                                                        value={values.heroMediaType}
+                                                                        onValueChange={(value) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        heroMediaType: value as EventHeroMediaType | "none",
+                                                                                        heroMediaUrl: value === "none" ? "" : prev.heroMediaUrl,
+                                                                                        heroMediaAlt: value === "none" ? "" : prev.heroMediaAlt,
+                                                                                        heroMediaPosterUrl:
+                                                                                                value === "video" ? prev.heroMediaPosterUrl : "",
+                                                                                }))
+                                                                        }
+                                                                >
+                                                                        <SelectTrigger id="event-hero-type">
+                                                                                <SelectValue placeholder="Select media type" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                                <SelectItem value="none">No hero</SelectItem>
+                                                                                <SelectItem value="image">Image</SelectItem>
+                                                                                <SelectItem value="video">Video</SelectItem>
+                                                                        </SelectContent>
+                                                                </Select>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-hero-url">Media URL</Label>
+                                                                <Input
+                                                                        id="event-hero-url"
+                                                                        value={values.heroMediaUrl}
+                                                                        onChange={(changeEvent) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        heroMediaUrl: changeEvent.target.value,
+                                                                                }))
+                                                                        }
+                                                                        placeholder="https://example.com/hero.jpg"
+                                                                        disabled={values.heroMediaType === "none"}
+                                                                />
+                                                        </div>
+                                                </div>
+                                                {values.heroMediaType !== "none" ? (
+                                                        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                                <div className="space-y-2">
+                                                                        <Label htmlFor="event-hero-alt">Alt text</Label>
+                                                                        <Input
+                                                                                id="event-hero-alt"
+                                                                                value={values.heroMediaAlt}
+                                                                                onChange={(changeEvent) =>
+                                                                                        setValues((prev) => ({
+                                                                                                ...prev,
+                                                                                                heroMediaAlt: changeEvent.target.value,
+                                                                                        }))
+                                                                                }
+                                                                                placeholder="Describe the hero media"
+                                                                        />
+                                                                </div>
+                                                                {values.heroMediaType === "video" ? (
+                                                                        <div className="space-y-2">
+                                                                                <Label htmlFor="event-hero-poster">Poster image URL</Label>
+                                                                                <Input
+                                                                                        id="event-hero-poster"
+                                                                                        value={values.heroMediaPosterUrl}
+                                                                                        onChange={(changeEvent) =>
+                                                                                                setValues((prev) => ({
+                                                                                                        ...prev,
+                                                                                                        heroMediaPosterUrl: changeEvent.target.value,
+                                                                                                }))
+                                                                                        }
+                                                                                        placeholder="https://example.com/poster.jpg"
+                                                                                />
+                                                                        </div>
+                                                                ) : null}
+                                                        </div>
+                                                ) : null}
+                                        </div>
+                                        <div className="rounded-md border bg-muted/30 p-3">
+                                                <div className="space-y-1">
+                                                        <p className="font-semibold text-sm">Landing page content</p>
+                                                        <p className="text-muted-foreground text-xs">
+                                                                Provide copy for the public event page. Empty fields are ignored.
+                                                        </p>
+                                                </div>
+                                                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-landing-headline">Headline</Label>
+                                                                <Input
+                                                                        id="event-landing-headline"
+                                                                        value={values.landingHeadline}
+                                                                        onChange={(changeEvent) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        landingHeadline: changeEvent.target.value,
+                                                                                }))
+                                                                        }
+                                                                />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-landing-subheadline">Subheadline</Label>
+                                                                <Input
+                                                                        id="event-landing-subheadline"
+                                                                        value={values.landingSubheadline}
+                                                                        onChange={(changeEvent) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        landingSubheadline: changeEvent.target.value,
+                                                                                }))
+                                                                        }
+                                                                />
+                                                        </div>
+                                                </div>
+                                                <div className="mt-3 space-y-2">
+                                                        <Label htmlFor="event-landing-body">Body</Label>
+                                                        <textarea
+                                                                id="event-landing-body"
+                                                                value={values.landingBody}
+                                                                onChange={(changeEvent) =>
+                                                                        setValues((prev) => ({
+                                                                                ...prev,
+                                                                                landingBody: changeEvent.target.value,
+                                                                        }))
+                                                                }
+                                                                className="min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                                        />
+                                                </div>
+                                                <div className="mt-3 space-y-2">
+                                                        <Label htmlFor="event-landing-seo">SEO description</Label>
+                                                        <Input
+                                                                id="event-landing-seo"
+                                                                value={values.landingSeoDescription}
+                                                                onChange={(changeEvent) =>
+                                                                        setValues((prev) => ({
+                                                                                ...prev,
+                                                                                landingSeoDescription: changeEvent.target.value,
+                                                                        }))
+                                                                }
+                                                                placeholder="Shown in link previews and meta tags"
+                                                        />
+                                                </div>
+                                                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-landing-cta-label">CTA label</Label>
+                                                                <Input
+                                                                        id="event-landing-cta-label"
+                                                                        value={values.landingCtaLabel}
+                                                                        onChange={(changeEvent) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        landingCtaLabel: changeEvent.target.value,
+                                                                                }))
+                                                                        }
+                                                                        placeholder="Register now"
+                                                                />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                                <Label htmlFor="event-landing-cta-url">CTA URL</Label>
+                                                                <Input
+                                                                        id="event-landing-cta-url"
+                                                                        value={values.landingCtaUrl}
+                                                                        onChange={(changeEvent) =>
+                                                                                setValues((prev) => ({
+                                                                                        ...prev,
+                                                                                        landingCtaUrl: changeEvent.target.value,
+                                                                                }))
+                                                                        }
+                                                                        placeholder="https://example.com/register"
+                                                                />
+                                                        </div>
+                                                </div>
+                                        </div>
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                        <Label htmlFor="event-external">External ID</Label>
+                                                        <Input
 								id="event-external"
 								value={values.externalId}
 								onChange={(changeEvent) =>
@@ -314,15 +611,19 @@ export function EventEditDialog({
 						/>
 					</div>
 					<DialogFooter className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-						<Button type="button" variant="outline" onClick={onClose}>
-							Cancel
-						</Button>
-						<Button type="submit" disabled={isSaving}>
-							{isSaving ? "Saving…" : "Save changes"}
-						</Button>
-					</DialogFooter>
-				</form>
-			</DialogContent>
-		</Dialog>
+                                                <Button type="button" variant="outline" onClick={onClose}>
+                                                        Cancel
+                                                </Button>
+                                                <Button type="submit" disabled={isSaving}>
+                                                        {isSaving
+                                                                ? "Saving…"
+                                                                : mode === "edit"
+                                                                        ? "Save changes"
+                                                                        : "Create event"}
+                                                </Button>
+                                        </DialogFooter>
+                                </form>
+                        </DialogContent>
+                </Dialog>
 	);
 }

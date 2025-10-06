@@ -3,9 +3,9 @@ import "@/styles/globals.css";
 import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google"
 import type { ReactNode } from "react";
-import { Providers } from "./providers";
 
-// import { Header } from "@/components/header"
+import { getSiteBaseUrl } from "@/lib/site-metadata";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -17,9 +17,15 @@ const geistMono = Geist_Mono({
 	subsets: ["latin"],
 });
 
+const siteBaseUrl = getSiteBaseUrl();
+
 export const metadata: Metadata = {
-	title: "Next.js Starter",
-	description: "Next.js Starter ",
+        metadataBase: new URL(siteBaseUrl),
+        title: {
+                default: "CalendarSync",
+                template: "%s | CalendarSync",
+        },
+        description: "CalendarSync helps teams publish curated events with rich landing pages.",
 };
 
 export const viewport: Viewport = {

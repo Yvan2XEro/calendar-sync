@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { TRPCError } from "@trpc/server";
 import {
 	and,
@@ -13,6 +14,7 @@ import {
 	type SQL,
 	sql,
 } from "drizzle-orm";
+import { PostgresError } from "postgres";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -26,6 +28,12 @@ import {
 } from "@/db/schema/app";
 import { member, organization } from "@/db/schema/auth";
 import {
+	parseHeroMedia,
+	parseLandingPage,
+	type EventHeroMedia,
+	type EventLandingPageContent,
+} from "@/lib/event-content";
+import {
 	createRegistrationDraft,
 	enqueueWaitlist,
 	getEventTicketInventory,
@@ -33,12 +41,7 @@ import {
 	RegistrationError,
 } from "@/lib/events/registration";
 import { isStripeConfigured, upsertPaymentIntent } from "@/lib/payments/stripe";
-import {
-	adminProcedure,
-	protectedProcedure,
-	publicProcedure,
-	router,
-} from "@/lib/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -77,12 +80,15 @@ type EventFilterInput = z.infer<typeof filterSchema>;
 
 type EventSelection = {
 	id: string;
+	slug: string;
 	providerId: string;
 	flagId: string | null;
 	title: string;
 	description: string | null;
 	location: string | null;
 	url: string | null;
+	heroMedia: Record<string, unknown> | null;
+	landingPage: Record<string, unknown> | null;
 	startAt: Date;
 	endAt: Date | null;
 	isAllDay: boolean;
@@ -130,6 +136,116 @@ function parseAutoApproval(
 	} satisfies AutoApprovalInfo;
 }
 
+const slugSchema = z
+	.string()
+	.trim()
+	.min(1, "Slug is required")
+	.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+		message: "Use lowercase letters, numbers, and hyphens only",
+	});
+
+const heroMediaSchema = z
+	.object({
+		type: z.enum(["image", "video"]).optional(),
+		url: z
+			.string()
+			.trim()
+			.url({ message: "Enter a valid URL" })
+			.optional(),
+		alt: z.string().trim().optional(),
+		posterUrl: z
+			.string()
+			.trim()
+			.url({ message: "Enter a valid poster URL" })
+			.optional(),
+	})
+	.superRefine((value, ctx) => {
+		if (value.type && !value.url) {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["url"],
+				message: "Provide a URL for the selected media type",
+			});
+		}
+		if (value.posterUrl && value.type !== "video") {
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["posterUrl"],
+				message: "Poster images are only supported for videos",
+			});
+		}
+	});
+
+const landingPageSchema = z.object({
+	headline: z.string().trim().optional(),
+	subheadline: z.string().trim().optional(),
+	body: z.string().trim().optional(),
+	seoDescription: z.string().trim().optional(),
+	cta: z
+		.object({
+			label: z.string().trim().optional(),
+			href: z
+				.string()
+				.trim()
+				.url({ message: "Enter a valid CTA URL" })
+				.optional(),
+		})
+		.optional(),
+});
+
+type HeroMediaInput = z.infer<typeof heroMediaSchema>;
+type LandingPageInput = z.infer<typeof landingPageSchema>;
+
+function trimmedOrUndefined(value: string | null | undefined) {
+	const trimmed = value?.trim();
+	return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeHeroMediaInput(value: HeroMediaInput | undefined) {
+	if (!value) return {} as EventHeroMedia;
+	const url = trimmedOrUndefined(value.url ?? undefined);
+	const type = value.type && url ? value.type : undefined;
+	const alt = trimmedOrUndefined(value.alt ?? undefined);
+	const posterUrl =
+		type === "video" ? trimmedOrUndefined(value.posterUrl ?? undefined) : undefined;
+
+	const next: EventHeroMedia = {};
+	if (url) next.url = url;
+	if (type) next.type = type;
+	if (alt) next.alt = alt;
+	if (posterUrl) next.posterUrl = posterUrl;
+
+	return next;
+}
+
+function normalizeLandingPageInput(value: LandingPageInput | undefined) {
+	if (!value) return {} as EventLandingPageContent;
+	const headline = trimmedOrUndefined(value.headline ?? undefined);
+	const subheadline = trimmedOrUndefined(value.subheadline ?? undefined);
+	const body = trimmedOrUndefined(value.body ?? undefined);
+	const seoDescription = trimmedOrUndefined(value.seoDescription ?? undefined);
+
+	const ctaLabel = trimmedOrUndefined(value.cta?.label ?? undefined);
+	const ctaHref = trimmedOrUndefined(value.cta?.href ?? undefined);
+
+	const next: EventLandingPageContent = {};
+	if (headline) next.headline = headline;
+	if (subheadline) next.subheadline = subheadline;
+	if (body) next.body = body;
+	if (seoDescription) next.seoDescription = seoDescription;
+	if (ctaLabel || ctaHref) {
+		next.cta = {};
+		if (ctaLabel) next.cta.label = ctaLabel;
+		if (ctaHref) next.cta.href = ctaHref;
+	}
+
+	return next;
+}
+
+function isUniqueViolation(error: unknown) {
+	return error instanceof PostgresError && error.code === "23505";
+}
+
 const listInputSchema = filterSchema.extend({
 	page: z.number().int().min(1).optional(),
 	limit: z.number().int().min(1).max(200).optional(),
@@ -155,6 +271,7 @@ const updateEventInput = z
 	.object({
 		id: z.string().min(1),
 		title: z.string().trim().min(1).optional(),
+		slug: slugSchema.optional(),
 		description: z
 			.string()
 			.trim()
@@ -194,6 +311,8 @@ const updateEventInput = z
 		providerId: z.string().min(1).optional(),
 		priority: z.number().int().min(1).max(5).optional(),
 		metadata: z.record(z.string(), z.unknown()).optional(),
+		heroMedia: heroMediaSchema.optional(),
+		landingPage: landingPageSchema.optional(),
 	})
 	.refine(
 		(data) =>
@@ -216,6 +335,64 @@ const recentEventsInput = z
 		limit: z.number().int().min(1).max(RECENT_EVENTS_MAX_LIMIT).optional(),
 	})
 	.optional();
+
+const createEventInput = z
+	.object({
+		title: z.string().trim().min(1),
+		slug: slugSchema,
+		description: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		location: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		url: z.string().trim().url().nullable().optional(),
+		startAt: z
+			.string()
+			.datetime({ offset: true })
+			.transform((value) => new Date(value)),
+		endAt: z
+			.union([
+				z
+					.string()
+					.datetime({ offset: true })
+					.transform((value) => new Date(value)),
+				z.null(),
+				z.undefined(),
+			])
+			.optional(),
+		isAllDay: z.boolean().optional().default(false),
+		isPublished: z.boolean().optional().default(false),
+		externalId: z
+			.string()
+			.trim()
+			.transform((value) => (value.length === 0 ? null : value))
+			.nullable()
+			.optional(),
+		flagId: z.union([z.string().min(1), z.null()]).optional(),
+		providerId: z.string().min(1),
+		priority: z.number().int().min(1).max(5).default(3),
+		metadata: z.record(z.string(), z.unknown()).optional(),
+		heroMedia: heroMediaSchema.optional(),
+		landingPage: landingPageSchema.optional(),
+	})
+	.refine(
+		(data) =>
+			!(data.startAt && data.endAt instanceof Date) ||
+			data.endAt.getTime() >= data.startAt.getTime(),
+		{
+			message: "End time must be after start time",
+			path: ["endAt"],
+		},
+	);
+
+const deleteEventInput = z.object({ id: z.string().min(1) });
 
 const metadataSchema = z.record(z.string(), z.unknown()).optional();
 
@@ -254,12 +431,15 @@ const ticketInventoryInput = z.object({
 
 const eventSelection = {
 	id: event.id,
+	slug: event.slug,
 	providerId: event.provider,
 	flagId: event.flag,
 	title: event.title,
 	description: event.description,
 	location: event.location,
 	url: event.url,
+	heroMedia: event.heroMedia,
+	landingPage: event.landingPage,
 	startAt: event.startAt,
 	endAt: event.endAt,
 	isAllDay: event.isAllDay,
@@ -342,12 +522,15 @@ function mapEvent(row: EventSelection) {
 
 	return {
 		id: row.id,
+		slug: row.slug,
 		providerId: row.providerId,
 		flagId: row.flagId,
 		title: row.title,
 		description: row.description,
 		location: row.location,
 		url: row.url,
+		heroMedia: parseHeroMedia(row.heroMedia),
+		landingPage: parseLandingPage(row.landingPage),
 		startAt: row.startAt,
 		endAt: row.endAt,
 		isAllDay: row.isAllDay,
@@ -361,18 +544,18 @@ function mapEvent(row: EventSelection) {
 		updatedAt: row.updatedAt,
 		provider: row.providerName
 			? {
-					id: row.providerId,
-					name: row.providerName,
-					category: row.providerCategory,
-					status: row.providerStatus,
-				}
+				id: row.providerId,
+				name: row.providerName,
+				category: row.providerCategory,
+				status: row.providerStatus,
+			}
 			: null,
 		flag: row.flagId
 			? {
-					id: row.flagId,
-					label: row.flagLabel,
-					priority: row.flagPriority,
-				}
+				id: row.flagId,
+				label: row.flagLabel,
+				priority: row.flagPriority,
+			}
 			: null,
 	} as const;
 }
@@ -397,21 +580,18 @@ async function fetchEventOrThrow(id: string) {
 function throwRegistrationError(error: RegistrationError): never {
 	switch (error.code) {
 		case "event_not_found":
-		case "ticket_not_found": {
+		case "ticket_not_found":
 			throw new TRPCError({ code: "NOT_FOUND", message: error.message });
-		}
-		case "profile_conflict": {
+		case "profile_conflict":
 			throw new TRPCError({ code: "CONFLICT", message: error.message });
-		}
 		case "invalid_quantity":
 		case "ticket_not_on_sale":
 		case "ticket_inactive":
 		case "ticket_sold_out":
 		case "capacity_exceeded":
 		case "max_per_order_exceeded":
-		default: {
+		default:
 			throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
-		}
 	}
 }
 
@@ -430,10 +610,13 @@ export const eventsRouter = router({
 			const rows = await db
 				.select({
 					id: event.id,
+					slug: event.slug,
 					title: event.title,
 					description: event.description,
 					location: event.location,
 					url: event.url,
+					heroMedia: event.heroMedia,
+					landingPage: event.landingPage,
 					startAt: event.startAt,
 					endAt: event.endAt,
 					metadata: event.metadata,
@@ -472,10 +655,13 @@ export const eventsRouter = router({
 
 			return rows.map((row) => ({
 				id: row.id,
+				slug: row.slug,
 				title: row.title,
 				description: row.description,
 				location: row.location,
 				url: row.url,
+				heroMedia: parseHeroMedia(row.heroMedia),
+				landingPage: parseLandingPage(row.landingPage),
 				startAt: row.startAt,
 				endAt: row.endAt,
 				organization: {
@@ -564,74 +750,159 @@ export const eventsRouter = router({
 
 			return { updatedCount: result.length } as const;
 		}),
+	create: adminProcedure.input(createEventInput).mutation(async ({ input }) => {
+		const heroMedia = normalizeHeroMediaInput(input.heroMedia);
+		const landingPage = normalizeLandingPageInput(input.landingPage);
+		const metadata = input.metadata ?? {};
+
+		try {
+			const [created] = await db
+				.insert(event)
+				.values({
+					id: randomUUID(),
+					slug: input.slug,
+					provider: input.providerId,
+					flag: input.flagId ?? null,
+					title: input.title,
+					description: input.description ?? null,
+					location: input.location ?? null,
+					url: input.url ?? null,
+					heroMedia: heroMedia as Record<string, unknown>,
+					landingPage: landingPage as Record<string, unknown>,
+					startAt: input.startAt,
+					endAt:
+						input.endAt instanceof Date
+							? input.endAt
+							: input.endAt ?? null,
+					isAllDay: input.isAllDay ?? false,
+					isPublished: input.isPublished ?? false,
+					externalId: input.externalId ?? null,
+					status: "pending",
+					priority: input.priority,
+					metadata,
+				})
+				.returning({ id: event.id });
+
+			if (!created) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Unable to create event",
+				});
+			}
+
+			return fetchEventOrThrow(created.id);
+		} catch (error) {
+			if (isUniqueViolation(error)) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: "An event with this slug already exists.",
+					cause: error,
+				});
+			}
+			throw error;
+		}
+	}),
 	update: adminProcedure.input(updateEventInput).mutation(async ({ input }) => {
 		const updates: Record<string, unknown> = { updatedAt: sql`now()` };
 
 		if (input.title !== undefined) updates.title = input.title;
-		if (input.description !== undefined)
-			updates.description = input.description;
+		if (input.slug !== undefined) updates.slug = input.slug;
+		if (input.description !== undefined) updates.description = input.description;
 		if (input.location !== undefined) updates.location = input.location;
 		if (input.url !== undefined) updates.url = input.url;
 		if (input.startAt !== undefined) updates.startAt = input.startAt;
 		if (input.endAt !== undefined) updates.endAt = input.endAt;
 		if (input.isAllDay !== undefined) updates.isAllDay = input.isAllDay;
-		if (input.isPublished !== undefined)
-			updates.isPublished = input.isPublished;
+		if (input.isPublished !== undefined) updates.isPublished = input.isPublished;
 		if (input.externalId !== undefined) updates.externalId = input.externalId;
 		if (input.flagId !== undefined) updates.flag = input.flagId;
 		if (input.providerId !== undefined) updates.provider = input.providerId;
 		if (input.priority !== undefined) updates.priority = input.priority;
 		if (input.metadata !== undefined) updates.metadata = input.metadata;
+		if (input.heroMedia !== undefined)
+			updates.heroMedia = normalizeHeroMediaInput(input.heroMedia) as Record<
+				string,
+				unknown
+			>;
+		if (input.landingPage !== undefined)
+			updates.landingPage = normalizeLandingPageInput(input.landingPage) as Record<
+				string,
+				unknown
+			>;
 
 		if (Object.keys(updates).length === 1) {
 			return fetchEventOrThrow(input.id);
 		}
 
-		const [updated] = await db
-			.update(event)
-			.set(updates)
+		try {
+			const [updated] = await db
+				.update(event)
+				.set(updates)
+				.where(eq(event.id, input.id))
+				.returning({ id: event.id });
+
+			if (!updated) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Event not found",
+				});
+			}
+
+			return fetchEventOrThrow(updated.id);
+		} catch (error) {
+			if (isUniqueViolation(error)) {
+				throw new TRPCError({
+					code: "CONFLICT",
+					message: "An event with this slug already exists.",
+					cause: error,
+				});
+			}
+			throw error;
+		}
+	}),
+	delete: adminProcedure.input(deleteEventInput).mutation(async ({ input }) => {
+		const [deleted] = await db
+			.delete(event)
 			.where(eq(event.id, input.id))
 			.returning({ id: event.id });
 
-		if (!updated) {
+		if (!deleted) {
 			throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
 		}
 
-		return fetchEventOrThrow(updated.id);
+		return { id: deleted.id } as const;
 	}),
 	ticketInventory: publicProcedure
 		.input(ticketInventoryInput)
 		.query(async ({ input }) => {
-			const eventExists = await db
+			const exists = await db
 				.select({ id: event.id })
 				.from(event)
 				.where(eq(event.id, input.eventId))
 				.limit(1);
-			if (!eventExists.length) {
+			if (!exists.length) {
 				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
 			}
 
 			const inventory = await getEventTicketInventory(input.eventId);
-			return inventory.map(
-				({ ticket, remaining, used, saleOpen, soldOut }) => ({
-					id: ticket.id,
-					eventId: ticket.eventId,
-					name: ticket.name,
-					description: ticket.description,
-					priceCents: ticket.priceCents,
-					currency: ticket.currency,
-					capacity: ticket.capacity,
-					maxPerOrder: ticket.maxPerOrder,
-					remaining,
-					used,
-					saleOpen,
-					soldOut,
-					status: ticket.status,
-					isWaitlistEnabled: ticket.isWaitlistEnabled,
-					salesStartAt: ticket.salesStartAt,
-					salesEndAt: ticket.salesEndAt,
-				}),
-			) as const;
+			return inventory.map(({ ticket, remaining, used, saleOpen, soldOut }) => ({
+				id: ticket.id,
+				eventId: ticket.eventId,
+				name: ticket.name,
+				description: ticket.description,
+				priceCents: ticket.priceCents,
+				currency: ticket.currency,
+				capacity: ticket.capacity,
+				maxPerOrder: ticket.maxPerOrder,
+				remaining,
+				used,
+				saleOpen,
+				soldOut,
+				status: ticket.status,
+				isWaitlistEnabled: ticket.isWaitlistEnabled,
+				salesStartAt: ticket.salesStartAt,
+				salesEndAt: ticket.salesEndAt,
+			})) as const;
 		}),
 	register: publicProcedure
 		.input(registerInputSchema)
@@ -656,6 +927,7 @@ export const eventsRouter = router({
 							message: "Payments are not enabled for this environment",
 						});
 					}
+
 					const paymentIntent = await upsertPaymentIntent({
 						amount: draft.order.totalCents,
 						currency: draft.order.currency,
@@ -671,18 +943,15 @@ export const eventsRouter = router({
 
 					let nextStatus = draft.order.status;
 					switch (paymentIntent.status) {
-						case "succeeded": {
+						case "succeeded":
 							nextStatus = "confirmed";
 							break;
-						}
 						case "requires_action":
-						case "requires_payment_method": {
+						case "requires_payment_method":
 							nextStatus = "requires_action";
 							break;
-						}
-						default: {
+						default:
 							nextStatus = "pending_payment";
-						}
 					}
 
 					const [updatedOrder] = await db
@@ -714,7 +983,9 @@ export const eventsRouter = router({
 					id: record.id,
 					confirmationCode: record.confirmationCode,
 					status:
-						latestOrder.status === "confirmed" ? "registered" : record.status,
+						latestOrder.status === "confirmed"
+							? "registered"
+							: record.status,
 				}));
 
 				const waitlistIds = Array.from(
