@@ -29,6 +29,13 @@
 			"when": 1759413129284,
 			"tag": "0003_event_email_delivery",
 			"breakpoints": false
+		},
+		{
+			"idx": 4,
+			"version": "7",
+			"when": 1759746442351,
+			"tag": "0004_event_attendee_engagement",
+			"breakpoints": false
 		}
 	]
 }

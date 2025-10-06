@@ -72,6 +72,7 @@ export const eventEmailType = pgEnum("event_email_type", [
 	"update",
 	"cancellation",
 	"follow_up",
+	"announcement",
 ]);
 
 export const eventEmailStatus = pgEnum("event_email_status", [
@@ -402,6 +403,7 @@ export const attendee = pgTable(
 		status: attendeeStatus("status").notNull().default("reserved"),
 		confirmationCode: text("confirmation_code").notNull(),
 		checkInAt: timestamp("check_in_at", { withTimezone: true }),
+		noShow: boolean("no_show").notNull().default(false),
 		metadata: jsonb("metadata")
 			.$type<Record<string, unknown>>()
 			.notNull()

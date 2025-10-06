@@ -170,7 +170,8 @@ function defaultSubjectForType(
 			return `Update: ${eventTitle} has been cancelled`;
 		case "follow_up":
 			return `Thanks for joining ${eventTitle}`;
-		case "update":
+		case "announcement":
+			return `Announcement: ${eventTitle}`;
 		default:
 			return `Update for ${eventTitle}`;
 	}
@@ -298,7 +299,7 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 
 		const settings = parseEventMessagingSettings(context.event.metadata ?? {});
 		const offsetHours = reminderOffsetFromMetadata(context.delivery.metadata);
-		const subjectOverride = (() => {
+		const settingsSubjectOverride = (() => {
 			switch (context.delivery.type) {
 				case "confirmation":
 					return settings.confirmationSubject;
@@ -308,13 +309,13 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 					return settings.cancellationSubject;
 				case "follow_up":
 					return settings.followUpSubject;
-				case "update":
 				default:
 					return settings.updateSubject;
 			}
 		})();
 		const subject =
-			subjectOverride ??
+			context.delivery.subject ??
+			settingsSubjectOverride ??
 			defaultSubjectForType(
 				context.delivery.type,
 				context.event.title,
@@ -324,7 +325,7 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 			settings.replyToEmail ?? null,
 			context.delivery.replyTo,
 		);
-		const intro = (() => {
+		let intro = (() => {
 			switch (context.delivery.type) {
 				case "confirmation":
 					return "Your registration is confirmed. Save the details below.";
@@ -336,12 +337,50 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 					return "Unfortunately, this event has been cancelled.";
 				case "follow_up":
 					return "Thanks again for joining us. We'd love to stay in touch.";
-				case "update":
+				case "announcement":
+					return "Here's the latest update for your event.";
 				default:
 					return "We've updated the event details below.";
 			}
 		})();
 		const extras = { html: [] as string[], text: [] as string[] };
+		if (context.delivery.type === "announcement") {
+			const bodyHtml = (() => {
+				const value = context.delivery.metadata.bodyHtml;
+				return typeof value === "string" && value.trim().length > 0
+					? value
+					: null;
+			})();
+			const bodyText = (() => {
+				const value = context.delivery.metadata.bodyText;
+				return typeof value === "string" && value.trim().length > 0
+					? value
+					: null;
+			})();
+			const preview = (() => {
+				const value = context.delivery.metadata.previewText;
+				return typeof value === "string" && value.trim().length > 0
+					? value.trim()
+					: null;
+			})();
+			if (preview) {
+				intro = preview;
+			} else if (bodyText) {
+				const firstLine = bodyText
+					.split("\n")
+					.map((line) => line.trim())
+					.find((line) => line.length > 0);
+				if (firstLine) {
+					intro = firstLine;
+				}
+			}
+			if (bodyHtml) {
+				extras.html.push(bodyHtml);
+			}
+			if (bodyText) {
+				extras.text.push(bodyText);
+			}
+		}
 		if (
 			context.delivery.type === "confirmation" &&
 			context.order?.confirmationCode
@@ -356,7 +395,8 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 		if (
 			context.delivery.type === "confirmation" ||
 			context.delivery.type === "reminder" ||
-			context.delivery.type === "update"
+			context.delivery.type === "update" ||
+			context.delivery.type === "announcement"
 		) {
 			attachments.push(buildIcsAttachment(context));
 		}
