@@ -1,13 +1,20 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1759413124284,
-      "tag": "0000_aspiring_james_howlett",
-      "breakpoints": true
-    }
-  ]
+	"version": "7",
+	"dialect": "postgresql",
+	"entries": [
+		{
+			"idx": 0,
+			"version": "7",
+			"when": 1759413124284,
+			"tag": "0000_aspiring_james_howlett",
+			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1759413125284,
+			"tag": "0001_event_registration_tables",
+			"breakpoints": false
+		}
+	]
 }

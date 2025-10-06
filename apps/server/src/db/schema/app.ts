@@ -37,6 +37,35 @@ export const eventStatus = pgEnum("event_status", [
 	"rejected",
 ]);
 
+export const ticketTypeStatus = pgEnum("event_ticket_type_status", [
+	"draft",
+	"active",
+	"archived",
+]);
+
+export const eventOrderStatus = pgEnum("event_order_status", [
+	"pending_payment",
+	"requires_action",
+	"confirmed",
+	"cancelled",
+	"refunded",
+]);
+
+export const attendeeStatus = pgEnum("event_attendee_status", [
+	"reserved",
+	"registered",
+	"checked_in",
+	"cancelled",
+	"waitlisted",
+]);
+
+export const waitlistStatus = pgEnum("event_waitlist_status", [
+	"active",
+	"invited",
+	"converted",
+	"removed",
+]);
+
 export const provider = pgTable("provider", {
 	id: text("id").primaryKey(),
 	category: text("category").notNull(),
@@ -96,6 +125,9 @@ export const event = pgTable(
 		provider: text("provider_id")
 			.notNull()
 			.references(() => provider.id, { onDelete: "set null" }),
+		organizationId: text("organization_id").references(() => organization.id, {
+			onDelete: "set null",
+		}),
 		flag: text("flag_id").references(() => flag.id, { onDelete: "set null" }),
 		title: text("title").notNull(),
 		description: text("description"),
@@ -147,11 +179,227 @@ export const event = pgTable(
 			table.status,
 			desc(table.createdAt),
 		),
+		organizationIdx: index("event_organization_idx").on(table.organizationId),
 	}),
 );
 
 export type Provider = typeof provider.$inferSelect;
 export type Event = typeof event.$inferSelect;
+
+export const attendeeProfile = pgTable(
+	"event_attendee_profile",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id").references(() => organization.id, {
+			onDelete: "cascade",
+		}),
+		email: text("email").notNull(),
+		displayName: text("display_name"),
+		phone: text("phone"),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		organizationEmailUnique: uniqueIndex(
+			"event_attendee_profile_organization_id_email_unique",
+		).on(table.organizationId, table.email),
+		emailIndex: index("event_attendee_profile_email_idx").on(table.email),
+	}),
+);
+
+export const ticketType = pgTable(
+	"event_ticket_type",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		name: text("name").notNull(),
+		description: text("description"),
+		priceCents: integer("price_cents").notNull().default(0),
+		currency: text("currency").notNull().default("usd"),
+		capacity: integer("capacity"),
+		maxPerOrder: integer("max_per_order"),
+		salesStartAt: timestamp("sales_start_at", { withTimezone: true }),
+		salesEndAt: timestamp("sales_end_at", { withTimezone: true }),
+		status: ticketTypeStatus("status").notNull().default("active"),
+		isWaitlistEnabled: boolean("is_waitlist_enabled").notNull().default(true),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		eventStatusIdx: index("event_ticket_type_event_id_status_idx").on(
+			table.eventId,
+			table.status,
+		),
+	}),
+);
+
+export const eventOrder = pgTable(
+	"event_order",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		organizationId: text("organization_id").references(() => organization.id, {
+			onDelete: "set null",
+		}),
+		purchaserProfileId: text("purchaser_profile_id").references(
+			() => attendeeProfile.id,
+			{ onDelete: "set null" },
+		),
+		status: eventOrderStatus("status").notNull().default("pending_payment"),
+		currency: text("currency").notNull().default("usd"),
+		quantity: integer("quantity").notNull().default(1),
+		subtotalCents: integer("subtotal_cents").notNull().default(0),
+		feeCents: integer("fee_cents").notNull().default(0),
+		totalCents: integer("total_cents").notNull().default(0),
+		paymentProvider: text("payment_provider"),
+		paymentIntentId: text("payment_intent_id"),
+		externalPaymentState: text("external_payment_state"),
+		contactEmail: text("contact_email").notNull(),
+		contactName: text("contact_name"),
+		confirmationCode: text("confirmation_code"),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		confirmationCodeUnique: uniqueIndex(
+			"event_order_confirmation_code_unique",
+		).on(table.confirmationCode),
+		eventStatusIdx: index("event_order_event_id_status_idx").on(
+			table.eventId,
+			table.status,
+		),
+		paymentIntentIdx: index("event_order_payment_intent_idx").on(
+			table.paymentIntentId,
+		),
+		createdAtIdx: index("event_order_created_at_idx").on(table.createdAt),
+	}),
+);
+
+export const eventOrderItem = pgTable(
+	"event_order_item",
+	{
+		id: text("id").primaryKey(),
+		orderId: text("order_id")
+			.notNull()
+			.references(() => eventOrder.id, { onDelete: "cascade" }),
+		ticketTypeId: text("ticket_type_id")
+			.notNull()
+			.references(() => ticketType.id, { onDelete: "restrict" }),
+		quantity: integer("quantity").notNull().default(1),
+		unitAmountCents: integer("unit_amount_cents").notNull().default(0),
+		subtotalCents: integer("subtotal_cents").notNull().default(0),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		orderTicketUnique: uniqueIndex(
+			"event_order_item_order_id_ticket_type_id_unique",
+		).on(table.orderId, table.ticketTypeId),
+	}),
+);
+
+export const waitlistEntry = pgTable(
+	"event_waitlist_entry",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		ticketTypeId: text("ticket_type_id").references(() => ticketType.id, {
+			onDelete: "set null",
+		}),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => attendeeProfile.id, { onDelete: "cascade" }),
+		status: waitlistStatus("status").notNull().default("active"),
+		position: integer("position"),
+		promotedOrderId: text("promoted_order_id").references(() => eventOrder.id, {
+			onDelete: "set null",
+		}),
+		promotionExpiresAt: timestamp("promotion_expires_at", {
+			withTimezone: true,
+		}),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		eventTicketProfileUnique: uniqueIndex(
+			"event_waitlist_event_id_ticket_type_id_profile_id_unique",
+		).on(table.eventId, table.ticketTypeId, table.profileId),
+		statusIdx: index("event_waitlist_status_idx").on(table.status),
+	}),
+);
+
+export const attendee = pgTable(
+	"event_attendee",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		orderId: text("order_id").references(() => eventOrder.id, {
+			onDelete: "set null",
+		}),
+		orderItemId: text("order_item_id").references(() => eventOrderItem.id, {
+			onDelete: "set null",
+		}),
+		ticketTypeId: text("ticket_type_id").references(() => ticketType.id, {
+			onDelete: "set null",
+		}),
+		profileId: text("profile_id").references(() => attendeeProfile.id, {
+			onDelete: "set null",
+		}),
+		waitlistEntryId: text("waitlist_entry_id").references(
+			() => waitlistEntry.id,
+			{
+				onDelete: "set null",
+			},
+		),
+		status: attendeeStatus("status").notNull().default("reserved"),
+		confirmationCode: text("confirmation_code").notNull(),
+		checkInAt: timestamp("check_in_at", { withTimezone: true }),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		confirmationCodeUnique: uniqueIndex(
+			"event_attendee_confirmation_code_unique",
+		).on(table.confirmationCode),
+		eventStatusIdx: index("event_attendee_event_id_status_idx").on(
+			table.eventId,
+			table.status,
+		),
+	}),
+);
+
+export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
+export type TicketType = typeof ticketType.$inferSelect;
+export type EventOrder = typeof eventOrder.$inferSelect;
+export type EventOrderItem = typeof eventOrderItem.$inferSelect;
+export type WaitlistEntry = typeof waitlistEntry.$inferSelect;
+export type Attendee = typeof attendee.$inferSelect;
 
 export const workerLog = pgTable("worker_log", {
 	id: bigserial("id", { mode: "number" }).primaryKey(),

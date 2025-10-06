@@ -16,9 +16,29 @@ import {
 import { z } from "zod";
 
 import { db } from "@/db";
-import { event, flag, organizationProvider, provider } from "@/db/schema/app";
+import {
+	attendee,
+	event,
+	eventOrder,
+	flag,
+	organizationProvider,
+	provider,
+} from "@/db/schema/app";
 import { member, organization } from "@/db/schema/auth";
-import { adminProcedure, protectedProcedure, router } from "@/lib/trpc";
+import {
+	createRegistrationDraft,
+	enqueueWaitlist,
+	getEventTicketInventory,
+	markWaitlistEntryAsConverted,
+	RegistrationError,
+} from "@/lib/events/registration";
+import { isStripeConfigured, upsertPaymentIntent } from "@/lib/payments/stripe";
+import {
+	adminProcedure,
+	protectedProcedure,
+	publicProcedure,
+	router,
+} from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -197,6 +217,41 @@ const recentEventsInput = z
 	})
 	.optional();
 
+const metadataSchema = z.record(z.string(), z.unknown()).optional();
+
+const personSchema = z.object({
+	email: z.string().email().min(1),
+	name: z.string().trim().min(1).max(120).optional(),
+	phone: z.string().trim().min(5).max(40).optional(),
+});
+
+const attendeePersonSchema = personSchema.extend({
+	waitlistEntryId: z.string().min(1).optional(),
+	metadata: metadataSchema,
+});
+
+const purchaserSchema = personSchema.extend({ metadata: metadataSchema });
+
+const registerInputSchema = z.object({
+	eventId: z.string().min(1),
+	ticketTypeId: z.string().min(1),
+	purchaser: purchaserSchema,
+	attendees: z.array(attendeePersonSchema).min(1),
+	metadata: metadataSchema,
+	orderItemMetadata: metadataSchema,
+});
+
+const waitlistInputSchema = z.object({
+	eventId: z.string().min(1),
+	ticketTypeId: z.string().min(1).optional(),
+	person: personSchema,
+	metadata: metadataSchema,
+});
+
+const ticketInventoryInput = z.object({
+	eventId: z.string().min(1),
+});
+
 const eventSelection = {
 	id: event.id,
 	providerId: event.provider,
@@ -337,6 +392,27 @@ async function fetchEventOrThrow(id: string) {
 	}
 
 	return mapEvent(row as EventSelection);
+}
+
+function throwRegistrationError(error: RegistrationError): never {
+	switch (error.code) {
+		case "event_not_found":
+		case "ticket_not_found": {
+			throw new TRPCError({ code: "NOT_FOUND", message: error.message });
+		}
+		case "profile_conflict": {
+			throw new TRPCError({ code: "CONFLICT", message: error.message });
+		}
+		case "invalid_quantity":
+		case "ticket_not_on_sale":
+		case "ticket_inactive":
+		case "ticket_sold_out":
+		case "capacity_exceeded":
+		case "max_per_order_exceeded":
+		default: {
+			throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
+		}
+	}
 }
 
 export const eventsRouter = router({
@@ -523,6 +599,176 @@ export const eventsRouter = router({
 
 		return fetchEventOrThrow(updated.id);
 	}),
+	ticketInventory: publicProcedure
+		.input(ticketInventoryInput)
+		.query(async ({ input }) => {
+			const eventExists = await db
+				.select({ id: event.id })
+				.from(event)
+				.where(eq(event.id, input.eventId))
+				.limit(1);
+			if (!eventExists.length) {
+				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+			}
+
+			const inventory = await getEventTicketInventory(input.eventId);
+			return inventory.map(
+				({ ticket, remaining, used, saleOpen, soldOut }) => ({
+					id: ticket.id,
+					eventId: ticket.eventId,
+					name: ticket.name,
+					description: ticket.description,
+					priceCents: ticket.priceCents,
+					currency: ticket.currency,
+					capacity: ticket.capacity,
+					maxPerOrder: ticket.maxPerOrder,
+					remaining,
+					used,
+					saleOpen,
+					soldOut,
+					status: ticket.status,
+					isWaitlistEnabled: ticket.isWaitlistEnabled,
+					salesStartAt: ticket.salesStartAt,
+					salesEndAt: ticket.salesEndAt,
+				}),
+			) as const;
+		}),
+	register: publicProcedure
+		.input(registerInputSchema)
+		.mutation(async ({ input }) => {
+			try {
+				const draft = await createRegistrationDraft({
+					eventId: input.eventId,
+					ticketTypeId: input.ticketTypeId,
+					purchaser: input.purchaser,
+					attendees: input.attendees,
+					metadata: input.metadata ?? {},
+					orderItemMetadata: input.orderItemMetadata ?? {},
+				});
+
+				let latestOrder = draft.order;
+				let paymentIntentClientSecret: string | null = null;
+
+				if (draft.order.totalCents > 0) {
+					if (!isStripeConfigured()) {
+						throw new TRPCError({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Payments are not enabled for this environment",
+						});
+					}
+					const paymentIntent = await upsertPaymentIntent({
+						amount: draft.order.totalCents,
+						currency: draft.order.currency,
+						description: `Registration for ${draft.event.title}`,
+						receiptEmail: input.purchaser.email,
+						metadata: {
+							orderId: draft.order.id,
+							eventId: draft.event.id,
+							ticketTypeId: draft.ticket.id,
+						},
+					});
+					paymentIntentClientSecret = paymentIntent.client_secret ?? null;
+
+					let nextStatus = draft.order.status;
+					switch (paymentIntent.status) {
+						case "succeeded": {
+							nextStatus = "confirmed";
+							break;
+						}
+						case "requires_action":
+						case "requires_payment_method": {
+							nextStatus = "requires_action";
+							break;
+						}
+						default: {
+							nextStatus = "pending_payment";
+						}
+					}
+
+					const [updatedOrder] = await db
+						.update(eventOrder)
+						.set({
+							paymentIntentId: paymentIntent.id,
+							externalPaymentState: paymentIntent.status,
+							status: nextStatus,
+						})
+						.where(eq(eventOrder.id, draft.order.id))
+						.returning();
+
+					if (updatedOrder) {
+						latestOrder = updatedOrder;
+					}
+
+					if (
+						draft.order.status !== "confirmed" &&
+						latestOrder.status === "confirmed"
+					) {
+						await db
+							.update(attendee)
+							.set({ status: "registered" })
+							.where(eq(attendee.orderId, latestOrder.id));
+					}
+				}
+
+				const attendees = draft.attendees.map((record) => ({
+					id: record.id,
+					confirmationCode: record.confirmationCode,
+					status:
+						latestOrder.status === "confirmed" ? "registered" : record.status,
+				}));
+
+				const waitlistIds = Array.from(
+					new Set(
+						input.attendees
+							.map((attendeeInput) => attendeeInput.waitlistEntryId)
+							.filter((value): value is string => Boolean(value)),
+					),
+				);
+				if (waitlistIds.length > 0) {
+					await Promise.all(
+						waitlistIds.map((waitlistId) =>
+							markWaitlistEntryAsConverted(waitlistId, latestOrder.id),
+						),
+					);
+				}
+
+				return {
+					orderId: latestOrder.id,
+					confirmationCode: latestOrder.confirmationCode,
+					orderStatus: latestOrder.status,
+					paymentIntentClientSecret,
+					remainingCapacity: draft.remainingCapacity,
+					attendees,
+				} as const;
+			} catch (error) {
+				if (error instanceof RegistrationError) {
+					throwRegistrationError(error);
+				}
+				throw error;
+			}
+		}),
+	waitlist: publicProcedure
+		.input(waitlistInputSchema)
+		.mutation(async ({ input }) => {
+			try {
+				const entry = await enqueueWaitlist({
+					eventId: input.eventId,
+					ticketTypeId: input.ticketTypeId ?? null,
+					person: input.person,
+					metadata: input.metadata ?? {},
+				});
+				return {
+					id: entry.id,
+					position: entry.position,
+					status: entry.status,
+				} as const;
+			} catch (error) {
+				if (error instanceof RegistrationError) {
+					throwRegistrationError(error);
+				}
+				throw error;
+			}
+		}),
 	stats: adminProcedure
 		.input(statsInputSchema.optional())
 		.query(async ({ input }) => {
