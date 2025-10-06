@@ -1,7 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { format } from "date-fns";
 import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { randomUUID } from "node:crypto";
 
 import { db } from "@/db";
 import {
@@ -10,11 +10,10 @@ import {
 	digestSegment,
 	event,
 	eventEmailDelivery,
-	organization,
 	organizationProvider,
 	provider,
 } from "@/db/schema/app";
-import { member, user } from "@/db/schema/auth";
+import { member, organization, user } from "@/db/schema/auth";
 import { formatDisplayDate } from "@/lib/datetime";
 
 import { queueEmailDelivery } from "./deliveries";
