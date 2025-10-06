@@ -117,11 +117,11 @@ export async function generateMetadata({
 			title: baseTitle,
 			description,
 			url: canonical,
-			type: "event",
+			type: "article",
 			images,
 			videos,
-			startTime: record.startAt?.toISOString(),
-			endTime: record.endAt?.toISOString(),
+			// startTime: record.startAt?.toISOString(),
+			// endTime: record.endAt?.toISOString(),
 			locale: "en_US",
 		},
 		twitter: {
@@ -139,6 +139,7 @@ export default async function EventLandingPage({
 	params: { slug: string };
 }) {
 	const record = await fetchPublishedEvent(params.slug);
+	console.log({ record });
 	if (!record) notFound();
 
 	const ticketsData = await getEventTicketInventory(record.id);
@@ -165,12 +166,12 @@ export default async function EventLandingPage({
 
 	const hasRichContent =
 		hasLandingContent(record.landingPage) || Boolean(record.heroMedia?.url);
-	if (!hasRichContent && !hasRegistration) {
-		if (record.url) {
-			redirect(record.url);
-		}
-		notFound();
-	}
+	// if (!hasRichContent && !hasRegistration) {
+	// 	if (record.url) {
+	// 		redirect(record.url);
+	// 	}
+	// 	notFound();
+	// }
 
 	let heroCtaHref = record.landingPage?.cta?.href ?? null;
 	let heroCtaLabel = record.landingPage?.cta?.label ?? null;
