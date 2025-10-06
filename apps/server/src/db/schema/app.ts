@@ -524,23 +524,8 @@ export const digestSchedule = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		segmentUnique: uniqueIndex("digest_schedule_segment_unique").on(
-			table.segment,
-		),
-	}),
+	(table) => [uniqueIndex("digest_schedule_segment_unique").on(table.segment)],
 );
-
-export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
-export type TicketType = typeof ticketType.$inferSelect;
-export type EventOrder = typeof eventOrder.$inferSelect;
-export type EventOrderItem = typeof eventOrderItem.$inferSelect;
-export type WaitlistEntry = typeof waitlistEntry.$inferSelect;
-export type Attendee = typeof attendee.$inferSelect;
-export type EventEmailDelivery = typeof eventEmailDelivery.$inferSelect;
-export type InsertEventEmailDelivery = typeof eventEmailDelivery.$inferInsert;
-export type DigestSchedule = typeof digestSchedule.$inferSelect;
-export type InsertDigestSchedule = typeof digestSchedule.$inferInsert;
 
 export const workerLog = pgTable("worker_log", {
 	id: bigserial("id", { mode: "number" }).primaryKey(),
@@ -552,4 +537,14 @@ export const workerLog = pgTable("worker_log", {
 	data: jsonb("data").$type<Record<string, unknown> | null>(),
 });
 
+export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
+export type TicketType = typeof ticketType.$inferSelect;
+export type EventOrder = typeof eventOrder.$inferSelect;
+export type EventOrderItem = typeof eventOrderItem.$inferSelect;
+export type WaitlistEntry = typeof waitlistEntry.$inferSelect;
+export type Attendee = typeof attendee.$inferSelect;
+export type EventEmailDelivery = typeof eventEmailDelivery.$inferSelect;
+export type InsertEventEmailDelivery = typeof eventEmailDelivery.$inferInsert;
+export type DigestSchedule = typeof digestSchedule.$inferSelect;
+export type InsertDigestSchedule = typeof digestSchedule.$inferInsert;
 export type WorkerLog = typeof workerLog.$inferSelect;

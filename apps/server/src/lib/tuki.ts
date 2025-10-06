@@ -1,5 +1,5 @@
-import { getUserRoles } from "./session";
 import type { SessionLike } from "./session";
+import { getUserRoles } from "./session";
 
 export async function hydrateSessionWithTukiClaims(
 	session: SessionLike,

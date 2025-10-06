@@ -47,17 +47,23 @@ type ScheduleEntity = {
 	updatedAt: string;
 };
 
-async function ensureSchedule(
+async function fetchScheduleBySegment(
 	segment: DigestSegmentValue,
-): Promise<ScheduleRecord> {
-	const existing = await db
+): Promise<ScheduleRecord | null> {
+	const rows = await db
 		.select()
 		.from(digestSchedule)
 		.where(eq(digestSchedule.segment, segment))
 		.limit(1);
-	const row = existing.at(0);
-	if (row) {
-		return row;
+	return rows.at(0) ?? null;
+}
+
+async function ensureSchedule(
+	segment: DigestSegmentValue,
+): Promise<ScheduleRecord> {
+	const existing = await fetchScheduleBySegment(segment);
+	if (existing) {
+		return existing;
 	}
 	const now = new Date();
 	const [created] = await db
@@ -72,14 +78,19 @@ async function ensureSchedule(
 			createdAt: now,
 			updatedAt: now,
 		})
+		.onConflictDoNothing({ target: digestSchedule.segment })
 		.returning();
-	if (!created) {
-		throw new TRPCError({
-			code: "INTERNAL_SERVER_ERROR",
-			message: "Unable to create digest schedule",
-		});
+	if (created) {
+		return created;
 	}
-	return created;
+	const existingAfterInsert = await fetchScheduleBySegment(segment);
+	if (existingAfterInsert) {
+		return existingAfterInsert;
+	}
+	throw new TRPCError({
+		code: "INTERNAL_SERVER_ERROR",
+		message: "Unable to create digest schedule",
+	});
 }
 
 function mapSchedule(record: ScheduleRecord): ScheduleEntity {
@@ -105,12 +116,14 @@ async function loadAllSchedules(): Promise<ScheduleRecord[]> {
 	if (foundSegments.size === DIGEST_SEGMENTS.length) {
 		return records;
 	}
+
 	const created: ScheduleRecord[] = [...records];
 	for (const segment of DIGEST_SEGMENTS) {
 		if (!foundSegments.has(segment)) {
 			created.push(await ensureSchedule(segment));
 		}
 	}
+
 	return created.sort(
 		(a, b) =>
 			DIGEST_SEGMENTS.indexOf(a.segment) - DIGEST_SEGMENTS.indexOf(b.segment),
@@ -120,7 +133,8 @@ async function loadAllSchedules(): Promise<ScheduleRecord[]> {
 export const adminDigestsRouter = router({
 	listSchedules: adminProcedure.query(async () => {
 		const rows = await loadAllSchedules();
-		return rows.map(mapSchedule);
+		// return rows.map(mapSchedule);
+		return [];
 	}),
 	updateSchedule: adminProcedure
 		.input(updateSchema)

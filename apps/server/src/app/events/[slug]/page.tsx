@@ -1,7 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
-import { and, eq } from "drizzle-orm";
 
 import { EventLandingDetails } from "@/components/events/EventLandingDetails";
 import { EventLandingHero } from "@/components/events/EventLandingHero";
@@ -97,13 +97,13 @@ export async function generateMetadata({
 	const videos =
 		hero?.type === "video" && hero.url
 			? [
-				{
-					url: hero.url,
-					width: 1280,
-					height: 720,
-					alt: hero.alt,
-				},
-			]
+					{
+						url: hero.url,
+						width: 1280,
+						height: 720,
+						alt: hero.alt,
+					},
+				]
 			: undefined;
 
 	return {
@@ -190,12 +190,12 @@ export default async function EventLandingPage({
 	const landingForDetails =
 		heroCtaHref === "#register"
 			? {
-				...(record.landingPage ?? {}),
-				cta: {
-					label: heroCtaLabel ?? "Register now",
-					href: "#register",
-				},
-			}
+					...(record.landingPage ?? {}),
+					cta: {
+						label: heroCtaLabel ?? "Register now",
+						href: "#register",
+					},
+				}
 			: record.landingPage;
 
 	return (
@@ -209,7 +209,7 @@ export default async function EventLandingPage({
 				actionSlot={
 					heroCtaHref && heroCtaLabel ? (
 						<a
-							className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black shadow hover:bg-white/90"
+							className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 font-medium text-black text-sm shadow hover:bg-white/90"
 							href={heroCtaHref}
 							target={heroCtaHref.startsWith("#") ? undefined : "_blank"}
 							rel={

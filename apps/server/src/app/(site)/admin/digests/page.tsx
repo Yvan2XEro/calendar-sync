@@ -58,13 +58,13 @@ function computeNextSend(schedule: Schedule) {
 }
 
 export default function AdminDigestsPage() {
-        const queryClient = useQueryClient();
-        const scheduleQuery = useQuery({
-                queryKey: digestKeys.schedules(),
-                queryFn: () => trpcClient.adminDigests.listSchedules.query(),
-        });
-        const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-        const placeholders = ["primary", "secondary"] as const;
+	const queryClient = useQueryClient();
+	const scheduleQuery = useQuery({
+		queryKey: digestKeys.schedules(),
+		queryFn: () => trpcClient.adminDigests.listSchedules.query(),
+	});
+	const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+	const placeholders = ["primary", "secondary"] as const;
 
 	useEffect(() => {
 		if (!scheduleQuery.data) return;
@@ -291,26 +291,26 @@ export default function AdminDigestsPage() {
 						segment.
 					</p>
 				</div>
-                                {isError ? (
-                                        <Card>
-                                                <CardHeader>
-                                                        <CardTitle>Unable to load schedules</CardTitle>
-                                                        <CardDescription>
-                                                                {scheduleQuery.error instanceof Error
-                                                                        ? scheduleQuery.error.message
-                                                                        : "Something went wrong while fetching digest configuration."}
-                                                        </CardDescription>
-                                                </CardHeader>
-                                        </Card>
-                                ) : (
-                                        <div className="grid gap-4 md:grid-cols-2">
-                                                {isLoading && !schedules.length
-                                                        ? placeholders.map((token) => (
-                                                                  <Skeleton key={token} className="h-48 w-full" />
-                                                          ))
-                                                        : schedules.map((schedule) => renderCard(schedule))}
-                                        </div>
-                                )}
+				{isError ? (
+					<Card>
+						<CardHeader>
+							<CardTitle>Unable to load schedules</CardTitle>
+							<CardDescription>
+								{scheduleQuery.error instanceof Error
+									? scheduleQuery.error.message
+									: "Something went wrong while fetching digest configuration."}
+							</CardDescription>
+						</CardHeader>
+					</Card>
+				) : (
+					<div className="grid gap-4 md:grid-cols-2">
+						{isLoading && !schedules.length
+							? placeholders.map((token) => (
+									<Skeleton key={token} className="h-48 w-full" />
+								))
+							: schedules.map((schedule) => renderCard(schedule))}
+					</div>
+				)}
 			</section>
 		</AppShell>
 	);

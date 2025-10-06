@@ -17,13 +17,22 @@ function normalizeSlug(value: string): string {
 		.replace(/^-+|-+$/g, "");
 }
 
-function generateSlug({ title, id, slug }: { title: string; id: string; slug?: string }) {
+function generateSlug({
+	title,
+	id,
+	slug,
+}: {
+	title: string;
+	id: string;
+	slug?: string;
+}) {
 	const provided = slug ? normalizeSlug(slug) : "";
 	if (provided) return provided;
 
 	const normalizedTitle = normalizeSlug(title);
 	const idSuffix = normalizeSlug(id.split("-")[0] ?? id).slice(0, 12);
-	const suffix = idSuffix || normalizeSlug(id).slice(0, 12) || randomUUID().slice(0, 8);
+	const suffix =
+		idSuffix || normalizeSlug(id).slice(0, 12) || randomUUID().slice(0, 8);
 
 	if (normalizedTitle) {
 		const candidate = normalizeSlug(`${normalizedTitle}-${suffix}`);

@@ -22,7 +22,7 @@ function requireEnv(name: string): string {
 
 const OIDC_PROVIDER_ID = requireEnv("NEXT_PUBLIC_OIDC_PROVIDER_ID");
 const OIDC_CLIENT_ID = requireEnv("OIDC_CLIENT_ID");
-const OIDC_CLIENT_SECRET = requireEnv("OIDC_CLIENT_SECRET");
+const OIDC_CLIENT_SECRET = process.env.OIDC_CLIENT_SECRET; //requireEnv("OIDC_CLIENT_SECRET");
 const OIDC_DISCOVERY_URL = requireEnv("OIDC_DISCOVERY_URL");
 
 export const TUKI_OAUTH_PROVIDER_ID = OIDC_PROVIDER_ID;

@@ -20,12 +20,13 @@ const geistMono = Geist_Mono({
 const siteBaseUrl = getSiteBaseUrl();
 
 export const metadata: Metadata = {
-        metadataBase: new URL(siteBaseUrl),
-        title: {
-                default: "CalendarSync",
-                template: "%s | CalendarSync",
-        },
-        description: "CalendarSync helps teams publish curated events with rich landing pages.",
+	metadataBase: new URL(siteBaseUrl),
+	title: {
+		default: "CalendarSync",
+		template: "%s | CalendarSync",
+	},
+	description:
+		"CalendarSync helps teams publish curated events with rich landing pages.",
 };
 
 export const viewport: Viewport = {
