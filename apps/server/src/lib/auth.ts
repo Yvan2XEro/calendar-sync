@@ -39,6 +39,22 @@ export const auth = betterAuth<BetterAuthOptions>({
           discoveryUrl: process.env.OIDC_DISCOVERY_URL,
 
           scopes: ["openid", "profile", "email"],
+          pkce: true,
+
+          getUserInfo: !!process.env.OIDC_USER_INFO_URL
+            ? async (t) => {
+                const response = await fetch(process.env.OIDC_USER_INFO_URL!, {
+                  headers: {
+                    Authorization: `Bearer ${t.accessToken}`,
+                  },
+                });
+                const json = await response.json();
+                return {
+                  ...json,
+                  emailVerified: true,
+                };
+              }
+            : undefined,
         },
       ],
     }),
