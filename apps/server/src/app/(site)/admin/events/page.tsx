@@ -112,6 +112,35 @@ function patchEventsInCache(
 	);
 }
 
+function derivePublishStateFromAction(
+	item: EventListItem | undefined,
+	status: EventStatus,
+	publishOverride: boolean | undefined,
+): boolean {
+	if (status !== "approved") {
+		return false;
+	}
+	if (publishOverride !== undefined) {
+		return publishOverride;
+	}
+	return item?.isPublished ?? false;
+}
+
+function formatStatusToast(status: EventStatus, publish?: boolean) {
+	if (status === "approved") {
+		return publish === false
+			? "Approved (kept as draft)"
+			: "Approved & publish queued";
+	}
+	if (status === "pending") {
+		return "Marked pending";
+	}
+	if (status === "rejected") {
+		return "Archived";
+	}
+	return "Status updated";
+}
+
 function removeEventsFromCache(
 	queryClient: QueryClient,
 	queryKey: ReturnType<typeof adminEventKeys.list>,
@@ -315,9 +344,18 @@ export default function AdminEventsPage() {
 		onMutate: async (variables) => {
 			await queryClient.cancelQueries({ queryKey: listQueryKey });
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+			const currentItem = previous?.items.find(
+				(item) => item.id === variables.id,
+			);
+			const nextPublished = derivePublishStateFromAction(
+				currentItem,
+				variables.status,
+				variables.publish,
+			);
 			patchEventsInCache(queryClient, listQueryKey, [variables.id], {
 				status: variables.status,
 				updatedAt: new Date().toISOString(),
+				isPublished: nextPublished,
 			});
 			return { previous };
 		},
@@ -336,8 +374,7 @@ export default function AdminEventsPage() {
 		},
 		onSuccess: (updated, variables) => {
 			replaceEventInCache(queryClient, listQueryKey, updated);
-			const statusLabel = statusOptionMap[variables.status]?.label ?? "Status";
-			toast.success(`${statusLabel} applied`);
+			toast.success(formatStatusToast(variables.status, variables.publish));
 		},
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
@@ -350,9 +387,18 @@ export default function AdminEventsPage() {
 		onMutate: async (variables) => {
 			await queryClient.cancelQueries({ queryKey: listQueryKey });
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			patchEventsInCache(queryClient, listQueryKey, variables.ids, {
+			const shouldPatchPublished =
+				variables.publish !== undefined || variables.status !== "approved";
+			const patch: Partial<EventListItem> = {
 				status: variables.status,
 				updatedAt: new Date().toISOString(),
+			};
+			if (shouldPatchPublished) {
+				patch.isPublished =
+					variables.status === "approved" ? Boolean(variables.publish) : false;
+			}
+			patchEventsInCache(queryClient, listQueryKey, variables.ids, {
+				...patch,
 			});
 			return { previous, ids: variables.ids };
 		},
@@ -368,11 +414,15 @@ export default function AdminEventsPage() {
 			);
 		},
 		onSuccess: (result, variables) => {
-			toast.success(
+			const message = formatStatusToast(variables.status, variables.publish);
+			const countLabel = `${result.updatedCount} event${
+				result.updatedCount === 1 ? "" : "s"
+			}`;
+			const summary =
 				result.updatedCount === variables.ids.length
-					? `${result.updatedCount} events updated`
-					: `${result.updatedCount} of ${variables.ids.length} events updated`,
-			);
+					? countLabel
+					: `${countLabel} (of ${variables.ids.length})`;
+			toast.success(`${message} • ${summary}`);
 			setSelectedIds((prev) =>
 				prev.filter((id) => !variables.ids.includes(id)),
 			);
@@ -514,16 +564,24 @@ export default function AdminEventsPage() {
 	});
 
 	const handleStatusAction = useCallback(
-		(eventId: string, status: EventStatus) => {
-			updateStatusMutation.mutate({ id: eventId, status });
+		(eventId: string, action: StatusAction) => {
+			updateStatusMutation.mutate({
+				id: eventId,
+				status: action.status,
+				...(action.publish !== undefined ? { publish: action.publish } : {}),
+			});
 		},
 		[updateStatusMutation],
 	);
 
 	const handleBulkStatus = useCallback(
-		(status: EventStatus) => {
+		(action: StatusAction) => {
 			if (!selectedIds.length) return;
-			bulkStatusMutation.mutate({ ids: selectedIds, status });
+			bulkStatusMutation.mutate({
+				ids: selectedIds,
+				status: action.status,
+				...(action.publish !== undefined ? { publish: action.publish } : {}),
+			});
 		},
 		[bulkStatusMutation, selectedIds],
 	);
@@ -917,10 +975,16 @@ export default function AdminEventsPage() {
 						<div className="flex flex-wrap items-center gap-2">
 							{statusActions.map((action: StatusAction) => (
 								<Button
-									key={action.status}
+									key={`${action.status}-${
+										action.publish === undefined
+											? "auto"
+											: action.publish
+												? "publish"
+												: "draft"
+									}`}
 									size="sm"
 									variant="outline"
-									onClick={() => handleBulkStatus(action.status)}
+									onClick={() => handleBulkStatus(action)}
 									disabled={bulkStatusMutation.isPending}
 								>
 									<action.icon className="mr-2 size-4" />

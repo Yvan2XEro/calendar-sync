@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarDays, ExternalLink, ShieldCheck, Tag } from "lucide-react";
+import type { ComponentProps } from "react";
 import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,33 +18,54 @@ import { cn } from "@/lib/utils";
 
 import { EventActionsMenu } from "./EventActionsMenu";
 import { EventPreview } from "./EventPreview";
-import { statusActions } from "./status-actions";
+import { type StatusAction, statusActions } from "./status-actions";
 import type { EventListItem } from "./types";
 
 export type EventListViewProps = {
-        events: EventListItem[];
-        view: "table" | "card";
-        selectedIds: string[];
-        onSelect: (id: string, checked: boolean) => void;
-        onSelectAll: (checked: boolean) => void;
-        onEdit: (event: EventListItem) => void;
-        onViewDetail: (id: string) => void;
-        onStatusAction: (id: string, status: EventListItem["status"]) => void;
-        onDelete: (event: EventListItem) => void;
-        isDeleting: boolean;
+	events: EventListItem[];
+	view: "table" | "card";
+	selectedIds: string[];
+	onSelect: (id: string, checked: boolean) => void;
+	onSelectAll: (checked: boolean) => void;
+	onEdit: (event: EventListItem) => void;
+	onViewDetail: (id: string) => void;
+	onStatusAction: (id: string, action: StatusAction) => void;
+	onDelete: (event: EventListItem) => void;
+	isDeleting: boolean;
 };
 
+type VisibilityBadge = {
+	label: string;
+	variant: ComponentProps<typeof Badge>["variant"];
+};
+
+function getVisibilityBadge(event: EventListItem): VisibilityBadge {
+	if (event.status === "approved" && event.isPublished) {
+		return { label: "Published", variant: "default" };
+	}
+
+	if (event.status === "approved") {
+		return { label: "Approved draft", variant: "secondary" };
+	}
+
+	if (event.status === "pending") {
+		return { label: "Pending review", variant: "outline" };
+	}
+
+	return { label: "Archived", variant: "outline" };
+}
+
 export function EventListView({
-        events,
-        view,
-        selectedIds,
-        onSelect,
-        onSelectAll,
-        onEdit,
-        onViewDetail,
-        onStatusAction,
-        onDelete,
-        isDeleting,
+	events,
+	view,
+	selectedIds,
+	onSelect,
+	onSelectAll,
+	onEdit,
+	onViewDetail,
+	onStatusAction,
+	onDelete,
+	isDeleting,
 }: EventListViewProps) {
 	const selectedIdSet = new Set(selectedIds);
 	const allSelectedOnPage =
@@ -59,6 +81,7 @@ export function EventListView({
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{events.map((event) => {
 					const isSelected = selectedIdSet.has(event.id);
+					const visibility = getVisibilityBadge(event);
 					return (
 						<Card
 							key={event.id}
@@ -96,19 +119,19 @@ export function EventListView({
 											</CardTitle>
 										}
 									/>
-                                                                        <EventActionsMenu
-                                                                                statusActions={statusActions}
-                                                                                onUpdateStatus={(status) =>
-                                                                                        onStatusAction(event.id, status)
-                                                                                }
-                                                                                onEdit={() => onEdit(event)}
-                                                                                onView={() => onViewDetail(event.id)}
-                                                                                onDelete={() => onDelete(event)}
-                                                                                isDeleting={isDeleting}
-                                                                                disabled={isDeleting}
-                                                                        />
-                                                                </div>
-                                                        </CardHeader>
+									<EventActionsMenu
+										statusActions={statusActions}
+										onUpdateStatus={(action) =>
+											onStatusAction(event.id, action)
+										}
+										onEdit={() => onEdit(event)}
+										onView={() => onViewDetail(event.id)}
+										onDelete={() => onDelete(event)}
+										isDeleting={isDeleting}
+										disabled={isDeleting}
+									/>
+								</div>
+							</CardHeader>
 							<CardContent className="flex flex-1 flex-col gap-4">
 								<div className="flex flex-wrap gap-2 text-muted-foreground text-xs sm:text-sm">
 									<span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1">
@@ -117,7 +140,7 @@ export function EventListView({
 									</span>
 									<span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1 text-muted-foreground">
 										<ExternalLink className="size-4" />
-										{event.isPublished ? "Published" : "Draft"}
+										{visibility.label}
 									</span>
 								</div>
 								<div className="space-y-2 text-sm">
@@ -161,13 +184,14 @@ export function EventListView({
 						<TableHead>Provider</TableHead>
 						<TableHead>Status</TableHead>
 						<TableHead>Priority</TableHead>
-						<TableHead>Published</TableHead>
+						<TableHead>Visibility</TableHead>
 						<TableHead className="text-right">Actions</TableHead>
 					</TableRow>
 				</TableHeader>
 				<TableBody>
 					{events.map((event) => {
 						const isSelected = selectedIdSet.has(event.id);
+						const visibility = getVisibilityBadge(event);
 						return (
 							<TableRow key={event.id} className="align-top">
 								<TableCell>
@@ -214,26 +238,24 @@ export function EventListView({
 									<Badge variant="outline">{event.priority}</Badge>
 								</TableCell>
 								<TableCell>
-									<Badge variant={event.isPublished ? "default" : "outline"}>
-										{event.isPublished ? "Published" : "Draft"}
-									</Badge>
+									<Badge variant={visibility.variant}>{visibility.label}</Badge>
 								</TableCell>
-                                                                <TableCell className="text-right">
-                                                                        <EventActionsMenu
-                                                                                statusActions={statusActions}
-                                                                                onUpdateStatus={(status) =>
-                                                                                        onStatusAction(event.id, status)
-                                                                                }
-                                                                                onEdit={() => onEdit(event)}
-                                                                                onView={() => onViewDetail(event.id)}
-                                                                                onDelete={() => onDelete(event)}
-                                                                                isDeleting={isDeleting}
-                                                                                disabled={isDeleting}
-                                                                        />
-                                                                </TableCell>
-                                                        </TableRow>
-                                                );
-                                        })}
+								<TableCell className="text-right">
+									<EventActionsMenu
+										statusActions={statusActions}
+										onUpdateStatus={(action) =>
+											onStatusAction(event.id, action)
+										}
+										onEdit={() => onEdit(event)}
+										onView={() => onViewDetail(event.id)}
+										onDelete={() => onDelete(event)}
+										isDeleting={isDeleting}
+										disabled={isDeleting}
+									/>
+								</TableCell>
+							</TableRow>
+						);
+					})}
 				</TableBody>
 			</Table>
 		</div>

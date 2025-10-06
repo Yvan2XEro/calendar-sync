@@ -38,6 +38,10 @@ import {
 	parseHeroMedia,
 	parseLandingPage,
 } from "@/lib/event-content";
+import {
+	type EventAutomationType,
+	enqueueEventAutomations,
+} from "@/lib/events/automation";
 import { parseEventMessagingSettings } from "@/lib/events/messaging";
 import {
 	createRegistrationDraft,
@@ -605,11 +609,13 @@ const getEventInput = z.object({
 const updateStatusInput = z.object({
 	id: z.string().min(1),
 	status: z.enum(event.status.enumValues),
+	publish: z.boolean().optional(),
 });
 
 const bulkUpdateStatusInput = z.object({
 	ids: z.array(z.string().min(1)).min(1),
 	status: z.enum(event.status.enumValues),
+	publish: z.boolean().optional(),
 });
 
 const updateEventInput = z
@@ -861,6 +867,51 @@ function buildEventFilters(filters: EventFilterInput): SQL[] {
 	return clauses;
 }
 
+type EventStatusValue = (typeof event.status.enumValues)[number];
+
+type AutomationChange = {
+	previousStatus: EventStatusValue;
+	previousPublished: boolean;
+	nextStatus: EventStatusValue;
+	nextPublished: boolean;
+};
+
+function derivePublishState(
+	currentPublished: boolean,
+	nextStatus: EventStatusValue,
+	publishOverride: boolean | undefined,
+): boolean {
+	if (nextStatus !== "approved") {
+		return false;
+	}
+	if (publishOverride !== undefined) {
+		return publishOverride;
+	}
+	return currentPublished;
+}
+
+function resolveAutomationTriggers(
+	change: AutomationChange,
+): EventAutomationType[] {
+	const triggers: EventAutomationType[] = [];
+	const becamePublished = change.nextPublished && !change.previousPublished;
+	const becameUnpublished = change.previousPublished && !change.nextPublished;
+
+	if (becamePublished) {
+		triggers.push("calendar_sync", "digest_refresh");
+	} else if (becameUnpublished) {
+		triggers.push("calendar_sync");
+	} else if (
+		change.previousStatus !== change.nextStatus &&
+		change.nextStatus === "approved" &&
+		change.nextPublished
+	) {
+		triggers.push("calendar_sync");
+	}
+
+	return Array.from(new Set(triggers));
+}
+
 function mapEvent(row: EventSelection) {
 	const metadata = (row.metadata ?? {}) as Record<string, unknown>;
 	const autoApproval = parseAutoApproval(metadata);
@@ -1065,17 +1116,81 @@ export const eventsRouter = router({
 	updateStatus: adminProcedure
 		.input(updateStatusInput)
 		.mutation(async ({ input }) => {
-			const [updated] = await db
-				.update(event)
-				.set({ status: input.status, updatedAt: sql`now()` })
-				.where(eq(event.id, input.id))
-				.returning({ id: event.id });
+			const result = await db.transaction(async (tx) => {
+				const existingRows = await tx
+					.select({
+						id: event.id,
+						status: event.status,
+						isPublished: event.isPublished,
+					})
+					.from(event)
+					.where(eq(event.id, input.id))
+					.limit(1);
 
-			if (!updated) {
-				throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
-			}
+				const current = existingRows.at(0);
 
-			return fetchEventOrThrow(updated.id);
+				if (!current) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Event not found",
+					});
+				}
+
+				const nextPublished = derivePublishState(
+					current.isPublished,
+					input.status,
+					input.publish,
+				);
+
+				const [updated] = await tx
+					.update(event)
+					.set({
+						status: input.status,
+						isPublished: nextPublished,
+						updatedAt: sql`now()`,
+					})
+					.where(eq(event.id, input.id))
+					.returning({
+						id: event.id,
+						status: event.status,
+						isPublished: event.isPublished,
+					});
+
+				if (!updated) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Event not found",
+					});
+				}
+
+				const automationTriggers = resolveAutomationTriggers({
+					previousStatus: current.status,
+					previousPublished: current.isPublished,
+					nextStatus: updated.status,
+					nextPublished: updated.isPublished,
+				});
+
+				if (automationTriggers.length > 0) {
+					await enqueueEventAutomations(
+						tx,
+						automationTriggers.map((type) => ({
+							eventId: updated.id,
+							type,
+							payload: {
+								reason: "status_change",
+								previousStatus: current.status,
+								nextStatus: updated.status,
+								previousPublished: current.isPublished,
+								nextPublished: updated.isPublished,
+							},
+						})),
+					);
+				}
+
+				return { id: updated.id } as const;
+			});
+
+			return fetchEventOrThrow(result.id);
 		}),
 	bulkUpdateStatus: adminProcedure
 		.input(bulkUpdateStatusInput)
@@ -1086,13 +1201,95 @@ export const eventsRouter = router({
 				return { updatedCount: 0 } as const;
 			}
 
-			const result = await db
-				.update(event)
-				.set({ status: input.status, updatedAt: sql`now()` })
-				.where(inArray(event.id, ids))
-				.returning({ id: event.id });
+			const result = await db.transaction(async (tx) => {
+				const existing = await tx
+					.select({
+						id: event.id,
+						status: event.status,
+						isPublished: event.isPublished,
+					})
+					.from(event)
+					.where(inArray(event.id, ids));
 
-			return { updatedCount: result.length } as const;
+				if (existing.length === 0) {
+					return { updatedCount: 0 } as const;
+				}
+
+				let updatedCount = 0;
+				const automationJobs: Array<{
+					eventId: string;
+					type: EventAutomationType;
+					payload: Record<string, unknown>;
+				}> = [];
+
+				for (const current of existing) {
+					const nextPublished = derivePublishState(
+						current.isPublished,
+						input.status,
+						input.publish,
+					);
+
+					if (
+						current.status === input.status &&
+						current.isPublished === nextPublished
+					) {
+						continue;
+					}
+
+					const [updated] = await tx
+						.update(event)
+						.set({
+							status: input.status,
+							isPublished: nextPublished,
+							updatedAt: sql`now()`,
+						})
+						.where(eq(event.id, current.id))
+						.returning({
+							id: event.id,
+							status: event.status,
+							isPublished: event.isPublished,
+						});
+
+					if (!updated) {
+						continue;
+					}
+
+					updatedCount += 1;
+
+					const triggers = resolveAutomationTriggers({
+						previousStatus: current.status,
+						previousPublished: current.isPublished,
+						nextStatus: updated.status,
+						nextPublished: updated.isPublished,
+					});
+
+					if (triggers.length > 0) {
+						const payload = {
+							reason: "bulk_status_change",
+							previousStatus: current.status,
+							nextStatus: updated.status,
+							previousPublished: current.isPublished,
+							nextPublished: updated.isPublished,
+						} as const;
+
+						for (const type of triggers) {
+							automationJobs.push({
+								eventId: updated.id,
+								type,
+								payload: { ...payload },
+							});
+						}
+					}
+				}
+
+				if (automationJobs.length > 0) {
+					await enqueueEventAutomations(tx, automationJobs);
+				}
+
+				return { updatedCount } as const;
+			});
+
+			return { updatedCount: result.updatedCount } as const;
 		}),
 	create: adminProcedure.input(createEventInput).mutation(async ({ input }) => {
 		const heroMedia = normalizeHeroMediaInput(input.heroMedia);

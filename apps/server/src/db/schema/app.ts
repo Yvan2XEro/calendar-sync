@@ -82,6 +82,18 @@ export const eventEmailStatus = pgEnum("event_email_status", [
 	"failed",
 ]);
 
+export const eventAutomationType = pgEnum("event_automation_type", [
+	"calendar_sync",
+	"digest_refresh",
+]);
+
+export const eventAutomationStatus = pgEnum("event_automation_status", [
+	"pending",
+	"processing",
+	"completed",
+	"failed",
+]);
+
 export const provider = pgTable("provider", {
 	id: text("id").primaryKey(),
 	category: text("category").notNull(),
@@ -206,6 +218,37 @@ export const event = pgTable(
 			desc(table.createdAt),
 		),
 		organizationIdx: index("event_organization_idx").on(table.organizationId),
+	}),
+);
+
+export const eventAutomationJob = pgTable(
+	"event_automation_job",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		type: eventAutomationType("type").notNull(),
+		status: eventAutomationStatus("status").notNull().default("pending"),
+		payload: jsonb("payload")
+			.$type<Record<string, unknown>>()
+			.default(sql`'{}'::jsonb`)
+			.notNull(),
+		attempts: integer("attempts").notNull().default(0),
+		lastError: text("last_error"),
+		scheduledAt: timestamp("scheduled_at", { withTimezone: true })
+			.default(sql`now()`)
+			.notNull(),
+		...timestamps,
+	},
+	(table) => ({
+		eventAutomationJobPendingUnique: uniqueIndex(
+			"event_automation_job_event_id_type_status_unique",
+		).on(table.eventId, table.type, table.status),
+		eventAutomationJobEventIdx: index("event_automation_job_event_idx").on(
+			table.eventId,
+			table.createdAt,
+		),
 	}),
 );
 

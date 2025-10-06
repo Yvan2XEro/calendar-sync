@@ -3,6 +3,7 @@
 import { ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import type { ComponentProps } from "react";
 import type { EventStatus } from "@/app/(site)/admin/events/event-filters";
 import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +20,27 @@ import { hasLandingContent } from "@/lib/event-content";
 import { EventAnalyticsSummary } from "./EventAnalyticsSummary";
 import type { StatusAction } from "./status-actions";
 import type { EventListItem } from "./types";
+
+type VisibilityBadge = {
+	label: string;
+	variant: ComponentProps<typeof Badge>["variant"];
+};
+
+function resolveVisibility(
+	event: EventListItem | null,
+): VisibilityBadge | null {
+	if (!event) return null;
+	if (event.status === "approved" && event.isPublished) {
+		return { label: "Published", variant: "default" };
+	}
+	if (event.status === "approved") {
+		return { label: "Approved draft", variant: "secondary" };
+	}
+	if (event.status === "pending") {
+		return { label: "Pending review", variant: "outline" };
+	}
+	return { label: "Archived", variant: "outline" };
+}
 
 type EventDetailSheetProps = {
 	event: EventListItem | null;
@@ -56,6 +78,7 @@ export function EventDetailSheet({
 		typeof landing?.body === "string" && landing.body.trim().length > 0
 			? landing.body.trim().split(/\n{2,}/)
 			: [];
+	const visibility = resolveVisibility(event);
 	return (
 		<Sheet
 			open={event != null}
@@ -95,9 +118,9 @@ export function EventDetailSheet({
 								<Badge variant={statusOptionMap[event.status].badgeVariant}>
 									{statusOptionMap[event.status].label}
 								</Badge>
-								<Badge variant={event.isPublished ? "default" : "outline"}>
-									{event.isPublished ? "Published" : "Draft"}
-								</Badge>
+								{visibility ? (
+									<Badge variant={visibility.variant}>{visibility.label}</Badge>
+								) : null}
 								{event.isAllDay ? (
 									<Badge variant="outline">All-day</Badge>
 								) : null}
