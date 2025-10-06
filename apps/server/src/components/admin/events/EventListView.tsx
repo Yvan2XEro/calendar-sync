@@ -21,25 +21,29 @@ import { statusActions } from "./status-actions";
 import type { EventListItem } from "./types";
 
 export type EventListViewProps = {
-	events: EventListItem[];
-	view: "table" | "card";
-	selectedIds: string[];
-	onSelect: (id: string, checked: boolean) => void;
-	onSelectAll: (checked: boolean) => void;
-	onEdit: (event: EventListItem) => void;
-	onViewDetail: (id: string) => void;
-	onStatusAction: (id: string, status: EventListItem["status"]) => void;
+        events: EventListItem[];
+        view: "table" | "card";
+        selectedIds: string[];
+        onSelect: (id: string, checked: boolean) => void;
+        onSelectAll: (checked: boolean) => void;
+        onEdit: (event: EventListItem) => void;
+        onViewDetail: (id: string) => void;
+        onStatusAction: (id: string, status: EventListItem["status"]) => void;
+        onDelete: (event: EventListItem) => void;
+        isDeleting: boolean;
 };
 
 export function EventListView({
-	events,
-	view,
-	selectedIds,
-	onSelect,
-	onSelectAll,
-	onEdit,
-	onViewDetail,
-	onStatusAction,
+        events,
+        view,
+        selectedIds,
+        onSelect,
+        onSelectAll,
+        onEdit,
+        onViewDetail,
+        onStatusAction,
+        onDelete,
+        isDeleting,
 }: EventListViewProps) {
 	const selectedIdSet = new Set(selectedIds);
 	const allSelectedOnPage =
@@ -92,16 +96,19 @@ export function EventListView({
 											</CardTitle>
 										}
 									/>
-									<EventActionsMenu
-										statusActions={statusActions}
-										onUpdateStatus={(status) =>
-											onStatusAction(event.id, status)
-										}
-										onEdit={() => onEdit(event)}
-										onView={() => onViewDetail(event.id)}
-									/>
-								</div>
-							</CardHeader>
+                                                                        <EventActionsMenu
+                                                                                statusActions={statusActions}
+                                                                                onUpdateStatus={(status) =>
+                                                                                        onStatusAction(event.id, status)
+                                                                                }
+                                                                                onEdit={() => onEdit(event)}
+                                                                                onView={() => onViewDetail(event.id)}
+                                                                                onDelete={() => onDelete(event)}
+                                                                                isDeleting={isDeleting}
+                                                                                disabled={isDeleting}
+                                                                        />
+                                                                </div>
+                                                        </CardHeader>
 							<CardContent className="flex flex-1 flex-col gap-4">
 								<div className="flex flex-wrap gap-2 text-muted-foreground text-xs sm:text-sm">
 									<span className="flex items-center gap-2 rounded-md border bg-muted/60 px-2 py-1">
@@ -211,19 +218,22 @@ export function EventListView({
 										{event.isPublished ? "Published" : "Draft"}
 									</Badge>
 								</TableCell>
-								<TableCell className="text-right">
-									<EventActionsMenu
-										statusActions={statusActions}
-										onUpdateStatus={(status) =>
-											onStatusAction(event.id, status)
-										}
-										onEdit={() => onEdit(event)}
-										onView={() => onViewDetail(event.id)}
-									/>
-								</TableCell>
-							</TableRow>
-						);
-					})}
+                                                                <TableCell className="text-right">
+                                                                        <EventActionsMenu
+                                                                                statusActions={statusActions}
+                                                                                onUpdateStatus={(status) =>
+                                                                                        onStatusAction(event.id, status)
+                                                                                }
+                                                                                onEdit={() => onEdit(event)}
+                                                                                onView={() => onViewDetail(event.id)}
+                                                                                onDelete={() => onDelete(event)}
+                                                                                isDeleting={isDeleting}
+                                                                                disabled={isDeleting}
+                                                                        />
+                                                                </TableCell>
+                                                        </TableRow>
+                                                );
+                                        })}
 				</TableBody>
 			</Table>
 		</div>

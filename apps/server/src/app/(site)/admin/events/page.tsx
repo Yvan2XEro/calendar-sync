@@ -8,7 +8,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
-import { CalendarDays, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { CalendarDays, LayoutGrid, Plus, Table as TableIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
@@ -38,22 +38,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-	Pagination,
-	PaginationContent,
-	PaginationItem,
-	PaginationLink,
-	PaginationNext,
-	PaginationPrevious,
+        Pagination,
+        PaginationContent,
+        PaginationItem,
+        PaginationLink,
+        PaginationNext,
+        PaginationPrevious,
 } from "@/components/ui/pagination";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
+        Select,
+        SelectContent,
+        SelectItem,
+        SelectTrigger,
+        SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { providerKeys } from "@/lib/query-keys/providers";
+import { hasLandingContent } from "@/lib/event-content";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
 
@@ -85,24 +86,46 @@ const adminEventKeys = {
 } as const;
 
 function patchEventsInCache(
-	queryClient: QueryClient,
-	queryKey: ReturnType<typeof adminEventKeys.list>,
-	ids: Iterable<string>,
-	patch: Partial<EventListItem>,
+        queryClient: QueryClient,
+        queryKey: ReturnType<typeof adminEventKeys.list>,
+        ids: Iterable<string>,
+        patch: Partial<EventListItem>,
 ) {
-	const idSet = new Set(ids);
-	queryClient.setQueryData<EventsListOutput>(
-		queryKey,
-		(previous: EventsListOutput | undefined) => {
-			if (!previous) return previous;
-			return {
-				...previous,
-				items: previous.items.map((item: EventListItem) =>
-					idSet.has(item.id) ? { ...item, ...patch } : item,
-				),
-			} satisfies EventsListOutput;
-		},
-	);
+        const idSet = new Set(ids);
+        queryClient.setQueryData<EventsListOutput>(
+                queryKey,
+                (previous: EventsListOutput | undefined) => {
+                        if (!previous) return previous;
+                        return {
+                                ...previous,
+                                items: previous.items.map((item: EventListItem) =>
+                                        idSet.has(item.id) ? { ...item, ...patch } : item,
+                                ),
+                        } satisfies EventsListOutput;
+                },
+        );
+}
+
+function removeEventsFromCache(
+        queryClient: QueryClient,
+        queryKey: ReturnType<typeof adminEventKeys.list>,
+        ids: Iterable<string>,
+) {
+        const idSet = new Set(ids);
+        queryClient.setQueryData<EventsListOutput>(
+                queryKey,
+                (previous: EventsListOutput | undefined) => {
+                        if (!previous) return previous;
+                        const filtered = previous.items.filter((item) => !idSet.has(item.id));
+                        const removedCount = previous.items.length - filtered.length;
+                        if (removedCount === 0) return previous;
+                        return {
+                                ...previous,
+                                items: filtered,
+                                total: Math.max(0, previous.total - removedCount),
+                        } satisfies EventsListOutput;
+                },
+        );
 }
 
 function replaceEventInCache(
@@ -215,8 +238,13 @@ export default function AdminEventsPage() {
 		});
 	}, [eventIdSet]);
 
-	const [detailId, setDetailId] = useState<string | null>(null);
-	const [editingEvent, setEditingEvent] = useState<EventListItem | null>(null);
+        const [detailId, setDetailId] = useState<string | null>(null);
+        const [composerState, setComposerState] = useState<
+                { mode: "create" | "edit"; event: EventListItem | null } | null
+        >(null);
+
+        const editingEvent = composerState?.event ?? null;
+        const composerMode = composerState?.mode ?? "edit";
 
 	const detailEvent = useMemo(
 		() => events.find((event: EventListItem) => event.id === detailId) ?? null,
@@ -262,13 +290,17 @@ export default function AdminEventsPage() {
 		setDetailId(null);
 	}, []);
 
-	const handleEditOpen = useCallback((event: EventListItem) => {
-		setEditingEvent(event);
-	}, []);
+        const handleEditOpen = useCallback((event: EventListItem) => {
+                setComposerState({ mode: "edit", event });
+        }, []);
 
-	const handleEditClose = useCallback(() => {
-		setEditingEvent(null);
-	}, []);
+        const handleCreateOpen = useCallback(() => {
+                setComposerState({ mode: "create", event: null });
+        }, []);
+
+        const handleComposerClose = useCallback(() => {
+                setComposerState(null);
+        }, []);
 
 	const updateStatusMutation = useMutation({
 		mutationFn: (variables: UpdateStatusInput) =>
@@ -343,19 +375,20 @@ export default function AdminEventsPage() {
 		},
 	});
 
-	const updateEventMutation = useMutation({
-		mutationFn: (variables: UpdateEventInput) =>
-			trpcClient.events.update.mutate(variables),
-		onMutate: async (variables) => {
-			await queryClient.cancelQueries({ queryKey: listQueryKey });
-			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			const patch: Partial<EventListItem> = {
-				updatedAt: new Date().toISOString(),
-				...(variables.title !== undefined ? { title: variables.title } : {}),
-				...(variables.description !== undefined
-					? {
-							description:
-								typeof variables.description === "string"
+        const updateEventMutation = useMutation({
+                mutationFn: (variables: UpdateEventInput) =>
+                        trpcClient.events.update.mutate(variables),
+                onMutate: async (variables) => {
+                        await queryClient.cancelQueries({ queryKey: listQueryKey });
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+                        const patch: Partial<EventListItem> = {
+                                updatedAt: new Date().toISOString(),
+                                ...(variables.slug !== undefined ? { slug: variables.slug } : {}),
+                                ...(variables.title !== undefined ? { title: variables.title } : {}),
+                                ...(variables.description !== undefined
+                                        ? {
+                                                        description:
+                                                                typeof variables.description === "string"
 									? variables.description
 									: (variables.description ?? null),
 						}
@@ -386,36 +419,90 @@ export default function AdminEventsPage() {
 				...(variables.isPublished !== undefined
 					? { isPublished: variables.isPublished }
 					: {}),
-				...(variables.externalId !== undefined
-					? { externalId: variables.externalId ?? null }
-					: {}),
-				...(variables.priority !== undefined
-					? { priority: variables.priority }
-					: {}),
-			};
-			patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
-			return { previous };
-		},
-		onError: (error, _variables, context) => {
+                                ...(variables.externalId !== undefined
+                                        ? { externalId: variables.externalId ?? null }
+                                        : {}),
+                                ...(variables.priority !== undefined
+                                        ? { priority: variables.priority }
+                                        : {}),
+                                ...(variables.heroMedia !== undefined
+                                        ? { heroMedia: variables.heroMedia ?? {} }
+                                        : {}),
+                                ...(variables.landingPage !== undefined
+                                        ? { landingPage: variables.landingPage ?? {} }
+                                        : {}),
+                        };
+                        patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
 			if (context?.previous) {
 				queryClient.setQueryData<EventsListOutput>(
 					listQueryKey,
 					context.previous,
 				);
-			}
-			toast.error(
-				error instanceof Error ? error.message : "Unable to update event",
-			);
-		},
-		onSuccess: (updated) => {
-			replaceEventInCache(queryClient, listQueryKey, updated);
-			toast.success("Event updated");
-			handleEditClose();
-		},
-		onSettled: () => {
-			queryClient.invalidateQueries({ queryKey: listQueryKey });
-		},
-	});
+                        }
+                        toast.error(
+                                error instanceof Error ? error.message : "Unable to update event",
+                        );
+                },
+                onSuccess: (updated) => {
+                        replaceEventInCache(queryClient, listQueryKey, updated);
+                        toast.success("Event updated");
+                        setComposerState(null);
+                },
+                onSettled: () => {
+                        queryClient.invalidateQueries({ queryKey: listQueryKey });
+                },
+        });
+
+        const createEventMutation = useMutation({
+                mutationFn: (variables: RouterInputs["events"]["create"]) =>
+                        trpcClient.events.create.mutate(variables),
+                onError: (error) => {
+                        toast.error(error instanceof Error ? error.message : "Unable to create event");
+                },
+                onSuccess: (created) => {
+                        toast.success("Event created");
+                        setComposerState(null);
+                        setSelectedIds([]);
+                        setPage(1);
+                        queryClient.invalidateQueries({ queryKey: listQueryKey });
+                        setDetailId((prev) => prev ?? created.id);
+                },
+                onSettled: () => {
+                        queryClient.invalidateQueries({ queryKey: listQueryKey });
+                },
+        });
+
+        const deleteEventMutation = useMutation({
+                mutationFn: (variables: RouterInputs["events"]["delete"]) =>
+                        trpcClient.events.delete.mutate(variables),
+                onMutate: async (variables) => {
+                        await queryClient.cancelQueries({ queryKey: listQueryKey });
+                        const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
+                        removeEventsFromCache(queryClient, listQueryKey, [variables.id]);
+                        return { previous };
+                },
+                onError: (error, _variables, context) => {
+                        if (context?.previous) {
+                                queryClient.setQueryData(listQueryKey, context.previous);
+                        }
+                        toast.error(error instanceof Error ? error.message : "Unable to delete event");
+                },
+                onSuccess: (result) => {
+                        toast.success("Event deleted");
+                        setSelectedIds((prev) => prev.filter((id) => id !== result.id));
+                        setDetailId((prev) => (prev === result.id ? null : prev));
+                        setComposerState((prev) =>
+                                prev?.event?.id === result.id ? null : prev,
+                        );
+                        queryClient.invalidateQueries({ queryKey: listQueryKey });
+                },
+                onSettled: () => {
+                        queryClient.invalidateQueries({ queryKey: listQueryKey });
+                },
+        });
 
 	const handleStatusAction = useCallback(
 		(eventId: string, status: EventStatus) => {
@@ -432,31 +519,127 @@ export default function AdminEventsPage() {
 		[bulkStatusMutation, selectedIds],
 	);
 
-	const handleEditSubmit = useCallback(
-		(values: EventEditFormValues) => {
-			if (!editingEvent) return;
+        const handleComposerSubmit = useCallback(
+                (values: EventEditFormValues) => {
+                        const slug = values.slug.trim();
+                        if (!slug) {
+                                toast.error("Slug is required.");
+                                return;
+                        }
 
-			const payload: RouterInputs["events"]["update"] = {
-				id: editingEvent.id,
-				title: values.title.trim(),
-				description: values.description.trim(),
-				location: values.location.trim(),
-				url: values.url.trim() || null,
-				startAt: values.startAt
-					? new Date(values.startAt).toISOString()
-					: undefined,
-				endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
-				isAllDay: values.isAllDay,
-				isPublished: values.isPublished,
-				externalId: values.externalId.trim(),
-				priority: values.priority,
-				providerId: values.providerId || undefined,
-			};
+                        const trimmedDescription = values.description.trim();
+                        const trimmedLocation = values.location.trim();
+                        const trimmedUrl = values.url.trim();
+                        const trimmedExternalId = values.externalId.trim();
 
-			updateEventMutation.mutate(payload);
-		},
-		[editingEvent, updateEventMutation],
-	);
+                        const heroUrl = values.heroMediaUrl.trim();
+                        const heroAlt = values.heroMediaAlt.trim();
+                        const heroPoster = values.heroMediaPosterUrl.trim();
+                        const heroMediaPayload =
+                                values.heroMediaType === "none"
+                                        ? {}
+                                        : heroUrl.length > 0
+                                                ? {
+                                                          type: values.heroMediaType,
+                                                          url: heroUrl,
+                                                          ...(heroAlt ? { alt: heroAlt } : {}),
+                                                          ...(values.heroMediaType === "video" && heroPoster
+                                                                  ? { posterUrl: heroPoster }
+                                                                  : {}),
+                                                  }
+                                                : {};
+
+                        const landingPagePayload: RouterInputs["events"]["update"]["landingPage"] = {};
+                        const landingHeadline = values.landingHeadline.trim();
+                        const landingSubheadline = values.landingSubheadline.trim();
+                        const landingBody = values.landingBody.trim();
+                        const landingSeoDescription = values.landingSeoDescription.trim();
+                        const landingCtaLabel = values.landingCtaLabel.trim();
+                        const landingCtaUrl = values.landingCtaUrl.trim();
+
+                        if (landingHeadline) landingPagePayload.headline = landingHeadline;
+                        if (landingSubheadline) landingPagePayload.subheadline = landingSubheadline;
+                        if (landingBody) landingPagePayload.body = landingBody;
+                        if (landingSeoDescription)
+                                landingPagePayload.seoDescription = landingSeoDescription;
+                        if (landingCtaLabel || landingCtaUrl) {
+                                landingPagePayload.cta = {};
+                                if (landingCtaLabel) landingPagePayload.cta.label = landingCtaLabel;
+                                if (landingCtaUrl) landingPagePayload.cta.href = landingCtaUrl;
+                        }
+
+                        const hasLandingPayload = hasLandingContent(landingPagePayload);
+
+                        if (composerMode === "create") {
+                                if (!values.providerId) {
+                                        toast.error("Select a provider before creating an event.");
+                                        return;
+                                }
+                                if (!values.startAt) {
+                                        toast.error("Provide a start time for the event.");
+                                        return;
+                                }
+                                const payload: RouterInputs["events"]["create"] = {
+                                        title: values.title.trim(),
+                                        slug,
+                                        description: trimmedDescription,
+                                        location: trimmedLocation,
+                                        url: trimmedUrl || null,
+                                        startAt: new Date(values.startAt).toISOString(),
+                                        endAt: values.endAt
+                                                ? new Date(values.endAt).toISOString()
+                                                : null,
+                                        isAllDay: values.isAllDay,
+                                        isPublished: values.isPublished,
+                                        externalId: trimmedExternalId || null,
+                                        priority: values.priority,
+                                        providerId: values.providerId,
+                                        heroMedia: heroMediaPayload,
+                                        landingPage: hasLandingPayload ? landingPagePayload : undefined,
+                                };
+
+                                createEventMutation.mutate(payload);
+                                return;
+                        }
+
+                        const currentEvent = composerState?.event;
+                        if (!currentEvent) return;
+
+                        const payload: RouterInputs["events"]["update"] = {
+                                id: currentEvent.id,
+                                title: values.title.trim(),
+                                slug,
+                                description: trimmedDescription,
+                                location: trimmedLocation,
+                                url: trimmedUrl || null,
+                                startAt: values.startAt
+                                        ? new Date(values.startAt).toISOString()
+                                        : undefined,
+                                endAt: values.endAt ? new Date(values.endAt).toISOString() : null,
+                                isAllDay: values.isAllDay,
+                                isPublished: values.isPublished,
+                                externalId: trimmedExternalId,
+                                priority: values.priority,
+                                providerId: values.providerId || undefined,
+                                heroMedia: heroMediaPayload,
+                                landingPage: hasLandingPayload ? landingPagePayload : {},
+                        };
+
+                        updateEventMutation.mutate(payload);
+                },
+                [composerMode, composerState, createEventMutation, updateEventMutation],
+        );
+
+        const handleDelete = useCallback(
+                (eventToDelete: EventListItem) => {
+                        const confirmed = window.confirm(
+                                `Delete "${eventToDelete.title}" and remove its landing page?`,
+                        );
+                        if (!confirmed) return;
+                        deleteEventMutation.mutate({ id: eventToDelete.id });
+                },
+                [deleteEventMutation],
+        );
 
 	const headerCheckboxState = selectedIds.length
 		? allSelectedOnPage
@@ -488,12 +671,16 @@ export default function AdminEventsPage() {
 								publication state.
 							</CardDescription>
 						</div>
-						<div className="flex items-center gap-2">
-							<Button
-								variant={filters.view === "table" ? "default" : "outline"}
-								size="icon"
-								aria-label="Table view"
-								onClick={() => handleViewChange("table")}
+                                                <div className="flex items-center gap-2">
+                                                        <Button onClick={handleCreateOpen} className="gap-2">
+                                                                <Plus className="size-4" />
+                                                                New event
+                                                        </Button>
+                                                        <Button
+                                                                variant={filters.view === "table" ? "default" : "outline"}
+                                                                size="icon"
+                                                                aria-label="Table view"
+                                                                onClick={() => handleViewChange("table")}
 							>
 								<TableIcon className="size-4" />
 							</Button>
@@ -725,16 +912,18 @@ export default function AdminEventsPage() {
 						</CardContent>
 					</Card>
 				) : (
-					<EventListView
-						events={events}
-						view={filters.view}
-						selectedIds={selectedIds}
-						onSelect={handleSelect}
-						onSelectAll={handleSelectAll}
-						onEdit={handleEditOpen}
-						onViewDetail={handleOpenDetail}
-						onStatusAction={handleStatusAction}
-					/>
+                                        <EventListView
+                                                events={events}
+                                                view={filters.view}
+                                                selectedIds={selectedIds}
+                                                onSelect={handleSelect}
+                                                onSelectAll={handleSelectAll}
+                                                onEdit={handleEditOpen}
+                                                onViewDetail={handleOpenDetail}
+                                                onStatusAction={handleStatusAction}
+                                                onDelete={handleDelete}
+                                                isDeleting={deleteEventMutation.isPending}
+                                        />
 				)}
 
 				{eventsQuery.data && total > 0 ? (
@@ -783,23 +972,30 @@ export default function AdminEventsPage() {
 				) : null}
 			</section>
 
-			<EventDetailSheet
-				event={detailEvent}
-				statusActions={statusActions}
-				onUpdateStatus={handleStatusAction}
-				onEdit={handleEditOpen}
-				onClose={handleCloseDetail}
-				statusLoading={statusLoading}
-			/>
+                        <EventDetailSheet
+                                event={detailEvent}
+                                statusActions={statusActions}
+                                onUpdateStatus={handleStatusAction}
+                                onEdit={handleEditOpen}
+                                onClose={handleCloseDetail}
+                                statusLoading={statusLoading}
+                                onDelete={handleDelete}
+                                isDeleting={deleteEventMutation.isPending}
+                        />
 
-			<EventEditDialog
-				open={editingEvent != null}
-				event={editingEvent}
-				providers={providerOptions}
-				onSubmit={handleEditSubmit}
-				onClose={handleEditClose}
-				isSaving={updateEventMutation.isPending}
-			/>
-		</AppShell>
-	);
+                        <EventEditDialog
+                                open={composerState != null}
+                                mode={composerMode}
+                                event={editingEvent}
+                                providers={providerOptions}
+                                onSubmit={handleComposerSubmit}
+                                onClose={handleComposerClose}
+                                isSaving={
+                                        composerMode === "edit"
+                                                ? updateEventMutation.isPending
+                                                : createEventMutation.isPending
+                                }
+                        />
+                </AppShell>
+        );
 }

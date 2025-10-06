@@ -1,46 +1,61 @@
 "use client";
 
 import { ShieldCheck } from "lucide-react";
+import Link from "next/link";
 import type { EventStatus } from "@/app/(site)/admin/events/event-filters";
 import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
+        Sheet,
+        SheetContent,
+        SheetDescription,
+        SheetHeader,
+        SheetTitle,
 } from "@/components/ui/sheet";
 import { formatDisplayDate } from "@/lib/datetime";
+import { hasLandingContent } from "@/lib/event-content";
 import type { StatusAction } from "./status-actions";
 import type { EventListItem } from "./types";
 
 type EventDetailSheetProps = {
-	event: EventListItem | null;
-	statusActions: StatusAction[];
-	onUpdateStatus: (eventId: string, status: EventStatus) => void;
-	onEdit: (event: EventListItem) => void;
-	onClose: () => void;
-	statusLoading: boolean;
+        event: EventListItem | null;
+        statusActions: StatusAction[];
+        onUpdateStatus: (eventId: string, status: EventStatus) => void;
+        onEdit: (event: EventListItem) => void;
+        onClose: () => void;
+        statusLoading: boolean;
+        onDelete: (event: EventListItem) => void;
+        isDeleting: boolean;
 };
 
 export function EventDetailSheet({
-	event,
-	statusActions,
-	onUpdateStatus,
-	onEdit,
-	onClose,
-	statusLoading,
+        event,
+        statusActions,
+        onUpdateStatus,
+        onEdit,
+        onClose,
+        statusLoading,
+        onDelete,
+        isDeleting,
 }: EventDetailSheetProps) {
-	const autoApproval = event?.autoApproval ?? null;
-	const autoApprovalReason =
-		autoApproval?.reason.replace(/_/g, " ") ?? "Unknown";
-	const autoApprovalTimestamp = autoApproval?.at
-		? new Date(autoApproval.at)
-		: null;
-	return (
-		<Sheet
+        const autoApproval = event?.autoApproval ?? null;
+        const autoApprovalReason =
+                autoApproval?.reason.replace(/_/g, " ") ?? "Unknown";
+        const autoApprovalTimestamp = autoApproval?.at
+                ? new Date(autoApproval.at)
+                : null;
+        const publicPath = event ? `/events/${event.slug}` : null;
+        const heroMedia = event?.heroMedia ?? null;
+        const hasHero = Boolean(heroMedia && heroMedia.type && heroMedia.url);
+        const landing = event?.landingPage ?? null;
+        const hasLanding = hasLandingContent(landing);
+        const landingBodyParagraphs =
+                typeof landing?.body === "string" && landing.body.trim().length > 0
+                        ? landing.body.trim().split(/\n{2,}/)
+                        : [];
+        return (
+                <Sheet
 			open={event != null}
 			onOpenChange={(open) => {
 				if (!open) onClose();
@@ -120,22 +135,100 @@ export function EventDetailSheet({
 								{event.location ?? "No location provided"}
 							</p>
 						</div>
-						<div className="space-y-1 text-sm">
-							<p className="font-semibold text-foreground">Provider</p>
-							<p className="text-muted-foreground">
-								{event.provider?.name ?? "Unassigned"}
-							</p>
-							{event.provider?.category ? (
-								<p className="text-muted-foreground">
-									{event.provider.category}
-								</p>
-							) : null}
-						</div>
-						{event.description ? (
-							<div className="space-y-1 text-sm">
-								<p className="font-semibold text-foreground">Description</p>
-								<p className="whitespace-pre-wrap text-muted-foreground">
-									{event.description}
+                                                <div className="space-y-1 text-sm">
+                                                        <p className="font-semibold text-foreground">Provider</p>
+                                                        <p className="text-muted-foreground">
+                                                                {event.provider?.name ?? "Unassigned"}
+                                                        </p>
+                                                        {event.provider?.category ? (
+                                                                <p className="text-muted-foreground">
+                                                                        {event.provider.category}
+                                                                </p>
+                                                        ) : null}
+                                                </div>
+                                                {publicPath ? (
+                                                        <div className="space-y-2 text-sm">
+                                                                <p className="font-semibold text-foreground">Public link</p>
+                                                                <div className="flex flex-wrap items-center gap-2">
+                                                                        <code className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
+                                                                                {publicPath}
+                                                                        </code>
+                                                                        <Button asChild size="sm" variant="outline">
+                                                                                <Link href={publicPath} target="_blank" rel="noopener noreferrer">
+                                                                                        View landing page
+                                                                                </Link>
+                                                                        </Button>
+                                                                </div>
+                                                        </div>
+                                                ) : null}
+                                                {hasHero && heroMedia ? (
+                                                        <div className="space-y-2 text-sm">
+                                                                <p className="font-semibold text-foreground">Hero media</p>
+                                                                <div className="overflow-hidden rounded-md border bg-muted/40">
+                                                                        {heroMedia.type === "video" ? (
+                                                                                <video
+                                                                                        controls
+                                                                                        poster={heroMedia.posterUrl ?? undefined}
+                                                                                        className="h-48 w-full bg-black"
+                                                                                >
+                                                                                        <source src={heroMedia.url ?? ""} />
+                                                                                        Your browser does not support embedded videos.
+                                                                                </video>
+                                                                        ) : (
+                                                                                <img
+                                                                                        src={heroMedia.url ?? ""}
+                                                                                        alt={heroMedia.alt ?? "Event hero media"}
+                                                                                        className="h-48 w-full object-cover"
+                                                                                />
+                                                                        )}
+                                                                </div>
+                                                                <p className="text-muted-foreground text-xs">
+                                                                        {[heroMedia.type ? `Type: ${heroMedia.type}` : null,
+                                                                        heroMedia.alt ? `Alt: ${heroMedia.alt}` : null,
+                                                                        heroMedia.posterUrl ? `Poster: ${heroMedia.posterUrl}` : null]
+                                                                                .filter((value): value is string => Boolean(value))
+                                                                                .join(" • ")}
+                                                                </p>
+                                                        </div>
+                                                ) : null}
+                                                {hasLanding && landing ? (
+                                                        <div className="space-y-2 text-sm">
+                                                                <p className="font-semibold text-foreground">Landing page content</p>
+                                                                {landing.headline ? (
+                                                                        <p className="text-foreground text-base font-medium">
+                                                                                {landing.headline}
+                                                                        </p>
+                                                                ) : null}
+                                                                {landing.subheadline ? (
+                                                                        <p className="text-muted-foreground">{landing.subheadline}</p>
+                                                                ) : null}
+                                                                {landingBodyParagraphs.length > 0 ? (
+                                                                        <div className="space-y-2 text-muted-foreground">
+                                                                                {landingBodyParagraphs.map((paragraph, index) => (
+                                                                                        <p key={index} className="whitespace-pre-wrap leading-relaxed">
+                                                                                                {paragraph}
+                                                                                        </p>
+                                                                                ))}
+                                                                        </div>
+                                                                ) : null}
+                                                                {landing.seoDescription ? (
+                                                                        <p className="text-muted-foreground text-xs">
+                                                                                SEO description: {landing.seoDescription}
+                                                                        </p>
+                                                                ) : null}
+                                                                {landing.cta ? (
+                                                                        <p className="text-muted-foreground text-xs">
+                                                                                CTA: {landing.cta.label ?? ""}
+                                                                                {landing.cta.href ? ` • ${landing.cta.href}` : ""}
+                                                                        </p>
+                                                                ) : null}
+                                                        </div>
+                                                ) : null}
+                                                {event.description ? (
+                                                        <div className="space-y-1 text-sm">
+                                                                <p className="font-semibold text-foreground">Description</p>
+                                                                <p className="whitespace-pre-wrap text-muted-foreground">
+                                                                        {event.description}
 								</p>
 							</div>
 						) : null}
@@ -145,21 +238,28 @@ export function EventDetailSheet({
 								{JSON.stringify(event.metadata ?? {}, null, 2)}
 							</pre>
 						</div>
-						<div className="flex flex-wrap gap-2">
-							{statusActions.map((action) => (
-								<Button
-									key={action.status}
-									onClick={() => onUpdateStatus(event.id, action.status)}
-									disabled={statusLoading}
-								>
-									<action.icon className="mr-2 size-4" />
-									{action.label}
-								</Button>
-							))}
-							<Button variant="outline" onClick={() => onEdit(event)}>
-								Edit event
-							</Button>
-						</div>
+                                                <div className="flex flex-wrap gap-2">
+                                                        {statusActions.map((action) => (
+                                                                <Button
+                                                                        key={action.status}
+                                                                        onClick={() => onUpdateStatus(event.id, action.status)}
+                                                                        disabled={statusLoading}
+                                                                >
+                                                                        <action.icon className="mr-2 size-4" />
+                                                                        {action.label}
+                                                                </Button>
+                                                        ))}
+                                                        <Button variant="outline" onClick={() => onEdit(event)}>
+                                                                Edit event
+                                                        </Button>
+                                                        <Button
+                                                                variant="destructive"
+                                                                onClick={() => onDelete(event)}
+                                                                disabled={isDeleting}
+                                                        >
+                                                                {isDeleting ? "Deleting…" : "Delete event"}
+                                                        </Button>
+                                                </div>
 					</div>
 				) : null}
 			</SheetContent>

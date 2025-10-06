@@ -2,15 +2,12 @@
 
 import { sql } from "bun";
 import { v4 as uuid } from "uuid";
+import { insertEvent } from "../db/events";
 import { extractEventFromEmail } from "../utils/mailparser";
 
 type ProviderRow = {
 	id: string;
 	config: Record<string, unknown>;
-};
-
-type EventRow = {
-	id: string;
 };
 
 const providers = await sql<ProviderRow[]>`
@@ -30,14 +27,21 @@ const result = await extractEventFromEmail({
 });
 
 if (result) {
-	const [event] = await sql<EventRow[]>`
-    INSERT INTO event ${sql({
-			...result,
-			id: uuid(),
-		})}
-    RETURNING *
-`;
-	console.log("Event extracted ✅", event);
+	const inserted = await insertEvent({
+		...result,
+		id: uuid(),
+	});
+
+	if (inserted) {
+		const [event] = await sql`
+      SELECT *
+      FROM event
+      WHERE id = ${inserted.id}
+    `;
+		console.log("Event extracted ✅", event);
+	} else {
+		console.log("Event already existed, nothing inserted.");
+	}
 } else {
 	console.log("No event detected or validation failed.");
 }

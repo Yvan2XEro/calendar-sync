@@ -48,20 +48,26 @@ export function EventPreview({
 		layout === "card"
 			? (event.location ?? "No location")
 			: (event.location ?? "");
-	const shouldRenderBadges =
-		Boolean(badgePrefix) ||
-		inlineTitle ||
-		event.isAllDay ||
-		Boolean(event.flag) ||
-		Boolean(event.autoApproval);
+        const shouldRenderBadges =
+                Boolean(badgePrefix) ||
+                inlineTitle ||
+                event.isAllDay ||
+                Boolean(event.slug) ||
+                Boolean(event.flag) ||
+                Boolean(event.autoApproval);
 
 	return (
 		<div className={cn(containerClasses, className)}>
 			{titleSlot && !inlineTitle ? titleSlot : null}
 			{shouldRenderBadges ? (
 				<div className={badgeRowClasses}>
-					{badgePrefix}
-					{inlineTitle ? titleContent : null}
+                                        {badgePrefix}
+                                        {event.slug ? (
+                                                <Badge variant="outline" className="font-mono text-[10px] uppercase">
+                                                        {event.slug}
+                                                </Badge>
+                                        ) : null}
+                                        {inlineTitle ? titleContent : null}
 					{event.isAllDay ? (
 						<Badge variant="outline" className="uppercase">
 							All-day
