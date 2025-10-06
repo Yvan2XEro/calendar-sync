@@ -12,6 +12,7 @@ import {
 	ticketType,
 	waitlistEntry,
 } from "@/db/schema/app";
+import { queueOrderConfirmationEmail } from "@/lib/mailer/triggers";
 
 type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -432,6 +433,7 @@ export async function updateOrderStatusAfterPayment({
 			.update(attendee)
 			.set({ status: "registered" })
 			.where(eq(attendee.orderId, orderId));
+		await queueOrderConfirmationEmail(orderId);
 	}
 
 	if (status === "cancelled" || status === "refunded") {

@@ -66,6 +66,21 @@ export const waitlistStatus = pgEnum("event_waitlist_status", [
 	"removed",
 ]);
 
+export const eventEmailType = pgEnum("event_email_type", [
+	"confirmation",
+	"reminder",
+	"update",
+	"cancellation",
+	"follow_up",
+]);
+
+export const eventEmailStatus = pgEnum("event_email_status", [
+	"pending",
+	"sending",
+	"sent",
+	"failed",
+]);
+
 export const provider = pgTable("provider", {
 	id: text("id").primaryKey(),
 	category: text("category").notNull(),
@@ -404,12 +419,57 @@ export const attendee = pgTable(
 	}),
 );
 
+export const eventEmailDelivery = pgTable(
+	"event_email_delivery",
+	{
+		id: text("id").primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		orderId: text("order_id").references(() => eventOrder.id, {
+			onDelete: "set null",
+		}),
+		attendeeId: text("attendee_id").references(() => attendee.id, {
+			onDelete: "set null",
+		}),
+		recipientEmail: text("recipient_email").notNull(),
+		recipientName: text("recipient_name"),
+		type: eventEmailType("type").notNull(),
+		status: eventEmailStatus("status").notNull().default("pending"),
+		subject: text("subject"),
+		replyTo: text("reply_to"),
+		providerMessageId: text("provider_message_id"),
+		lastError: text("last_error"),
+		attemptCount: integer("attempt_count").notNull().default(0),
+		scheduledAt: timestamp("scheduled_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		sentAt: timestamp("sent_at", { withTimezone: true }),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		statusScheduledIdx: index("event_email_delivery_status_scheduled_idx").on(
+			table.status,
+			table.scheduledAt,
+		),
+		eventTypeRecipientIdx: index(
+			"event_email_delivery_event_type_recipient_idx",
+		).on(table.eventId, table.type, table.recipientEmail),
+	}),
+);
+
 export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
 export type TicketType = typeof ticketType.$inferSelect;
 export type EventOrder = typeof eventOrder.$inferSelect;
 export type EventOrderItem = typeof eventOrderItem.$inferSelect;
 export type WaitlistEntry = typeof waitlistEntry.$inferSelect;
 export type Attendee = typeof attendee.$inferSelect;
+export type EventEmailDelivery = typeof eventEmailDelivery.$inferSelect;
+export type InsertEventEmailDelivery = typeof eventEmailDelivery.$inferInsert;
 
 export const workerLog = pgTable("worker_log", {
 	id: bigserial("id", { mode: "number" }).primaryKey(),
