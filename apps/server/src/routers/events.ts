@@ -1,7 +1,8 @@
-import { TRPCError } from "@trpc/server";
 import { randomUUID } from "node:crypto";
+import { TRPCError } from "@trpc/server";
 import {
 	and,
+	asc,
 	count,
 	desc,
 	eq,
@@ -10,9 +11,11 @@ import {
 	inArray,
 	isNull,
 	lte,
+	not,
 	or,
 	type SQL,
 	sql,
+	sum,
 } from "drizzle-orm";
 // import { PostgresError } from "postgres";
 import { z } from "zod";
@@ -20,11 +23,13 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
 	attendee,
+	attendeeProfile,
 	event,
 	eventOrder,
 	flag,
 	organizationProvider,
 	provider,
+	ticketType,
 } from "@/db/schema/app";
 import { member, organization } from "@/db/schema/auth";
 import {
@@ -33,6 +38,7 @@ import {
 	parseHeroMedia,
 	parseLandingPage,
 } from "@/lib/event-content";
+import { parseEventMessagingSettings } from "@/lib/events/messaging";
 import {
 	createRegistrationDraft,
 	enqueueWaitlist,
@@ -40,6 +46,7 @@ import {
 	markWaitlistEntryAsConverted,
 	RegistrationError,
 } from "@/lib/events/registration";
+import { queueEmailDelivery } from "@/lib/mailer/deliveries";
 import { queueOrderConfirmationEmail } from "@/lib/mailer/triggers";
 import { isStripeConfigured, upsertPaymentIntent } from "@/lib/payments/stripe";
 import {
@@ -50,6 +57,335 @@ import {
 } from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
+
+const ATTENDEE_DEFAULT_PAGE_SIZE = 50;
+const attendeeSortOptions = [
+	"created_desc",
+	"created_asc",
+	"check_in_desc",
+] as const;
+const checkInFilterOptions = ["checked_in", "not_checked_in"] as const;
+
+const attendeeFilterSchema = z.object({
+	status: z.array(z.enum(attendee.status.enumValues)).optional(),
+	checkedIn: z.enum(checkInFilterOptions).optional(),
+	noShow: z.boolean().optional(),
+	q: z.string().trim().min(1).optional(),
+});
+
+const attendeeListInput = attendeeFilterSchema.extend({
+	eventId: z.string().min(1),
+	page: z.number().int().min(1).optional(),
+	limit: z.number().int().min(1).max(200).optional(),
+	sort: z.enum(attendeeSortOptions).optional(),
+});
+
+const attendeeExportInput = attendeeFilterSchema.extend({
+	eventId: z.string().min(1),
+});
+
+const updateAttendeeStatusInput = z.object({
+	attendeeId: z.string().min(1),
+	status: z.enum(attendee.status.enumValues),
+	noShow: z.boolean().optional(),
+});
+
+const bulkAnnouncementAudience = [
+	"all",
+	"registered",
+	"checked_in",
+	"not_checked_in",
+	"waitlist",
+	"no_show",
+] as const;
+
+const bulkAnnouncementInput = z.object({
+	eventId: z.string().min(1),
+	subject: z.string().trim().min(1),
+	message: z.string().trim().min(1),
+	audience: z.enum(bulkAnnouncementAudience).default("all"),
+	previewText: z.string().trim().optional(),
+});
+
+const analyticsOverviewInput = z.object({
+	eventId: z.string().min(1),
+});
+
+const analyticsTimeseriesInput = z.object({
+	eventId: z.string().min(1),
+	start: z
+		.string()
+		.datetime({ offset: true })
+		.transform((value) => new Date(value))
+		.optional(),
+	end: z
+		.string()
+		.datetime({ offset: true })
+		.transform((value) => new Date(value))
+		.optional(),
+	interval: z.enum(["day", "week"]).default("day"),
+});
+
+type AttendeeListInput = z.infer<typeof attendeeListInput>;
+type AttendeeExportInput = z.infer<typeof attendeeExportInput>;
+type AnalyticsTimeseriesInput = z.infer<typeof analyticsTimeseriesInput>;
+
+type AttendeeSelection = {
+	id: string;
+	status: (typeof attendee.status.enumValues)[number];
+	confirmationCode: string;
+	checkInAt: Date | null;
+	noShow: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+	profileId: string | null;
+	profileName: string | null;
+	profileEmail: string | null;
+	profilePhone: string | null;
+	ticketId: string | null;
+	ticketName: string | null;
+	orderId: string | null;
+	orderStatus: (typeof eventOrder.status.enumValues)[number] | null;
+	orderConfirmationCode: string | null;
+	orderContactEmail: string | null;
+	orderContactName: string | null;
+};
+
+type AttendeeListItem = {
+	id: string;
+	status: (typeof attendee.status.enumValues)[number];
+	confirmationCode: string;
+	checkInAt: Date | null;
+	noShow: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+	name: string | null;
+	email: string | null;
+	phone: string | null;
+	ticket: { id: string; name: string } | null;
+	order: {
+		id: string;
+		status: (typeof eventOrder.status.enumValues)[number];
+		confirmationCode: string | null;
+		contactEmail: string | null;
+	} | null;
+};
+
+const attendeeSelectionColumns = {
+	id: attendee.id,
+	status: attendee.status,
+	confirmationCode: attendee.confirmationCode,
+	checkInAt: attendee.checkInAt,
+	noShow: attendee.noShow,
+	createdAt: attendee.createdAt,
+	updatedAt: attendee.updatedAt,
+	profileId: attendee.profileId,
+	profileName: attendeeProfile.displayName,
+	profileEmail: attendeeProfile.email,
+	profilePhone: attendeeProfile.phone,
+	ticketId: attendee.ticketTypeId,
+	ticketName: ticketType.name,
+	orderId: attendee.orderId,
+	orderStatus: eventOrder.status,
+	orderConfirmationCode: eventOrder.confirmationCode,
+	orderContactEmail: eventOrder.contactEmail,
+	orderContactName: eventOrder.contactName,
+} satisfies Record<string, unknown>;
+
+type AnalyticsTimeseriesPoint = {
+	bucket: string;
+	registrations: number;
+	checkIns: number;
+	revenueCents: number;
+	confirmedOrders: number;
+};
+
+function mapAttendeeSelection(row: AttendeeSelection): AttendeeListItem {
+	const name = row.profileName ?? row.orderContactName ?? null;
+	const email = row.profileEmail ?? row.orderContactEmail ?? null;
+	const phone = row.profilePhone ?? null;
+	const ticket =
+		row.ticketId && row.ticketName
+			? { id: row.ticketId, name: row.ticketName }
+			: null;
+	const order = row.orderId
+		? {
+				id: row.orderId,
+				status: row.orderStatus ?? "pending_payment",
+				confirmationCode: row.orderConfirmationCode,
+				contactEmail: row.orderContactEmail,
+			}
+		: null;
+
+	return {
+		id: row.id,
+		status: row.status,
+		confirmationCode: row.confirmationCode,
+		checkInAt: row.checkInAt,
+		noShow: row.noShow,
+		createdAt: row.createdAt,
+		updatedAt: row.updatedAt,
+		name,
+		email,
+		phone,
+		ticket,
+		order,
+	} satisfies AttendeeListItem;
+}
+
+function buildAttendeeWhereClauses(
+	input: AttendeeExportInput | AttendeeListInput,
+): SQL<unknown>[] {
+	const clauses: SQL<unknown>[] = [eq(attendee.eventId, input.eventId)];
+	if (input.status && input.status.length > 0) {
+		clauses.push(inArray(attendee.status, input.status));
+	}
+	if (input.checkedIn === "checked_in") {
+		clauses.push(not(isNull(attendee.checkInAt)));
+	} else if (input.checkedIn === "not_checked_in") {
+		clauses.push(isNull(attendee.checkInAt));
+	}
+	if (input.noShow !== undefined) {
+		clauses.push(eq(attendee.noShow, input.noShow));
+	}
+	if (input.q && input.q.length > 0) {
+		const term = `%${input.q.replace(/\s+/g, " ")}%`;
+		clauses.push(
+			or(
+				ilike(attendee.confirmationCode, term),
+				ilike(attendeeProfile.email, term),
+				ilike(attendeeProfile.displayName, term),
+				ilike(eventOrder.contactEmail, term),
+			),
+		);
+	}
+	return clauses;
+}
+
+function sanitizeCsvValue(value: unknown): string {
+	if (value === null || value === undefined) return "";
+	const text = String(value);
+	if (text.includes('"') || text.includes(",") || text.includes("\n")) {
+		return `"${text.replace(/"/g, '""')}"`;
+	}
+	return text;
+}
+
+function buildAttendeeCsv(rows: AttendeeListItem[]): string {
+	const header = [
+		"Attendee ID",
+		"Name",
+		"Email",
+		"Phone",
+		"Status",
+		"Confirmation Code",
+		"Ticket",
+		"Order ID",
+		"Order Status",
+		"Order Confirmation",
+		"Checked In At",
+		"No Show",
+		"Created At",
+	];
+	const lines = [header.map(sanitizeCsvValue).join(",")];
+	for (const row of rows) {
+		lines.push(
+			[
+				row.id,
+				row.name,
+				row.email,
+				row.phone,
+				row.status,
+				row.confirmationCode,
+				row.ticket?.name ?? "",
+				row.order?.id ?? "",
+				row.order?.status ?? "",
+				row.order?.confirmationCode ?? "",
+				row.checkInAt ? row.checkInAt.toISOString() : "",
+				row.noShow ? "true" : "false",
+				row.createdAt.toISOString(),
+			]
+				.map(sanitizeCsvValue)
+				.join(","),
+		);
+	}
+	return `${lines.join("\n")}\n`;
+}
+
+function normalizeAnnouncementHtml(message: string): {
+	html: string;
+	text: string;
+	preview: string | null;
+} {
+	const trimmed = message.trim();
+	const escapeParagraph = (paragraph: string) =>
+		paragraph
+			.replace(/&/g, "&amp;")
+			.replace(/</g, "&lt;")
+			.replace(/>/g, "&gt;");
+	const paragraphs = trimmed
+		.split(/\n{2,}/)
+		.map((paragraph) => paragraph.trim())
+		.filter((paragraph) => paragraph.length > 0);
+	const html = paragraphs.length
+		? paragraphs
+				.map((paragraph) => `<p>${escapeParagraph(paragraph)}</p>`)
+				.join("\n")
+		: `<p>${escapeParagraph(trimmed)}</p>`;
+	const text = trimmed;
+	const preview =
+		paragraphs.at(0) ??
+		trimmed.split("\n").find((line) => line.trim().length > 0) ??
+		null;
+	return {
+		html,
+		text,
+		preview:
+			preview && preview.length > 180 ? `${preview.slice(0, 177)}...` : preview,
+	};
+}
+
+function ensureDateRange(
+	input: Pick<AnalyticsTimeseriesInput, "start" | "end">,
+	fallbackInterval: "day" | "week",
+) {
+	const now = new Date();
+	const end = input.end && !Number.isNaN(input.end.getTime()) ? input.end : now;
+	const startCandidate =
+		input.start && !Number.isNaN(input.start.getTime()) ? input.start : null;
+	const msPerUnit =
+		fallbackInterval === "week" ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+	const defaultWindow = fallbackInterval === "week" ? 12 : 30;
+	const start =
+		startCandidate ?? new Date(end.getTime() - (defaultWindow - 1) * msPerUnit);
+	if (start > end) {
+		return {
+			start: new Date(end.getTime() - (defaultWindow - 1) * msPerUnit),
+			end,
+		};
+	}
+	return { start, end };
+}
+
+function generateSeriesBuckets(
+	start: Date,
+	end: Date,
+	interval: "day" | "week",
+): Date[] {
+	const buckets: Date[] = [];
+	const current = new Date(start);
+	current.setUTCHours(0, 0, 0, 0);
+	const limit = end.getTime();
+	while (current.getTime() <= limit) {
+		buckets.push(new Date(current));
+		if (interval === "week") {
+			current.setUTCDate(current.getUTCDate() + 7);
+		} else {
+			current.setUTCDate(current.getUTCDate() + 1);
+		}
+	}
+	return buckets;
+}
 
 const filterSchema = z.object({
 	providerId: z.string().min(1).optional(),
@@ -248,7 +584,11 @@ function normalizeLandingPageInput(value: LandingPageInput | undefined) {
 
 function isUniqueViolation(error: unknown) {
 	// return error instanceof PostgresError && error.code === "23505";
-	return (error as any)?.code === "23505";
+	if (!error || typeof error !== "object") {
+		return false;
+	}
+	const code = (error as { code?: string } | null)?.code;
+	return code === "23505";
 }
 
 const listInputSchema = filterSchema.extend({
@@ -595,7 +935,6 @@ function throwRegistrationError(error: RegistrationError): never {
 		case "ticket_sold_out":
 		case "capacity_exceeded":
 		case "max_per_order_exceeded":
-		default:
 			throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
 	}
 }
@@ -1048,6 +1387,405 @@ export const eventsRouter = router({
 				throw error;
 			}
 		}),
+	attendees: router({
+		list: adminProcedure.input(attendeeListInput).query(async ({ input }) => {
+			const page = input.page ?? 1;
+			const limit = input.limit ?? ATTENDEE_DEFAULT_PAGE_SIZE;
+			const whereClauses = buildAttendeeWhereClauses(input);
+			const whereCondition = and(...whereClauses);
+			const orderByExpressions = (() => {
+				switch (input.sort) {
+					case "created_asc":
+						return [asc(attendee.createdAt), asc(attendee.id)];
+					case "check_in_desc":
+						return [
+							desc(attendee.checkInAt),
+							desc(attendee.createdAt),
+							desc(attendee.id),
+						];
+					default:
+						return [desc(attendee.createdAt), desc(attendee.id)];
+				}
+			})();
+
+			const [totalResult, rows] = await Promise.all([
+				db
+					.select({ value: count() })
+					.from(attendee)
+					.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+					.leftJoin(ticketType, eq(ticketType.id, attendee.ticketTypeId))
+					.leftJoin(eventOrder, eq(eventOrder.id, attendee.orderId))
+					.where(whereCondition),
+				db
+					.select(attendeeSelectionColumns)
+					.from(attendee)
+					.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+					.leftJoin(ticketType, eq(ticketType.id, attendee.ticketTypeId))
+					.leftJoin(eventOrder, eq(eventOrder.id, attendee.orderId))
+					.where(whereCondition)
+					.orderBy(...orderByExpressions)
+					.offset((page - 1) * limit)
+					.limit(limit),
+			]);
+
+			const total = Number(totalResult.at(0)?.value ?? 0);
+			const items = rows.map((row) =>
+				mapAttendeeSelection(row as AttendeeSelection),
+			);
+
+			return { items, total, page, limit } as const;
+		}),
+		export: adminProcedure
+			.input(attendeeExportInput)
+			.mutation(async ({ input }) => {
+				const whereClauses = buildAttendeeWhereClauses(input);
+				const whereCondition = and(...whereClauses);
+				const rows = await db
+					.select(attendeeSelectionColumns)
+					.from(attendee)
+					.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+					.leftJoin(ticketType, eq(ticketType.id, attendee.ticketTypeId))
+					.leftJoin(eventOrder, eq(eventOrder.id, attendee.orderId))
+					.where(whereCondition)
+					.orderBy(desc(attendee.createdAt), desc(attendee.id));
+
+				const items = rows.map((row) =>
+					mapAttendeeSelection(row as AttendeeSelection),
+				);
+				const csv = buildAttendeeCsv(items);
+				const timestamp = new Date()
+					.toISOString()
+					.replace(/[:T]/g, "-")
+					.split(".")[0];
+				const filename = `attendees-${input.eventId}-${timestamp}.csv`;
+				return { filename, csv, count: items.length } as const;
+			}),
+		updateStatus: adminProcedure
+			.input(updateAttendeeStatusInput)
+			.mutation(async ({ input }) => {
+				const updates: Partial<typeof attendee.$inferInsert> = {
+					status: input.status,
+					updatedAt: sql`now()`,
+				};
+				if (input.status === "checked_in") {
+					updates.checkInAt = sql`now()`;
+					updates.noShow = false;
+				} else {
+					updates.checkInAt = null;
+					if (input.noShow === undefined) {
+						updates.noShow = false;
+					}
+				}
+				if (input.noShow !== undefined) {
+					updates.noShow = input.noShow;
+				}
+
+				const [updated] = await db
+					.update(attendee)
+					.set(updates)
+					.where(eq(attendee.id, input.attendeeId))
+					.returning({ id: attendee.id });
+
+				if (!updated) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Attendee not found",
+					});
+				}
+
+				const rows = await db
+					.select(attendeeSelectionColumns)
+					.from(attendee)
+					.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+					.leftJoin(ticketType, eq(ticketType.id, attendee.ticketTypeId))
+					.leftJoin(eventOrder, eq(eventOrder.id, attendee.orderId))
+					.where(eq(attendee.id, updated.id))
+					.limit(1);
+
+				const row = rows.at(0);
+				if (!row) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Attendee not found",
+					});
+				}
+
+				return mapAttendeeSelection(row as AttendeeSelection);
+			}),
+		announce: adminProcedure
+			.input(bulkAnnouncementInput)
+			.mutation(async ({ input }) => {
+				const eventRecord = await fetchEventOrThrow(input.eventId);
+				const filters: AttendeeExportInput = (() => {
+					const base: AttendeeExportInput = { eventId: input.eventId };
+					switch (input.audience) {
+						case "registered":
+							return {
+								...base,
+								status: ["registered", "reserved"],
+							};
+						case "checked_in":
+							return { ...base, status: ["checked_in"] };
+						case "not_checked_in":
+							return {
+								...base,
+								status: ["registered", "reserved"],
+								checkedIn: "not_checked_in",
+							};
+						case "waitlist":
+							return { ...base, status: ["waitlisted"] };
+						case "no_show":
+							return {
+								...base,
+								status: ["registered", "checked_in", "reserved"],
+								noShow: true,
+							};
+						default:
+							return {
+								...base,
+								status: ["registered", "checked_in", "reserved"],
+							};
+					}
+				})();
+
+				const whereClauses = buildAttendeeWhereClauses(filters);
+				const whereCondition = and(...whereClauses);
+				const rows = await db
+					.select(attendeeSelectionColumns)
+					.from(attendee)
+					.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+					.leftJoin(ticketType, eq(ticketType.id, attendee.ticketTypeId))
+					.leftJoin(eventOrder, eq(eventOrder.id, attendee.orderId))
+					.where(whereCondition);
+
+				const items = rows
+					.map((row) => mapAttendeeSelection(row as AttendeeSelection))
+					.filter((item) => item.email);
+
+				const seen = new Set<string>();
+				const recipients = items.filter((item) => {
+					if (!item.email) return false;
+					const normalized = item.email.toLowerCase();
+					if (seen.has(normalized)) return false;
+					seen.add(normalized);
+					return true;
+				});
+
+				if (recipients.length === 0) {
+					return { queued: 0, total: items.length } as const;
+				}
+
+				const messaging = parseEventMessagingSettings(
+					eventRecord.metadata as Record<string, unknown> | null | undefined,
+				);
+				const replyTo = messaging.replyToEmail ?? null;
+				const { html, text, preview } = normalizeAnnouncementHtml(
+					input.message,
+				);
+
+				await Promise.all(
+					recipients.map((recipient) =>
+						queueEmailDelivery({
+							eventId: input.eventId,
+							attendeeId: recipient.id,
+							orderId: recipient.order?.id ?? null,
+							recipientEmail: recipient.email ?? "",
+							recipientName: recipient.name,
+							type: "announcement",
+							replyTo,
+							subject: input.subject,
+							metadata: {
+								reason: "bulk_announcement",
+								audience: input.audience,
+								previewText: input.previewText ?? preview,
+								bodyHtml: html,
+								bodyText: text,
+								attendeeId: recipient.id,
+							},
+						}),
+					),
+				);
+
+				return { queued: recipients.length, total: items.length } as const;
+			}),
+	}),
+	analytics: router({
+		overview: adminProcedure
+			.input(analyticsOverviewInput)
+			.query(async ({ input }) => {
+				const [attendeeSummary] = await db
+					.select({
+						total: count(),
+						checkedIn: sql<number>`count(*) FILTER (WHERE ${attendee.status} = 'checked_in')`,
+						registered: sql<number>`count(*) FILTER (WHERE ${attendee.status} = 'registered')`,
+						reserved: sql<number>`count(*) FILTER (WHERE ${attendee.status} = 'reserved')`,
+						waitlisted: sql<number>`count(*) FILTER (WHERE ${attendee.status} = 'waitlisted')`,
+						cancelled: sql<number>`count(*) FILTER (WHERE ${attendee.status} = 'cancelled')`,
+						noShow: sql<number>`count(*) FILTER (WHERE ${attendee.noShow} = true)`,
+					})
+					.from(attendee)
+					.where(eq(attendee.eventId, input.eventId));
+
+				const [orderSummary] = await db
+					.select({
+						totalOrders: count(),
+						confirmedOrders: sql<number>`count(*) FILTER (WHERE ${eventOrder.status} = 'confirmed')`,
+						revenueCents: sum(eventOrder.totalCents),
+						currency: sql<string | null>`max(${eventOrder.currency})`,
+					})
+					.from(eventOrder)
+					.where(eq(eventOrder.eventId, input.eventId));
+
+				const totalRegistrations = Number(attendeeSummary?.total ?? 0);
+				const checkedIn = Number(attendeeSummary?.checkedIn ?? 0);
+				const registered = Number(attendeeSummary?.registered ?? 0);
+				const reserved = Number(attendeeSummary?.reserved ?? 0);
+				const waitlisted = Number(attendeeSummary?.waitlisted ?? 0);
+				const cancelled = Number(attendeeSummary?.cancelled ?? 0);
+				const noShow = Number(attendeeSummary?.noShow ?? 0);
+				const totalOrders = Number(orderSummary?.totalOrders ?? 0);
+				const confirmedOrders = Number(orderSummary?.confirmedOrders ?? 0);
+				const revenueCents = Number(orderSummary?.revenueCents ?? 0);
+				const attendanceBase = totalRegistrations > 0 ? totalRegistrations : 1;
+				const attendanceRate = checkedIn / attendanceBase;
+				const conversionBase = totalOrders > 0 ? totalOrders : 1;
+				const conversionRate = confirmedOrders / conversionBase;
+
+				return {
+					totals: {
+						registrations: totalRegistrations,
+						checkedIn,
+						registered,
+						reserved,
+						waitlisted,
+						cancelled,
+						noShow,
+					},
+					orders: {
+						total: totalOrders,
+						confirmed: confirmedOrders,
+						conversionRate,
+					},
+					revenue: {
+						cents: revenueCents,
+						currency: orderSummary?.currency ?? "usd",
+					},
+					attendanceRate,
+				} as const;
+			}),
+		timeseries: adminProcedure
+			.input(analyticsTimeseriesInput)
+			.query(async ({ input }) => {
+				const { start, end } = ensureDateRange(input, input.interval);
+				const registrationBucket =
+					input.interval === "week"
+						? sql<Date>`date_trunc('week', ${attendee.createdAt})`
+						: sql<Date>`date_trunc('day', ${attendee.createdAt})`;
+				const checkInBucket =
+					input.interval === "week"
+						? sql<Date>`date_trunc('week', ${attendee.checkInAt})`
+						: sql<Date>`date_trunc('day', ${attendee.checkInAt})`;
+				const revenueBucket =
+					input.interval === "week"
+						? sql<Date>`date_trunc('week', ${eventOrder.createdAt})`
+						: sql<Date>`date_trunc('day', ${eventOrder.createdAt})`;
+
+				const registrations = await db
+					.select({ bucket: registrationBucket, value: count() })
+					.from(attendee)
+					.where(
+						and(
+							eq(attendee.eventId, input.eventId),
+							gte(attendee.createdAt, start),
+							lte(attendee.createdAt, end),
+						),
+					)
+					.groupBy(registrationBucket)
+					.orderBy(registrationBucket);
+
+				const checkIns = await db
+					.select({ bucket: checkInBucket, value: count() })
+					.from(attendee)
+					.where(
+						and(
+							eq(attendee.eventId, input.eventId),
+							not(isNull(attendee.checkInAt)),
+							gte(attendee.checkInAt, start),
+							lte(attendee.checkInAt, end),
+						),
+					)
+					.groupBy(checkInBucket)
+					.orderBy(checkInBucket);
+
+				const revenueRows = await db
+					.select({
+						bucket: revenueBucket,
+						revenueCents: sum(eventOrder.totalCents),
+						confirmed: sql<number>`count(*) FILTER (WHERE ${eventOrder.status} = 'confirmed')`,
+					})
+					.from(eventOrder)
+					.where(
+						and(
+							eq(eventOrder.eventId, input.eventId),
+							gte(eventOrder.createdAt, start),
+							lte(eventOrder.createdAt, end),
+						),
+					)
+					.groupBy(revenueBucket)
+					.orderBy(revenueBucket);
+
+				const registrationMap = new Map<string, number>();
+				for (const row of registrations) {
+					const key = row.bucket?.toISOString();
+					if (key) {
+						registrationMap.set(key, Number(row.value ?? 0));
+					}
+				}
+				const checkInMap = new Map<string, number>();
+				for (const row of checkIns) {
+					const key = row.bucket?.toISOString();
+					if (key) {
+						checkInMap.set(key, Number(row.value ?? 0));
+					}
+				}
+				const revenueMap = new Map<
+					string,
+					{ revenue: number; confirmed: number }
+				>();
+				for (const row of revenueRows) {
+					const key = row.bucket?.toISOString();
+					if (key) {
+						revenueMap.set(key, {
+							revenue: Number(row.revenueCents ?? 0),
+							confirmed: Number(row.confirmed ?? 0),
+						});
+					}
+				}
+
+				const buckets = generateSeriesBuckets(start, end, input.interval);
+				const points: AnalyticsTimeseriesPoint[] = buckets.map((bucket) => {
+					const key = bucket.toISOString();
+					const revenueEntry = revenueMap.get(key) ?? {
+						revenue: 0,
+						confirmed: 0,
+					};
+					return {
+						bucket: key,
+						registrations: registrationMap.get(key) ?? 0,
+						checkIns: checkInMap.get(key) ?? 0,
+						revenueCents: revenueEntry.revenue,
+						confirmedOrders: revenueEntry.confirmed,
+					} satisfies AnalyticsTimeseriesPoint;
+				});
+
+				return {
+					start: start.toISOString(),
+					end: end.toISOString(),
+					interval: input.interval,
+					points,
+				} as const;
+			}),
+	}),
 	stats: adminProcedure
 		.input(statsInputSchema.optional())
 		.query(async ({ input }) => {
