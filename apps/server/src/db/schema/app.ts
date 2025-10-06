@@ -90,21 +90,30 @@ export const flag = pgTable(
 );
 
 export const event = pgTable(
-	"event",
-	{
-		id: text("id").primaryKey(),
-		provider: text("provider_id")
-			.notNull()
-			.references(() => provider.id, { onDelete: "set null" }),
-		flag: text("flag_id").references(() => flag.id, { onDelete: "set null" }),
-		title: text("title").notNull(),
-		description: text("description"),
-		location: text("location"),
-		url: text("url"),
-		startAt: timestamp("start_at", { withTimezone: true }).notNull(),
-		endAt: timestamp("end_at", { withTimezone: true }),
-		isAllDay: boolean("is_all_day").default(false).notNull(),
-		isPublished: boolean("is_published").default(false).notNull(),
+        "event",
+        {
+                id: text("id").primaryKey(),
+                slug: text("slug").notNull(),
+                provider: text("provider_id")
+                        .notNull()
+                        .references(() => provider.id, { onDelete: "set null" }),
+                flag: text("flag_id").references(() => flag.id, { onDelete: "set null" }),
+                title: text("title").notNull(),
+                description: text("description"),
+                location: text("location"),
+                url: text("url"),
+                heroMedia: jsonb("hero_media")
+                        .$type<Record<string, unknown>>()
+                        .notNull()
+                        .default(sql`'{}'::jsonb`),
+                landingPage: jsonb("landing_page")
+                        .$type<Record<string, unknown>>()
+                        .notNull()
+                        .default(sql`'{}'::jsonb`),
+                startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+                endAt: timestamp("end_at", { withTimezone: true }),
+                isAllDay: boolean("is_all_day").default(false).notNull(),
+                isPublished: boolean("is_published").default(false).notNull(),
 		externalId: text("external_id"),
 		metadata: jsonb("metadata")
 			.$type<Record<string, unknown>>()
@@ -118,9 +127,10 @@ export const event = pgTable(
 		...timestamps,
 	},
 	(table) => ({
-		eventProviderExternalIdUnique: uniqueIndex(
-			"event_provider_id_external_id_unique",
-		).on(table.provider, table.externalId),
+                eventSlugUnique: uniqueIndex("event_slug_unique").on(table.slug),
+                eventProviderExternalIdUnique: uniqueIndex(
+                        "event_provider_id_external_id_unique",
+                ).on(table.provider, table.externalId),
 		statusStartAtIdx: index("status_start_at_idx").on(
 			table.status,
 			desc(table.startAt),

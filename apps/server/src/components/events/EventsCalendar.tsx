@@ -302,6 +302,13 @@ export function EventsCalendar({
                   </div>
                 </ScrollArea>
                 <DialogFooter className="gap-2">
+                  {selectedEvent.slug ? (
+                    <Button asChild>
+                      <Link href={`/events/${selectedEvent.slug}`} target="_blank" rel="noopener noreferrer">
+                        <LinkIcon className="mr-2 size-4" aria-hidden /> View landing page
+                      </Link>
+                    </Button>
+                  ) : null}
                   {selectedEvent.url ? (
                     <Button asChild variant="outline">
                       <Link

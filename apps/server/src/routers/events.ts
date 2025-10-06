@@ -1,23 +1,31 @@
+import { randomUUID } from "crypto";
 import { TRPCError } from "@trpc/server";
 import {
-	and,
-	count,
-	desc,
-	eq,
-	gte,
-	ilike,
-	inArray,
-	isNull,
-	lte,
-	or,
-	type SQL,
-	sql,
+        and,
+        count,
+        desc,
+        eq,
+        gte,
+        ilike,
+        inArray,
+        isNull,
+        lte,
+        or,
+        type SQL,
+        sql,
 } from "drizzle-orm";
+import { PostgresError } from "postgres";
 import { z } from "zod";
 
 import { db } from "@/db";
 import { event, flag, organizationProvider, provider } from "@/db/schema/app";
 import { member, organization } from "@/db/schema/auth";
+import {
+        parseHeroMedia,
+        parseLandingPage,
+        type EventHeroMedia,
+        type EventLandingPageContent,
+} from "@/lib/event-content";
 import { adminProcedure, protectedProcedure, router } from "@/lib/trpc";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -56,18 +64,21 @@ const filterSchema = z.object({
 type EventFilterInput = z.infer<typeof filterSchema>;
 
 type EventSelection = {
-	id: string;
-	providerId: string;
-	flagId: string | null;
-	title: string;
-	description: string | null;
-	location: string | null;
-	url: string | null;
-	startAt: Date;
-	endAt: Date | null;
-	isAllDay: boolean;
-	isPublished: boolean;
-	externalId: string | null;
+        id: string;
+        slug: string;
+        providerId: string;
+        flagId: string | null;
+        title: string;
+        description: string | null;
+        location: string | null;
+        url: string | null;
+        heroMedia: Record<string, unknown> | null;
+        landingPage: Record<string, unknown> | null;
+        startAt: Date;
+        endAt: Date | null;
+        isAllDay: boolean;
+        isPublished: boolean;
+        externalId: string | null;
 	metadata: Record<string, unknown> | null;
 	status: (typeof event.status.enumValues)[number];
 	priority: number;
@@ -88,10 +99,10 @@ type AutoApprovalInfo = {
 };
 
 function parseAutoApproval(
-	metadata: Record<string, unknown> | null | undefined,
+        metadata: Record<string, unknown> | null | undefined,
 ): AutoApprovalInfo | null {
-	if (!metadata) return null;
-	const raw = metadata.auto_approval;
+        if (!metadata) return null;
+        const raw = metadata.auto_approval;
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 
 	const info = raw as Record<string, unknown>;
@@ -108,6 +119,116 @@ function parseAutoApproval(
 		at,
 		trustedProvider: reason === "trusted_provider",
 	} satisfies AutoApprovalInfo;
+}
+
+const slugSchema = z
+        .string()
+        .trim()
+        .min(1, "Slug is required")
+        .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+                message: "Use lowercase letters, numbers, and hyphens only",
+        });
+
+const heroMediaSchema = z
+        .object({
+                type: z.enum(["image", "video"]).optional(),
+                url: z
+                        .string()
+                        .trim()
+                        .url({ message: "Enter a valid URL" })
+                        .optional(),
+                alt: z.string().trim().optional(),
+                posterUrl: z
+                        .string()
+                        .trim()
+                        .url({ message: "Enter a valid poster URL" })
+                        .optional(),
+        })
+        .superRefine((value, ctx) => {
+                if (value.type && !value.url) {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                path: ["url"],
+                                message: "Provide a URL for the selected media type",
+                        });
+                }
+                if (value.posterUrl && value.type !== "video") {
+                        ctx.addIssue({
+                                code: z.ZodIssueCode.custom,
+                                path: ["posterUrl"],
+                                message: "Poster images are only supported for videos",
+                        });
+                }
+        });
+
+const landingPageSchema = z.object({
+        headline: z.string().trim().optional(),
+        subheadline: z.string().trim().optional(),
+        body: z.string().trim().optional(),
+        seoDescription: z.string().trim().optional(),
+        cta: z
+                .object({
+                        label: z.string().trim().optional(),
+                        href: z
+                                .string()
+                                .trim()
+                                .url({ message: "Enter a valid CTA URL" })
+                                .optional(),
+                })
+                .optional(),
+});
+
+type HeroMediaInput = z.infer<typeof heroMediaSchema>;
+type LandingPageInput = z.infer<typeof landingPageSchema>;
+
+function trimmedOrUndefined(value: string | null | undefined) {
+        const trimmed = value?.trim();
+        return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeHeroMediaInput(value: HeroMediaInput | undefined) {
+        if (!value) return {} as EventHeroMedia;
+        const url = trimmedOrUndefined(value.url ?? undefined);
+        const type = value.type && url ? value.type : undefined;
+        const alt = trimmedOrUndefined(value.alt ?? undefined);
+        const posterUrl =
+                type === "video" ? trimmedOrUndefined(value.posterUrl ?? undefined) : undefined;
+
+        const next: EventHeroMedia = {};
+        if (url) next.url = url;
+        if (type) next.type = type;
+        if (alt) next.alt = alt;
+        if (posterUrl) next.posterUrl = posterUrl;
+
+        return next;
+}
+
+function normalizeLandingPageInput(value: LandingPageInput | undefined) {
+        if (!value) return {} as EventLandingPageContent;
+        const headline = trimmedOrUndefined(value.headline ?? undefined);
+        const subheadline = trimmedOrUndefined(value.subheadline ?? undefined);
+        const body = trimmedOrUndefined(value.body ?? undefined);
+        const seoDescription = trimmedOrUndefined(value.seoDescription ?? undefined);
+
+        const ctaLabel = trimmedOrUndefined(value.cta?.label ?? undefined);
+        const ctaHref = trimmedOrUndefined(value.cta?.href ?? undefined);
+
+        const next: EventLandingPageContent = {};
+        if (headline) next.headline = headline;
+        if (subheadline) next.subheadline = subheadline;
+        if (body) next.body = body;
+        if (seoDescription) next.seoDescription = seoDescription;
+        if (ctaLabel || ctaHref) {
+                next.cta = {};
+                if (ctaLabel) next.cta.label = ctaLabel;
+                if (ctaHref) next.cta.href = ctaHref;
+        }
+
+        return next;
+}
+
+function isUniqueViolation(error: unknown) {
+        return error instanceof PostgresError && error.code === "23505";
 }
 
 const listInputSchema = filterSchema.extend({
@@ -132,15 +253,16 @@ const bulkUpdateStatusInput = z.object({
 });
 
 const updateEventInput = z
-	.object({
-		id: z.string().min(1),
-		title: z.string().trim().min(1).optional(),
-		description: z
-			.string()
-			.trim()
-			.transform((value) => (value.length === 0 ? null : value))
-			.nullable()
-			.optional(),
+        .object({
+                id: z.string().min(1),
+                title: z.string().trim().min(1).optional(),
+                slug: slugSchema.optional(),
+                description: z
+                        .string()
+                        .trim()
+                        .transform((value) => (value.length === 0 ? null : value))
+                        .nullable()
+                        .optional(),
 		location: z
 			.string()
 			.trim()
@@ -170,15 +292,17 @@ const updateEventInput = z
 			.transform((value) => (value.length === 0 ? null : value))
 			.nullable()
 			.optional(),
-		flagId: z.union([z.string().min(1), z.null()]).optional(),
-		providerId: z.string().min(1).optional(),
-		priority: z.number().int().min(1).max(5).optional(),
-		metadata: z.record(z.string(), z.unknown()).optional(),
-	})
-	.refine(
-		(data) =>
-			!(data.startAt && data.endAt instanceof Date) ||
-			data.endAt.getTime() >= data.startAt.getTime(),
+                flagId: z.union([z.string().min(1), z.null()]).optional(),
+                providerId: z.string().min(1).optional(),
+                priority: z.number().int().min(1).max(5).optional(),
+                metadata: z.record(z.string(), z.unknown()).optional(),
+                heroMedia: heroMediaSchema.optional(),
+                landingPage: landingPageSchema.optional(),
+        })
+        .refine(
+                (data) =>
+                        !(data.startAt && data.endAt instanceof Date) ||
+                        data.endAt.getTime() >= data.startAt.getTime(),
 		{
 			message: "End time must be after start time",
 			path: ["endAt"],
@@ -192,23 +316,84 @@ const RECENT_EVENTS_MAX_LIMIT = 500;
 const RECENT_EVENTS_WINDOW_DAYS = 30;
 
 const recentEventsInput = z
-	.object({
-		limit: z.number().int().min(1).max(RECENT_EVENTS_MAX_LIMIT).optional(),
-	})
-	.optional();
+        .object({
+                limit: z.number().int().min(1).max(RECENT_EVENTS_MAX_LIMIT).optional(),
+        })
+        .optional();
+
+const createEventInput = z
+        .object({
+                title: z.string().trim().min(1),
+                slug: slugSchema,
+                description: z
+                        .string()
+                        .trim()
+                        .transform((value) => (value.length === 0 ? null : value))
+                        .nullable()
+                        .optional(),
+                location: z
+                        .string()
+                        .trim()
+                        .transform((value) => (value.length === 0 ? null : value))
+                        .nullable()
+                        .optional(),
+                url: z.string().trim().url().nullable().optional(),
+                startAt: z
+                        .string()
+                        .datetime({ offset: true })
+                        .transform((value) => new Date(value)),
+                endAt: z
+                        .union([
+                                z
+                                        .string()
+                                        .datetime({ offset: true })
+                                        .transform((value) => new Date(value)),
+                                z.null(),
+                                z.undefined(),
+                        ])
+                        .optional(),
+                isAllDay: z.boolean().optional().default(false),
+                isPublished: z.boolean().optional().default(false),
+                externalId: z
+                        .string()
+                        .trim()
+                        .transform((value) => (value.length === 0 ? null : value))
+                        .nullable()
+                        .optional(),
+                flagId: z.union([z.string().min(1), z.null()]).optional(),
+                providerId: z.string().min(1),
+                priority: z.number().int().min(1).max(5).default(3),
+                metadata: z.record(z.string(), z.unknown()).optional(),
+                heroMedia: heroMediaSchema.optional(),
+                landingPage: landingPageSchema.optional(),
+        })
+        .refine(
+                (data) =>
+                        !(data.startAt && data.endAt instanceof Date) ||
+                        data.endAt.getTime() >= data.startAt.getTime(),
+                {
+                        message: "End time must be after start time",
+                        path: ["endAt"],
+                },
+        );
+
+const deleteEventInput = z.object({ id: z.string().min(1) });
 
 const eventSelection = {
-	id: event.id,
-	providerId: event.provider,
-	flagId: event.flag,
-	title: event.title,
-	description: event.description,
-	location: event.location,
-	url: event.url,
-	startAt: event.startAt,
-	endAt: event.endAt,
-	isAllDay: event.isAllDay,
-	isPublished: event.isPublished,
+        id: event.id,
+        slug: event.slug,
+        providerId: event.provider,
+        flagId: event.flag,
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        url: event.url,
+        heroMedia: event.heroMedia,
+        landingPage: event.landingPage,
+        startAt: event.startAt,
+        endAt: event.endAt,
+        isAllDay: event.isAllDay,
+        isPublished: event.isPublished,
 	externalId: event.externalId,
 	metadata: event.metadata,
 	status: event.status,
@@ -285,19 +470,22 @@ function mapEvent(row: EventSelection) {
 	const metadata = (row.metadata ?? {}) as Record<string, unknown>;
 	const autoApproval = parseAutoApproval(metadata);
 
-	return {
-		id: row.id,
-		providerId: row.providerId,
-		flagId: row.flagId,
-		title: row.title,
-		description: row.description,
-		location: row.location,
-		url: row.url,
-		startAt: row.startAt,
-		endAt: row.endAt,
-		isAllDay: row.isAllDay,
-		isPublished: row.isPublished,
-		externalId: row.externalId,
+        return {
+                id: row.id,
+                slug: row.slug,
+                providerId: row.providerId,
+                flagId: row.flagId,
+                title: row.title,
+                description: row.description,
+                location: row.location,
+                url: row.url,
+                heroMedia: parseHeroMedia(row.heroMedia),
+                landingPage: parseLandingPage(row.landingPage),
+                startAt: row.startAt,
+                endAt: row.endAt,
+                isAllDay: row.isAllDay,
+                isPublished: row.isPublished,
+                externalId: row.externalId,
 		metadata,
 		autoApproval,
 		status: row.status,
@@ -351,18 +539,21 @@ export const eventsRouter = router({
 				now.getTime() + RECENT_EVENTS_WINDOW_DAYS * 24 * 60 * 60 * 1000,
 			);
 
-			const rows = await db
-				.select({
-					id: event.id,
-					title: event.title,
-					description: event.description,
-					location: event.location,
-					url: event.url,
-					startAt: event.startAt,
-					endAt: event.endAt,
-					metadata: event.metadata,
-					organizationId: organization.id,
-					organizationName: organization.name,
+                        const rows = await db
+                                .select({
+                                        id: event.id,
+                                        slug: event.slug,
+                                        title: event.title,
+                                        description: event.description,
+                                        location: event.location,
+                                        url: event.url,
+                                        heroMedia: event.heroMedia,
+                                        landingPage: event.landingPage,
+                                        startAt: event.startAt,
+                                        endAt: event.endAt,
+                                        metadata: event.metadata,
+                                        organizationId: organization.id,
+                                        organizationName: organization.name,
 					organizationSlug: organization.slug,
 					providerName: provider.name,
 				})
@@ -394,17 +585,20 @@ export const eventsRouter = router({
 				.orderBy(event.startAt, event.id)
 				.limit(limit);
 
-			return rows.map((row) => ({
-				id: row.id,
-				title: row.title,
-				description: row.description,
-				location: row.location,
-				url: row.url,
-				startAt: row.startAt,
-				endAt: row.endAt,
-				organization: {
-					id: row.organizationId,
-					name: row.organizationName,
+                        return rows.map((row) => ({
+                                id: row.id,
+                                slug: row.slug,
+                                title: row.title,
+                                description: row.description,
+                                location: row.location,
+                                url: row.url,
+                                heroMedia: parseHeroMedia(row.heroMedia),
+                                landingPage: parseLandingPage(row.landingPage),
+                                startAt: row.startAt,
+                                endAt: row.endAt,
+                                organization: {
+                                        id: row.organizationId,
+                                        name: row.organizationName,
 					slug: row.organizationSlug,
 				},
 				providerName: row.providerName,
@@ -471,62 +665,150 @@ export const eventsRouter = router({
 
 			return fetchEventOrThrow(updated.id);
 		}),
-	bulkUpdateStatus: adminProcedure
-		.input(bulkUpdateStatusInput)
-		.mutation(async ({ input }) => {
-			const ids = Array.from(new Set(input.ids));
+        bulkUpdateStatus: adminProcedure
+                .input(bulkUpdateStatusInput)
+                .mutation(async ({ input }) => {
+                        const ids = Array.from(new Set(input.ids));
 
-			if (ids.length === 0) {
-				return { updatedCount: 0 } as const;
-			}
+                        if (ids.length === 0) {
+                                return { updatedCount: 0 } as const;
+                        }
 
-			const result = await db
-				.update(event)
-				.set({ status: input.status, updatedAt: sql`now()` })
-				.where(inArray(event.id, ids))
-				.returning({ id: event.id });
+                        const result = await db
+                                .update(event)
+                                .set({ status: input.status, updatedAt: sql`now()` })
+                                .where(inArray(event.id, ids))
+                                .returning({ id: event.id });
 
-			return { updatedCount: result.length } as const;
-		}),
-	update: adminProcedure.input(updateEventInput).mutation(async ({ input }) => {
-		const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+                        return { updatedCount: result.length } as const;
+                }),
+        create: adminProcedure.input(createEventInput).mutation(async ({ input }) => {
+                const heroMedia = normalizeHeroMediaInput(input.heroMedia);
+                const landingPage = normalizeLandingPageInput(input.landingPage);
+                const metadata = input.metadata ?? {};
 
-		if (input.title !== undefined) updates.title = input.title;
-		if (input.description !== undefined)
-			updates.description = input.description;
-		if (input.location !== undefined) updates.location = input.location;
-		if (input.url !== undefined) updates.url = input.url;
-		if (input.startAt !== undefined) updates.startAt = input.startAt;
+                try {
+                        const [created] = await db
+                                .insert(event)
+                                .values({
+                                        id: randomUUID(),
+                                        slug: input.slug,
+                                        provider: input.providerId,
+                                        flag: input.flagId ?? null,
+                                        title: input.title,
+                                        description: input.description ?? null,
+                                        location: input.location ?? null,
+                                        url: input.url ?? null,
+                                        heroMedia: heroMedia as Record<string, unknown>,
+                                        landingPage: landingPage as Record<string, unknown>,
+                                        startAt: input.startAt,
+                                        endAt:
+                                                input.endAt instanceof Date
+                                                        ? input.endAt
+                                                        : input.endAt ?? null,
+                                        isAllDay: input.isAllDay ?? false,
+                                        isPublished: input.isPublished ?? false,
+                                        externalId: input.externalId ?? null,
+                                        status: "pending",
+                                        priority: input.priority,
+                                        metadata,
+                                })
+                                .returning({ id: event.id });
+
+                        if (!created) {
+                                throw new TRPCError({
+                                        code: "INTERNAL_SERVER_ERROR",
+                                        message: "Unable to create event",
+                                });
+                        }
+
+                        return fetchEventOrThrow(created.id);
+                } catch (error) {
+                        if (isUniqueViolation(error)) {
+                                throw new TRPCError({
+                                        code: "CONFLICT",
+                                        message: "An event with this slug already exists.",
+                                        cause: error,
+                                });
+                        }
+                        throw error;
+                }
+        }),
+        update: adminProcedure.input(updateEventInput).mutation(async ({ input }) => {
+                const updates: Record<string, unknown> = { updatedAt: sql`now()` };
+
+                if (input.title !== undefined) updates.title = input.title;
+                if (input.slug !== undefined) updates.slug = input.slug;
+                if (input.description !== undefined)
+                        updates.description = input.description;
+                if (input.location !== undefined) updates.location = input.location;
+                if (input.url !== undefined) updates.url = input.url;
+                if (input.startAt !== undefined) updates.startAt = input.startAt;
 		if (input.endAt !== undefined) updates.endAt = input.endAt;
 		if (input.isAllDay !== undefined) updates.isAllDay = input.isAllDay;
 		if (input.isPublished !== undefined)
 			updates.isPublished = input.isPublished;
 		if (input.externalId !== undefined) updates.externalId = input.externalId;
 		if (input.flagId !== undefined) updates.flag = input.flagId;
-		if (input.providerId !== undefined) updates.provider = input.providerId;
-		if (input.priority !== undefined) updates.priority = input.priority;
-		if (input.metadata !== undefined) updates.metadata = input.metadata;
+                if (input.providerId !== undefined) updates.provider = input.providerId;
+                if (input.priority !== undefined) updates.priority = input.priority;
+                if (input.metadata !== undefined) updates.metadata = input.metadata;
+                if (input.heroMedia !== undefined)
+                        updates.heroMedia = normalizeHeroMediaInput(input.heroMedia) as Record<
+                                string,
+                                unknown
+                        >;
+                if (input.landingPage !== undefined)
+                        updates.landingPage = normalizeLandingPageInput(
+                                input.landingPage,
+                        ) as Record<string, unknown>;
 
-		if (Object.keys(updates).length === 1) {
-			return fetchEventOrThrow(input.id);
-		}
+                if (Object.keys(updates).length === 1) {
+                        return fetchEventOrThrow(input.id);
+                }
 
-		const [updated] = await db
-			.update(event)
-			.set(updates)
-			.where(eq(event.id, input.id))
-			.returning({ id: event.id });
+                try {
+                        const [updated] = await db
+                                .update(event)
+                                .set(updates)
+                                .where(eq(event.id, input.id))
+                                .returning({ id: event.id });
 
-		if (!updated) {
-			throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
-		}
+                        if (!updated) {
+                                throw new TRPCError({
+                                        code: "NOT_FOUND",
+                                        message: "Event not found",
+                                });
+                        }
 
-		return fetchEventOrThrow(updated.id);
-	}),
-	stats: adminProcedure
-		.input(statsInputSchema.optional())
-		.query(async ({ input }) => {
-			const filters = input ?? {};
+                        return fetchEventOrThrow(updated.id);
+                } catch (error) {
+                        if (isUniqueViolation(error)) {
+                                throw new TRPCError({
+                                        code: "CONFLICT",
+                                        message: "An event with this slug already exists.",
+                                        cause: error,
+                                });
+                        }
+                        throw error;
+                }
+        }),
+        delete: adminProcedure.input(deleteEventInput).mutation(async ({ input }) => {
+                const [deleted] = await db
+                        .delete(event)
+                        .where(eq(event.id, input.id))
+                        .returning({ id: event.id });
+
+                if (!deleted) {
+                        throw new TRPCError({ code: "NOT_FOUND", message: "Event not found" });
+                }
+
+                return { id: deleted.id } as const;
+        }),
+        stats: adminProcedure
+                .input(statsInputSchema.optional())
+                .query(async ({ input }) => {
+                        const filters = input ?? {};
 			const whereClauses = buildEventFilters(filters);
 
 			const grouped = await db
