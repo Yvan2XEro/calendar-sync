@@ -5,8 +5,9 @@ import { simpleParser } from "mailparser";
 import type { WorkerConfig } from "../config/env";
 import { insertEvent } from "../db/events";
 import { getProviderCursor, setProviderCursor } from "../db/providers";
+import { runIngestPipeline } from "../ingest";
 import { createBackoff } from "../services/backoff";
-import type { WorkerLogger } from "../services/log";
+import { metrics, type WorkerLogger } from "../services/log";
 import type { ImapConfig, ProviderRecord } from "../types/provider";
 import { extractEventFromEmail } from "../utils/mailparser";
 import { extractEventFromEmailFake } from "../utils/mailparser-test";
@@ -96,6 +97,11 @@ async function handleMessage(
 		parsed = await simpleParser(source as Buffer);
 	} catch (error) {
 		log.error("Failed to parse message", { uid, mailbox, error });
+		metrics.incrementCounter("worker_ingest_extraction_failure_total", 1, {
+			provider_id: provider.id,
+			mailbox,
+			reason: "parser",
+		});
 		return false;
 	}
 
@@ -138,26 +144,67 @@ async function handleMessage(
 		internal_date: internalDate ? internalDate.toISOString() : null,
 	} as Record<string, unknown>;
 
-	const status = provider.trusted
-		? "approved"
-		: (extraction.status ?? "pending");
-
-	if (provider.trusted) {
-		metadata.auto_approval = {
-			reason: "trusted_provider",
-			provider_id: provider.id,
-			at: new Date().toISOString(),
-		} satisfies Record<string, unknown>;
-	}
-
-	const inserted = await insertEvent({
-		...extraction,
-		status,
-		external_id: externalId,
-		metadata,
+	const ingestDecision = await runIngestPipeline({
+		context: {
+			provider,
+			logger: log,
+			metrics,
+			message: {
+				uid,
+				mailbox,
+				internalDate,
+				messageId: messageId ?? null,
+			},
+		},
+		extraction,
 	});
 
+	Object.assign(metadata, ingestDecision.metadataPatch);
+
+	if (!ingestDecision.proceed) {
+		log.info("Skipping event insert after ingest pipeline", {
+			uid,
+			mailbox,
+			reason: ingestDecision.skipReason ?? "unknown",
+			duplicateEventId: ingestDecision.duplicateEventId ?? null,
+		});
+		return false;
+	}
+
+	metadata.auto_approval = {
+		granted: ingestDecision.autoApproved,
+		reason: ingestDecision.autoApprovalReason,
+		decided_at: new Date().toISOString(),
+	} satisfies Record<string, unknown>;
+
+	let inserted: { id: string } | null = null;
+	try {
+		inserted = await insertEvent({
+			...extraction,
+			status: ingestDecision.status,
+			external_id: externalId,
+			metadata,
+		});
+	} catch (error) {
+		metrics.incrementCounter("worker_ingest_insert_failure_total", 1, {
+			provider_id: provider.id,
+			mailbox,
+			reason: "sql_error",
+		});
+		log.error("Failed to insert event", {
+			uid,
+			mailbox,
+			error,
+		});
+		return false;
+	}
+
 	if (!inserted) {
+		metrics.incrementCounter("worker_ingest_insert_failure_total", 1, {
+			provider_id: provider.id,
+			mailbox,
+			reason: "conflict",
+		});
 		log.debug("Event already existed", {
 			externalId,
 			uid,

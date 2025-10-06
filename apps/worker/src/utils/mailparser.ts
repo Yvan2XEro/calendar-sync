@@ -2,7 +2,11 @@ import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
 
-import { logger as baseLogger, type WorkerLogger } from "../services/log";
+import {
+	logger as baseLogger,
+	metrics,
+	type WorkerLogger,
+} from "../services/log";
 
 export const eventStatuses = ["pending", "approved", "rejected"] as const;
 
@@ -116,6 +120,10 @@ Follow the rules strictly and respond with either:
 		raw = (modelText || "").trim();
 	} catch (err) {
 		log.error("AI extraction error", { error: err });
+		metrics.incrementCounter("worker_ingest_extraction_failure_total", 1, {
+			provider_id,
+			reason: "llm_error",
+		});
 		return null;
 	}
 
@@ -134,6 +142,10 @@ Follow the rules strictly and respond with either:
 		log.warn("Extraction validation failed", {
 			issues: parsed.error.flatten(),
 		});
+		metrics.incrementCounter("worker_ingest_extraction_failure_total", 1, {
+			provider_id,
+			reason: "validation",
+		});
 		return null;
 	}
 
@@ -143,6 +155,10 @@ Follow the rules strictly and respond with either:
 		log.warn("Extraction end before start", {
 			startAt: parsed.data.start_at,
 			endAt: parsed.data.end_at,
+		});
+		metrics.incrementCounter("worker_ingest_extraction_failure_total", 1, {
+			provider_id,
+			reason: "temporal_validation",
 		});
 		return null;
 	}

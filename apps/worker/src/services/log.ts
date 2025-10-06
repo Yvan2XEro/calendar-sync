@@ -1,3 +1,4 @@
+import { createSocket } from "node:dgram";
 import { sql } from "bun";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -170,6 +171,216 @@ export interface WorkerLogger {
 	withContext(context: LogContext): WorkerLogger;
 }
 
+export type MetricTags = Record<
+	string,
+	string | number | boolean | null | undefined
+>;
+
+export interface WorkerMetrics {
+	incrementCounter(name: string, value?: number, tags?: MetricTags): void;
+}
+
+type CounterAlertState = {
+	threshold: number;
+	level: LogLevel;
+	message: string | null;
+	lastTriggeredValue: number;
+};
+
+type CounterAlertConfig = {
+	threshold: number;
+	level?: LogLevel;
+	message?: string;
+};
+
+class StatsdClient {
+	#socket = createSocket("udp4");
+	#host: string;
+	#port: number;
+	#prefix: string;
+	#lastErrorAt = 0;
+
+	constructor(options: { host: string; port: number; prefix?: string }) {
+		this.#host = options.host;
+		this.#port = options.port;
+		this.#prefix = options.prefix ?? "";
+		try {
+			this.#socket.unref();
+		} catch {
+			// Bun may not expose unref; ignore.
+		}
+	}
+
+	counter(name: string, value: number, tags?: MetricTags) {
+		const metricName = this.#sanitizeName(name);
+		const serializedTags = this.#formatTags(tags);
+		const payload = `${metricName}:${value}|c${serializedTags}`;
+		this.#send(payload);
+	}
+
+	close() {
+		try {
+			this.#socket.close();
+		} catch {
+			// ignore closing errors
+		}
+	}
+
+	#sanitizeName(name: string): string {
+		const sanitized = name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+		return `${this.#prefix}${sanitized}`;
+	}
+
+	#sanitizeTag(value: string): string {
+		return value.replace(/[^a-zA-Z0-9_.-]/g, "_");
+	}
+
+	#formatTags(tags?: MetricTags): string {
+		if (!tags) return "";
+		const entries = Object.entries(tags).filter(([, value]) => value != null);
+		if (entries.length === 0) return "";
+		const serialized = entries
+			.map(([key, value]) => {
+				const tagValue = this.#sanitizeTag(String(value));
+				return `${this.#sanitizeTag(key)}:${tagValue}`;
+			})
+			.join(",");
+		return serialized ? `|#${serialized}` : "";
+	}
+
+	#send(payload: string) {
+		try {
+			this.#socket.send(payload, this.#port, this.#host, (err) => {
+				if (err) this.#handleError(err);
+			});
+		} catch (error) {
+			this.#handleError(error);
+		}
+	}
+
+	#handleError(error: unknown) {
+		const now = Date.now();
+		if (now - this.#lastErrorAt < 60_000) return;
+		this.#lastErrorAt = now;
+		console.warn("[worker][metrics] StatsD send failed", error);
+	}
+}
+
+function createStatsdClientFromEnv(): StatsdClient | null {
+	const host = process.env.WORKER_STATSD_HOST;
+	const portRaw = process.env.WORKER_STATSD_PORT;
+	if (!host || !portRaw) return null;
+	const port = Number.parseInt(portRaw, 10);
+	if (Number.isNaN(port)) {
+		console.warn("[worker][metrics] Invalid WORKER_STATSD_PORT value", portRaw);
+		return null;
+	}
+	const prefix = process.env.WORKER_STATSD_PREFIX ?? "worker.";
+	return new StatsdClient({ host, port, prefix });
+}
+
+function resolveThreshold(envName: string, fallback: number): number | null {
+	const raw = process.env[envName];
+	if (raw == null) {
+		return fallback > 0 ? fallback : null;
+	}
+	const parsed = Number.parseInt(raw, 10);
+	if (Number.isNaN(parsed)) {
+		console.warn("[worker][metrics] Invalid numeric threshold", envName, raw);
+		return fallback > 0 ? fallback : null;
+	}
+	if (parsed <= 0) {
+		return null;
+	}
+	return parsed;
+}
+
+class WorkerMetricsImpl implements WorkerMetrics {
+	#statsd: StatsdClient | null;
+	#logger: WorkerLogger | null = null;
+	#counters = new Map<string, number>();
+	#alerts = new Map<string, CounterAlertState>();
+
+	constructor() {
+		this.#statsd = createStatsdClientFromEnv();
+	}
+
+	bindLogger(logger: WorkerLogger) {
+		this.#logger = logger;
+	}
+
+	incrementCounter(name: string, value = 1, tags?: MetricTags) {
+		const increment = Number.isFinite(value) ? value : 1;
+		const total = (this.#counters.get(name) ?? 0) + increment;
+		this.#counters.set(name, total);
+
+		if (this.#statsd) {
+			this.#statsd.counter(name, increment, tags);
+		}
+
+		this.#evaluateAlerts(name, total, tags);
+	}
+
+	registerCounterAlert(name: string, config: CounterAlertConfig) {
+		if (!Number.isFinite(config.threshold) || config.threshold <= 0) {
+			return;
+		}
+		this.#alerts.set(name, {
+			threshold: config.threshold,
+			level: config.level ?? "warn",
+			message: config.message ?? null,
+			lastTriggeredValue: 0,
+		});
+	}
+
+	shutdown() {
+		this.#statsd?.close();
+	}
+
+	#evaluateAlerts(name: string, value: number, tags?: MetricTags) {
+		const alert = this.#alerts.get(name);
+		if (!alert) return;
+		if (value < alert.threshold) return;
+		if (value - alert.lastTriggeredValue < alert.threshold) return;
+
+		alert.lastTriggeredValue = value;
+		this.#alerts.set(name, alert);
+
+		const payload: Record<string, unknown> = {
+			metric: name,
+			total: value,
+			threshold: alert.threshold,
+		};
+		if (tags) {
+			payload.tags = sanitizeValue(tags);
+		}
+
+		const message =
+			alert.message ?? `Metric ${name} exceeded threshold ${alert.threshold}`;
+		this.#log(alert.level, message, payload);
+	}
+
+	#log(level: LogLevel, message: string, payload: Record<string, unknown>) {
+		if (this.#logger) {
+			this.#logger[level](message, payload);
+			return;
+		}
+
+		const formatted = `[worker][metrics] ${message}`;
+		if (level === "error") {
+			console.error(formatted, payload);
+		} else if (level === "warn") {
+			console.warn(formatted, payload);
+		} else {
+			console.info(formatted, payload);
+		}
+	}
+}
+
+const metricsImpl = new WorkerMetricsImpl();
+
+export const metrics: WorkerMetrics = metricsImpl;
+
 class LoggerImpl implements WorkerLogger {
 	#context: LogContext;
 
@@ -229,10 +440,37 @@ class LoggerImpl implements WorkerLogger {
 
 export const logger: WorkerLogger = new LoggerImpl();
 
+metricsImpl.bindLogger(logger);
+
+const extractionFailureThreshold = resolveThreshold(
+	"WORKER_ALERT_EXTRACTION_FAILURE_THRESHOLD",
+	25,
+);
+if (extractionFailureThreshold) {
+	metricsImpl.registerCounterAlert("worker_ingest_extraction_failure_total", {
+		threshold: extractionFailureThreshold,
+		level: "warn",
+		message: "Extraction failure volume exceeded threshold",
+	});
+}
+
+const insertFailureThreshold = resolveThreshold(
+	"WORKER_ALERT_INSERT_FAILURE_THRESHOLD",
+	10,
+);
+if (insertFailureThreshold) {
+	metricsImpl.registerCounterAlert("worker_ingest_insert_failure_total", {
+		threshold: insertFailureThreshold,
+		level: "error",
+		message: "Insert failure volume exceeded threshold",
+	});
+}
+
 export function startWorkerLogSink() {
 	transport.start();
 }
 
 export async function stopWorkerLogSink() {
 	await transport.stop();
+	metricsImpl.shutdown();
 }
