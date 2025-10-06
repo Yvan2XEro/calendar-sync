@@ -175,6 +175,7 @@ export const event = pgTable(
 		isAllDay: boolean("is_all_day").default(false).notNull(),
 		isPublished: boolean("is_published").default(false).notNull(),
 		externalId: text("external_id"),
+		googleCalendarEventId: text("google_calendar_event_id"),
 		metadata: jsonb("metadata")
 			.$type<Record<string, unknown>>()
 			.default(sql`'{}'::jsonb`)
