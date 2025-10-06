@@ -1,5 +1,3 @@
-import { buildRoleSet, extractTukiClaims } from "./tuki";
-
 export type SessionLike =
 	| (Record<string, unknown> & {
 			user?:
@@ -27,19 +25,23 @@ export function getUserRoles(session: SessionLike): string[] {
 	const baseRoles = new Set<string>();
 	if (Array.isArray(record.roles)) {
 		for (const role of record.roles) {
-			if (typeof role === "string" && role.trim().length > 0) {
-				baseRoles.add(role);
+			if (typeof role === "string") {
+				const normalized = role.trim().toLowerCase();
+				if (normalized.length > 0) {
+					baseRoles.add(normalized);
+				}
 			}
 		}
 	}
 
-	if (typeof record.role === "string" && record.role.trim().length > 0) {
-		baseRoles.add(record.role);
+	if (typeof record.role === "string") {
+		const normalized = record.role.trim().toLowerCase();
+		if (normalized.length > 0) {
+			baseRoles.add(normalized);
+		}
 	}
 
-	const claims = extractTukiClaims(record);
-	const { roles } = buildRoleSet(baseRoles, claims);
-	return roles;
+	return Array.from(baseRoles);
 }
 
 export function isAdminSession(session: SessionLike): boolean {
