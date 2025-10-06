@@ -10,8 +10,8 @@ import {
 	DEFAULT_REMINDER_CADENCE_HOURS,
 	parseEventMessagingSettings,
 } from "@/lib/events/messaging";
-
 import { queueEmailDelivery } from "./deliveries";
+import { parseDigestMetadata } from "./digest";
 import { sendTransactionalEmail } from "./service";
 import type { MailerAttachment, MailerMessage } from "./types";
 
@@ -172,6 +172,8 @@ function defaultSubjectForType(
 			return `Thanks for joining ${eventTitle}`;
 		case "announcement":
 			return `Announcement: ${eventTitle}`;
+		case "digest":
+			return "Your events digest";
 		default:
 			return `Update for ${eventTitle}`;
 	}
@@ -296,6 +298,80 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 		}
 		context.delivery.attemptCount = update[0].attemptCount;
 		attempted += 1;
+
+		if (context.delivery.type === "digest") {
+			const digest = parseDigestMetadata(context.delivery.metadata);
+			const replyTo = resolveReplyToEmail(null, context.delivery.replyTo);
+			if (!digest) {
+				failed += 1;
+				await db
+					.update(eventEmailDelivery)
+					.set({
+						status: "failed",
+						lastError: "Digest metadata missing",
+						updatedAt: sql`now()`,
+					})
+					.where(eq(eventEmailDelivery.id, context.delivery.id));
+				continue;
+			}
+			if (!context.delivery.recipientEmail) {
+				failed += 1;
+				await db
+					.update(eventEmailDelivery)
+					.set({
+						status: "failed",
+						lastError: "Recipient email is missing",
+						subject:
+							context.delivery.subject ??
+							digest.content.subject ??
+							"Your events digest",
+						replyTo,
+						updatedAt: sql`now()`,
+					})
+					.where(eq(eventEmailDelivery.id, context.delivery.id));
+				continue;
+			}
+			const subject =
+				context.delivery.subject ??
+				digest.content.subject ??
+				"Your events digest";
+			const message: MailerMessage = {
+				to: context.delivery.recipientEmail,
+				subject,
+				html: digest.content.html,
+				text: digest.content.text,
+				replyTo,
+			};
+			const result = await sendTransactionalEmail(message);
+			if (result.success) {
+				sent += 1;
+				await db
+					.update(eventEmailDelivery)
+					.set({
+						status: "sent",
+						sentAt: sql`now()`,
+						providerMessageId: result.id ?? null,
+						subject,
+						replyTo,
+						lastError: null,
+						updatedAt: sql`now()`,
+					})
+					.where(eq(eventEmailDelivery.id, context.delivery.id));
+			} else {
+				failed += 1;
+				await db
+					.update(eventEmailDelivery)
+					.set({
+						status: "failed",
+						lastError: result.error,
+						subject,
+						replyTo,
+						updatedAt: sql`now()`,
+					})
+					.where(eq(eventEmailDelivery.id, context.delivery.id));
+			}
+			continue;
+		}
 
 		const settings = parseEventMessagingSettings(context.event.metadata ?? {});
 		const offsetHours = reminderOffsetFromMetadata(context.delivery.metadata);

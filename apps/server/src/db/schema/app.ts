@@ -73,6 +73,7 @@ export const eventEmailType = pgEnum("event_email_type", [
 	"cancellation",
 	"follow_up",
 	"announcement",
+	"digest",
 ]);
 
 export const eventEmailStatus = pgEnum("event_email_status", [
@@ -93,6 +94,8 @@ export const eventAutomationStatus = pgEnum("event_automation_status", [
 	"completed",
 	"failed",
 ]);
+
+export const digestSegment = pgEnum("digest_segment", ["joined", "discover"]);
 
 export const provider = pgTable("provider", {
 	id: text("id").primaryKey(),
@@ -506,6 +509,28 @@ export const eventEmailDelivery = pgTable(
 	],
 );
 
+export const digestSchedule = pgTable(
+	"digest_schedule",
+	{
+		id: text("id").primaryKey(),
+		segment: digestSegment("segment").notNull(),
+		enabled: boolean("enabled").notNull().default(false),
+		cadenceHours: integer("cadence_hours").notNull().default(168),
+		lookaheadDays: integer("lookahead_days").notNull().default(14),
+		lastSentAt: timestamp("last_sent_at", { withTimezone: true }),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		segmentUnique: uniqueIndex("digest_schedule_segment_unique").on(
+			table.segment,
+		),
+	}),
+);
+
 export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
 export type TicketType = typeof ticketType.$inferSelect;
 export type EventOrder = typeof eventOrder.$inferSelect;
@@ -514,6 +539,8 @@ export type WaitlistEntry = typeof waitlistEntry.$inferSelect;
 export type Attendee = typeof attendee.$inferSelect;
 export type EventEmailDelivery = typeof eventEmailDelivery.$inferSelect;
 export type InsertEventEmailDelivery = typeof eventEmailDelivery.$inferInsert;
+export type DigestSchedule = typeof digestSchedule.$inferSelect;
+export type InsertDigestSchedule = typeof digestSchedule.$inferInsert;
 
 export const workerLog = pgTable("worker_log", {
 	id: bigserial("id", { mode: "number" }).primaryKey(),
