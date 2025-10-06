@@ -440,6 +440,7 @@ type EventSelection = {
 	isAllDay: boolean;
 	isPublished: boolean;
 	externalId: string | null;
+	googleCalendarEventId: string | null;
 	metadata: Record<string, unknown> | null;
 	status: (typeof event.status.enumValues)[number];
 	priority: number;
@@ -796,6 +797,7 @@ const eventSelection = {
 	isAllDay: event.isAllDay,
 	isPublished: event.isPublished,
 	externalId: event.externalId,
+	googleCalendarEventId: event.googleCalendarEventId,
 	metadata: event.metadata,
 	status: event.status,
 	priority: event.priority,
@@ -932,6 +934,7 @@ function mapEvent(row: EventSelection) {
 		isAllDay: row.isAllDay,
 		isPublished: row.isPublished,
 		externalId: row.externalId,
+		googleCalendarEventId: row.googleCalendarEventId,
 		metadata,
 		autoApproval,
 		status: row.status,

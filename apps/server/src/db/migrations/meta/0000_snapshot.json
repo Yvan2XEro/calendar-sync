@@ -82,6 +82,12 @@
 					"primaryKey": false,
 					"notNull": false
 				},
+				"google_calendar_event_id": {
+					"name": "google_calendar_event_id",
+					"type": "text",
+					"primaryKey": false,
+					"notNull": false
+				},
 				"metadata": {
 					"name": "metadata",
 					"type": "jsonb",
@@ -405,6 +411,13 @@
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true
+				},
+				"config": {
+					"name": "config",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'{}'::jsonb"
 				}
 			},
 			"indexes": {
