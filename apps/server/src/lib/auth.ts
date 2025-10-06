@@ -80,5 +80,5 @@ export const auth = betterAuth<BetterAuthOptions>({
 });
 
 export async function enforceTukiSessionRoles(session: SessionLike) {
-	return hydrateSessionWithTukiClaims(session, TUKI_OAUTH_PROVIDER_ID);
+	return hydrateSessionWithTukiClaims(session);
 }
