@@ -36,7 +36,11 @@ const fetchPublishedEvent = cache(async (slug: string) => {
 		})
 		.from(event)
 		.where(
-			and(eq(event.slug, slug), eq(event.isPublished, true), eq(event.status, "approved")),
+			and(
+				eq(event.slug, slug),
+				eq(event.isPublished, true),
+				eq(event.status, "approved"),
+			),
 		)
 		.limit(1);
 
@@ -93,12 +97,12 @@ export async function generateMetadata({
 	const videos =
 		hero?.type === "video" && hero.url
 			? [
-					{
-						url: hero.url,
-						width: 1280,
-						height: 720,
-						alt: hero.alt,
-					},
+				{
+					url: hero.url,
+					width: 1280,
+					height: 720,
+					alt: hero.alt,
+				},
 			]
 			: undefined;
 
@@ -138,22 +142,26 @@ export default async function EventLandingPage({
 	if (!record) notFound();
 
 	const ticketsData = await getEventTicketInventory(record.id);
-	const tickets = ticketsData.map(({ ticket, remaining, used, saleOpen, soldOut }) => ({
-		id: ticket.id,
-		name: ticket.name,
-		description: ticket.description,
-		priceCents: ticket.priceCents,
-		currency: ticket.currency,
-		capacity: ticket.capacity,
-		maxPerOrder: ticket.maxPerOrder,
-		remaining,
-		used,
-		saleOpen,
-		soldOut,
-		isWaitlistEnabled: ticket.isWaitlistEnabled,
-	}));
+	const tickets = ticketsData.map(
+		({ ticket, remaining, used, saleOpen, soldOut }) => ({
+			id: ticket.id,
+			name: ticket.name,
+			description: ticket.description,
+			priceCents: ticket.priceCents,
+			currency: ticket.currency,
+			capacity: ticket.capacity,
+			maxPerOrder: ticket.maxPerOrder,
+			remaining,
+			used,
+			saleOpen,
+			soldOut,
+			isWaitlistEnabled: ticket.isWaitlistEnabled,
+		}),
+	);
 	const hasRegistration = tickets.length > 0;
-	const hasOnSaleTicket = tickets.some((ticket) => ticket.saleOpen && !ticket.soldOut);
+	const hasOnSaleTicket = tickets.some(
+		(ticket) => ticket.saleOpen && !ticket.soldOut,
+	);
 
 	const hasRichContent =
 		hasLandingContent(record.landingPage) || Boolean(record.heroMedia?.url);
@@ -181,11 +189,11 @@ export default async function EventLandingPage({
 	const landingForDetails =
 		heroCtaHref === "#register"
 			? {
-					...(record.landingPage ?? {}),
-					cta: {
-						label: heroCtaLabel ?? "Register now",
-						href: "#register",
-					},
+				...(record.landingPage ?? {}),
+				cta: {
+					label: heroCtaLabel ?? "Register now",
+					href: "#register",
+				},
 			}
 			: record.landingPage;
 
@@ -197,17 +205,20 @@ export default async function EventLandingPage({
 				endAt={record.endAt}
 				heroMedia={record.heroMedia}
 				landing={record.landingPage}
-				actionSlot=
+				actionSlot={
 					heroCtaHref && heroCtaLabel ? (
 						<a
 							className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-black shadow hover:bg-white/90"
 							href={heroCtaHref}
 							target={heroCtaHref.startsWith("#") ? undefined : "_blank"}
-							rel={heroCtaHref.startsWith("#") ? undefined : "noopener noreferrer"}
+							rel={
+								heroCtaHref.startsWith("#") ? undefined : "noopener noreferrer"
+							}
 						>
 							{heroCtaLabel}
 						</a>
 					) : undefined
+				}
 			/>
 			<EventLandingDetails
 				description={record.description}
@@ -218,7 +229,10 @@ export default async function EventLandingPage({
 				fallbackUrl={record.url}
 			/>
 			{hasRegistration ? (
-				<section id="register" className="container mx-auto w-full px-6 pb-16 sm:px-12">
+				<section
+					id="register"
+					className="container mx-auto w-full px-6 pb-16 sm:px-12"
+				>
 					<EventRegistrationSection
 						eventId={record.id}
 						eventTitle={record.title}
