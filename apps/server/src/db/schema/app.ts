@@ -228,12 +228,13 @@ export const attendeeProfile = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		organizationEmailUnique: uniqueIndex(
-			"event_attendee_profile_organization_id_email_unique",
-		).on(table.organizationId, table.email),
-		emailIndex: index("event_attendee_profile_email_idx").on(table.email),
-	}),
+	(table) => [
+		uniqueIndex("event_attendee_profile_organization_id_email_unique").on(
+			table.organizationId,
+			table.email,
+		),
+		index("event_attendee_profile_email_idx").on(table.email),
+	],
 );
 
 export const ticketType = pgTable(
@@ -259,12 +260,12 @@ export const ticketType = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		eventStatusIdx: index("event_ticket_type_event_id_status_idx").on(
+	(table) => [
+		index("event_ticket_type_event_id_status_idx").on(
 			table.eventId,
 			table.status,
 		),
-	}),
+	],
 );
 
 export const eventOrder = pgTable(
@@ -299,19 +300,14 @@ export const eventOrder = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		confirmationCodeUnique: uniqueIndex(
-			"event_order_confirmation_code_unique",
-		).on(table.confirmationCode),
-		eventStatusIdx: index("event_order_event_id_status_idx").on(
-			table.eventId,
-			table.status,
+	(table) => [
+		uniqueIndex("event_order_confirmation_code_unique").on(
+			table.confirmationCode,
 		),
-		paymentIntentIdx: index("event_order_payment_intent_idx").on(
-			table.paymentIntentId,
-		),
-		createdAtIdx: index("event_order_created_at_idx").on(table.createdAt),
-	}),
+		index("event_order_event_id_status_idx").on(table.eventId, table.status),
+		index("event_order_payment_intent_idx").on(table.paymentIntentId),
+		index("event_order_created_at_idx").on(table.createdAt),
+	],
 );
 
 export const eventOrderItem = pgTable(
@@ -333,11 +329,12 @@ export const eventOrderItem = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		orderTicketUnique: uniqueIndex(
-			"event_order_item_order_id_ticket_type_id_unique",
-		).on(table.orderId, table.ticketTypeId),
-	}),
+	(table) => [
+		uniqueIndex("event_order_item_order_id_ticket_type_id_unique").on(
+			table.orderId,
+			table.ticketTypeId,
+		),
+	],
 );
 
 export const waitlistEntry = pgTable(
@@ -367,12 +364,14 @@ export const waitlistEntry = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		eventTicketProfileUnique: uniqueIndex(
-			"event_waitlist_event_id_ticket_type_id_profile_id_unique",
-		).on(table.eventId, table.ticketTypeId, table.profileId),
-		statusIdx: index("event_waitlist_status_idx").on(table.status),
-	}),
+	(table) => [
+		uniqueIndex("event_waitlist_event_id_ticket_type_id_profile_id_unique").on(
+			table.eventId,
+			table.ticketTypeId,
+			table.profileId,
+		),
+		index("event_waitlist_status_idx").on(table.status),
+	],
 );
 
 export const attendee = pgTable(
@@ -410,15 +409,12 @@ export const attendee = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		confirmationCodeUnique: uniqueIndex(
-			"event_attendee_confirmation_code_unique",
-		).on(table.confirmationCode),
-		eventStatusIdx: index("event_attendee_event_id_status_idx").on(
-			table.eventId,
-			table.status,
+	(table) => [
+		uniqueIndex("event_attendee_confirmation_code_unique").on(
+			table.confirmationCode,
 		),
-	}),
+		index("event_attendee_event_id_status_idx").on(table.eventId, table.status),
+	],
 );
 
 export const eventEmailDelivery = pgTable(
@@ -453,15 +449,17 @@ export const eventEmailDelivery = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		statusScheduledIdx: index("event_email_delivery_status_scheduled_idx").on(
+	(table) => [
+		index("event_email_delivery_status_scheduled_idx").on(
 			table.status,
 			table.scheduledAt,
 		),
-		eventTypeRecipientIdx: index(
-			"event_email_delivery_event_type_recipient_idx",
-		).on(table.eventId, table.type, table.recipientEmail),
-	}),
+		index("event_email_delivery_event_type_recipient_idx").on(
+			table.eventId,
+			table.type,
+			table.recipientEmail,
+		),
+	],
 );
 
 export type AttendeeProfile = typeof attendeeProfile.$inferSelect;
