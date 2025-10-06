@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import type React from "react";
 
 import { RequireAdmin } from "@/components/admin/RequireAdmin";
-import { auth } from "@/lib/auth";
+import { auth, enforceTukiSessionRoles } from "@/lib/auth";
+import { getUserRoles } from "@/lib/session";
 
 export default async function AdminLayout({
 	children,
@@ -14,17 +15,13 @@ export default async function AdminLayout({
 	const session = await auth.api.getSession({
 		headers: headerList,
 	});
+	const normalized = await enforceTukiSessionRoles(session);
 
-	if (!session) {
+	if (!normalized.session) {
 		redirect("/auth/sign-in");
 	}
 
-	const userRole = (
-		session.user as typeof session.user & {
-			role?: string | null;
-		}
-	)?.role;
-	const roles = userRole ? [userRole] : [];
+	const roles = getUserRoles(normalized.session);
 
 	if (!roles.includes("admin")) {
 		redirect("/");
