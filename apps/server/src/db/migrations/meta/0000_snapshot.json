@@ -1270,6 +1270,86 @@
 			"policies": {},
 			"checkConstraints": {},
 			"isRLSEnabled": false
+		},
+		"public.digest_schedule": {
+			"name": "digest_schedule",
+			"schema": "",
+			"columns": {
+				"id": {
+					"name": "id",
+					"type": "text",
+					"primaryKey": true,
+					"notNull": true
+				},
+				"segment": {
+					"name": "segment",
+					"type": "digest_segment",
+					"typeSchema": "public",
+					"primaryKey": false,
+					"notNull": true
+				},
+				"enabled": {
+					"name": "enabled",
+					"type": "boolean",
+					"primaryKey": false,
+					"notNull": true,
+					"default": false
+				},
+				"cadence_hours": {
+					"name": "cadence_hours",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 168
+				},
+				"lookahead_days": {
+					"name": "lookahead_days",
+					"type": "integer",
+					"primaryKey": false,
+					"notNull": true,
+					"default": 14
+				},
+				"last_sent_at": {
+					"name": "last_sent_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": false
+				},
+				"metadata": {
+					"name": "metadata",
+					"type": "jsonb",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "'{}'::jsonb"
+				},
+				"created_at": {
+					"name": "created_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				},
+				"updated_at": {
+					"name": "updated_at",
+					"type": "timestamp with time zone",
+					"primaryKey": false,
+					"notNull": true,
+					"default": "now()"
+				}
+			},
+			"indexes": {},
+			"foreignKeys": {},
+			"compositePrimaryKeys": {},
+			"uniqueConstraints": {
+				"digest_schedule_segment_unique": {
+					"name": "digest_schedule_segment_unique",
+					"nullsNotDistinct": false,
+					"columns": ["segment"]
+				}
+			},
+			"policies": {},
+			"checkConstraints": {},
+			"isRLSEnabled": false
 		}
 	},
 	"enums": {
@@ -1292,6 +1372,29 @@
 			"name": "event_automation_status",
 			"schema": "public",
 			"values": ["pending", "processing", "completed", "failed"]
+		},
+		"public.event_email_type": {
+			"name": "event_email_type",
+			"schema": "public",
+			"values": [
+				"confirmation",
+				"reminder",
+				"update",
+				"cancellation",
+				"follow_up",
+				"announcement",
+				"digest"
+			]
+		},
+		"public.event_email_status": {
+			"name": "event_email_status",
+			"schema": "public",
+			"values": ["pending", "sending", "sent", "failed"]
+		},
+		"public.digest_segment": {
+			"name": "digest_segment",
+			"schema": "public",
+			"values": ["joined", "discover"]
 		}
 	},
 	"schemas": {},

@@ -1,3 +1,4 @@
+import { scheduleDigestDeliveries } from "@/lib/mailer/digest";
 import {
 	processPendingEmailDeliveries,
 	scheduleEventCommunications,
@@ -14,11 +15,15 @@ async function handleRequest(req: Request) {
 		}
 	}
 
+	const digestFeatureEnabled = process.env.FEATURE_DIGEST_EMAILS === "true";
 	const scheduled = await scheduleEventCommunications();
+	const digest = digestFeatureEnabled ? await scheduleDigestDeliveries() : null;
 	const processed = await processPendingEmailDeliveries();
 
 	return Response.json({
 		scheduled,
+		digest,
+		digestFeatureEnabled,
 		processed,
 	});
 }

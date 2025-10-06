@@ -3,6 +3,7 @@ import {
 	FlagIcon,
 	LayoutDashboard,
 	ListTodo,
+	Mail,
 	MessageSquare,
 	Network,
 	Users,
@@ -18,6 +19,7 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Users", href: "/admin/users", icon: Users },
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
+			{ title: "Email digests", href: "/admin/digests", icon: Mail },
 		],
 	},
 	{
