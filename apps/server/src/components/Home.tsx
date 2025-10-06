@@ -64,7 +64,7 @@ const navigation: NavigationGroup[] = [
 		items: [
 			{
 				title: "Dashboard",
-				href: "/" satisfies Route,
+				href: "/dashboard" satisfies Route,
 				icon: LayoutDashboard,
 			},
 			{
@@ -152,7 +152,10 @@ export default function Home() {
 									<SidebarMenu>
 										{group.items.map((item) => (
 											<SidebarMenuItem key={item.title}>
-												<SidebarMenuButton asChild isActive={item.href === "/"}>
+												<SidebarMenuButton
+													asChild
+													isActive={item.href === "/dashboard"}
+												>
 													{isRoute(item.href) ? (
 														<Link
 															href={item.href}
@@ -192,7 +195,7 @@ export default function Home() {
 								<BreadcrumbList>
 									<BreadcrumbItem>
 										<BreadcrumbLink asChild>
-											<Link href="/">Admin</Link>
+											<Link href="/admin/overview">Admin</Link>
 										</BreadcrumbLink>
 									</BreadcrumbItem>
 									<BreadcrumbSeparator />

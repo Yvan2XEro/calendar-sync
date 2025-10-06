@@ -78,7 +78,7 @@ export function SignedInHome({ session }: { session: SessionData }) {
 	return (
 		<AppShell
 			breadcrumbs={[
-				{ label: "Home", href: "/" },
+				{ label: "Dashboard", href: "/dashboard" },
 				{ label: "Overview", current: true },
 			]}
 			headerRight={<UserAvatar />}

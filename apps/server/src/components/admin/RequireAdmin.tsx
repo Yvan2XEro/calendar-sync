@@ -27,7 +27,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
 
 		if (!roles.includes("admin")) {
 			toast.error("Administrator access required");
-			router.replace("/");
+			router.replace("/dashboard");
 			return;
 		}
 

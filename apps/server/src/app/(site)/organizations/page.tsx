@@ -15,7 +15,7 @@ export default function OrganizationsPage() {
 	return (
 		<AppShell
 			breadcrumbs={[
-				{ label: "Home", href: "/" },
+				{ label: "Dashboard", href: "/dashboard" },
 				{ label: "Organizations", current: true },
 			]}
 			headerRight={<UserAvatar />}

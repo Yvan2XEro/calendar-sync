@@ -24,7 +24,7 @@ export default async function AdminLayout({
 	const roles = getUserRoles(normalized.session);
 
 	if (!roles.includes("admin")) {
-		redirect("/");
+		redirect("/dashboard");
 	}
 
 	return <RequireAdmin>{children}</RequireAdmin>;
