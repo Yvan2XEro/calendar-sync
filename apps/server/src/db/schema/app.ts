@@ -119,10 +119,6 @@ export const organizationProvider = pgTable(
 		providerId: text("provider_id")
 			.notNull()
 			.references(() => provider.id, { onDelete: "cascade" }),
-		config: jsonb("config")
-			.$type<Record<string, unknown>>()
-			.notNull()
-			.default(sql`'{}'::jsonb`),
 	},
 	(table) => ({
 		organizationProviderUnique: uniqueIndex(

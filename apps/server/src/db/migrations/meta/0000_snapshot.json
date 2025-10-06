@@ -411,13 +411,6 @@
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true
-				},
-				"config": {
-					"name": "config",
-					"type": "jsonb",
-					"primaryKey": false,
-					"notNull": true,
-					"default": "'{}'::jsonb"
 				}
 			},
 			"indexes": {

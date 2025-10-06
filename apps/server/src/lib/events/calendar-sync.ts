@@ -63,7 +63,7 @@ async function resolveOrganizationCalendar(
 	organizationId: string,
 ): Promise<OrganizationCalendarConfig | null> {
 	const rows = await db
-		.select({ config: organizationProvider.config })
+		.select({ config: provider.config })
 		.from(organizationProvider)
 		.innerJoin(provider, eq(provider.id, organizationProvider.providerId))
 		.where(
