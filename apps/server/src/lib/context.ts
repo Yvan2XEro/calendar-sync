@@ -1,11 +1,12 @@
-import { auth } from "./auth";
+import { auth, enforceTukiSessionRoles } from "./auth";
 
 export async function createContext(req: Request) {
 	const session = await auth.api.getSession({
 		headers: req.headers,
 	});
+	const normalized = await enforceTukiSessionRoles(session);
 	return {
-		session,
+		session: normalized.session,
 	};
 }
 

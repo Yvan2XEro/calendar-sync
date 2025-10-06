@@ -1,37 +1,45 @@
+import { buildRoleSet, extractTukiClaims } from "./tuki";
+
 export type SessionLike =
 	| (Record<string, unknown> & {
 			user?:
 				| (Record<string, unknown> & {
 						role?: string | null;
 						roles?: string[] | null;
+						tukiTier?: string | null;
+						tukiOrganizations?: string[] | null;
 				  })
 				| null;
 	  })
 	| null
 	| undefined;
 
-function isStringArray(value: unknown): value is string[] {
-	return (
-		Array.isArray(value) && value.every((item) => typeof item === "string")
-	);
-}
-
 export function getUserRoles(session: SessionLike): string[] {
 	if (!session) return [];
 	const user = session.user;
 	if (!user || typeof user !== "object") return [];
 
-	const possibleRoles = (user as { roles?: unknown }).roles;
-	if (isStringArray(possibleRoles) && possibleRoles.length > 0) {
-		return possibleRoles;
+	const record = user as Record<string, unknown> & {
+		role?: string | null;
+		roles?: string[] | null;
+	};
+
+	const baseRoles = new Set<string>();
+	if (Array.isArray(record.roles)) {
+		for (const role of record.roles) {
+			if (typeof role === "string" && role.trim().length > 0) {
+				baseRoles.add(role);
+			}
+		}
 	}
 
-	const singleRole = (user as { role?: unknown }).role;
-	if (typeof singleRole === "string" && singleRole.length > 0) {
-		return [singleRole];
+	if (typeof record.role === "string" && record.role.trim().length > 0) {
+		baseRoles.add(record.role);
 	}
 
-	return [];
+	const claims = extractTukiClaims(record);
+	const { roles } = buildRoleSet(baseRoles, claims);
+	return roles;
 }
 
 export function isAdminSession(session: SessionLike): boolean {

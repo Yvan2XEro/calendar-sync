@@ -6,6 +6,7 @@ import * as React from "react";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
+import { getUserRoles } from "@/lib/session";
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
@@ -22,12 +23,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
 			return;
 		}
 
-		const userRole = (
-			session.user as typeof session.user & {
-				role?: string | null;
-			}
-		)?.role;
-		const roles = userRole ? [userRole] : [];
+		const roles = getUserRoles(session);
 
 		if (!roles.includes("admin")) {
 			toast.error("Administrator access required");

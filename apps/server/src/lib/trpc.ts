@@ -1,5 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
+
 import type { Context } from "./context";
+import { getUserRoles } from "./session";
 
 const t = initTRPC.context<Context>().create();
 
@@ -24,12 +26,7 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 });
 
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-	const userRole = (
-		ctx.session.user as typeof ctx.session.user & {
-			role?: string | null;
-		}
-	)?.role;
-	const roles = userRole ? [userRole] : [];
+	const roles = getUserRoles(ctx.session);
 
 	if (!roles.includes("admin")) {
 		throw new TRPCError({

@@ -6,8 +6,26 @@ import {
 	openAPI,
 	organization,
 } from "better-auth/plugins";
+
 import { db } from "../db";
 import * as schema from "../db/schema/auth";
+import type { SessionLike } from "./session";
+import { hydrateSessionWithTukiClaims } from "./tuki";
+
+function requireEnv(name: string): string {
+	const value = process.env[name];
+	if (!value || value.trim().length === 0) {
+		throw new Error(`Missing required environment variable: ${name}`);
+	}
+	return value.trim();
+}
+
+const OIDC_PROVIDER_ID = requireEnv("NEXT_PUBLIC_OIDC_PROVIDER_ID");
+const OIDC_CLIENT_ID = requireEnv("OIDC_CLIENT_ID");
+const OIDC_CLIENT_SECRET = requireEnv("OIDC_CLIENT_SECRET");
+const OIDC_DISCOVERY_URL = requireEnv("OIDC_DISCOVERY_URL");
+
+export const TUKI_OAUTH_PROVIDER_ID = OIDC_PROVIDER_ID;
 
 export const auth = betterAuth<BetterAuthOptions>({
 	database: drizzleAdapter(db, {
@@ -16,7 +34,7 @@ export const auth = betterAuth<BetterAuthOptions>({
 	}),
 	trustedOrigins: (process.env.CORS_ORIGIN || "").split(","),
 	emailAndPassword: {
-		enabled: true,
+		enabled: false,
 	},
 	advanced: {
 		defaultCookieAttributes: {
@@ -33,10 +51,10 @@ export const auth = betterAuth<BetterAuthOptions>({
 		genericOAuth({
 			config: [
 				{
-					providerId: process.env.NEXT_PUBLIC_OIDC_PROVIDER_ID!,
-					clientId: process.env.OIDC_CLIENT_ID!,
-					clientSecret: process.env.OIDC_CLIENT_SECRET,
-					discoveryUrl: process.env.OIDC_DISCOVERY_URL,
+					providerId: TUKI_OAUTH_PROVIDER_ID,
+					clientId: OIDC_CLIENT_ID,
+					clientSecret: OIDC_CLIENT_SECRET,
+					discoveryUrl: OIDC_DISCOVERY_URL,
 
 					scopes: ["openid", "profile", "email"],
 					pkce: true,
@@ -60,3 +78,7 @@ export const auth = betterAuth<BetterAuthOptions>({
 		}),
 	],
 });
+
+export async function enforceTukiSessionRoles(session: SessionLike) {
+	return hydrateSessionWithTukiClaims(session, TUKI_OAUTH_PROVIDER_ID);
+}
