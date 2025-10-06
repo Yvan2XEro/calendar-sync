@@ -98,7 +98,7 @@ export default async function AuthPage({
 		<main className="hero-gradient container flex grow flex-col items-center justify-center self-center p-4 md:p-6">
 			<AuthView
 				path={path}
-				callbackURL="/admin/overview"
+				callbackURL="/dashboard"
 				cardHeader={
 					<>
 						<Link className="font-bold text-2xl" href="/">

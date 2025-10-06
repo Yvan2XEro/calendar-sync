@@ -23,7 +23,7 @@ export default function EventsPage() {
 	return (
 		<AppShell
 			breadcrumbs={[
-				{ label: "Home", href: "/" },
+				{ label: "Dashboard", href: "/dashboard" },
 				{ label: "Events", current: true },
 			]}
 			headerRight={<UserAvatar />}

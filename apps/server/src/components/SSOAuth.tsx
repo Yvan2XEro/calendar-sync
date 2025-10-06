@@ -27,7 +27,7 @@ export const SSOAuth = () => {
 		try {
 			const { error } = await authClient.signIn.oauth2({
 				providerId,
-				callbackURL: "/",
+				callbackURL: "/dashboard",
 			});
 			if (error) {
 				setErrorMessage(

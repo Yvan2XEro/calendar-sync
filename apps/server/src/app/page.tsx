@@ -1,12 +1,10 @@
-"use client";
-
-import { Loader2 } from "lucide-react";
+import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
-import { SignedInHome } from "@/components/dashboard/SignedInHome";
 import { HeaderNavWrapper } from "@/components/layout/HeaderNavWrapper";
-import { authClient } from "@/lib/auth-client";
+import { auth, enforceTukiSessionRoles } from "@/lib/auth";
 
 const featureItems = [
 	{
@@ -60,19 +58,15 @@ const testimonials = [
 const headingFont = { fontFamily: "Poppins, sans-serif" } as const;
 const bodyFont = { fontFamily: "DM Sans, sans-serif" } as const;
 
-export default function HomePage() {
-	const { data: session, isPending } = authClient.useSession();
+export default async function HomePage() {
+	const headerList = await headers();
+	const sessionResponse = await auth.api.getSession({
+		headers: headerList,
+	});
+	const normalized = await enforceTukiSessionRoles(sessionResponse);
 
-	if (isPending) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-white text-slate-500">
-				<Loader2 className="size-6 animate-spin" aria-label="Loading session" />
-			</div>
-		);
-	}
-
-	if (session) {
-		return <SignedInHome session={session} />;
+	if (normalized.session) {
+		redirect("/dashboard");
 	}
 
 	return (
@@ -200,28 +194,24 @@ export default function HomePage() {
 								with a single, intuitive platform.
 							</p>
 						</div>
-						<div className="grid gap-6 md:grid-cols-2">
+						<div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
 							{featureItems.map((feature) => (
 								<div
 									key={feature.title}
-									className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm"
+									className="space-y-4 rounded-2xl bg-white p-6 shadow-lg"
 								>
-									<div className="inline-flex size-12 items-center justify-center rounded-xl bg-[var(--accent)]/10">
-										<Image
-											src={feature.icon}
-											alt={feature.title}
-											width={36}
-											height={36}
-										/>
-									</div>
-									<div className="space-y-2">
-										<h3
-											className="font-semibold text-slate-900 text-xl"
-											style={headingFont}
-										>
+									<Image
+										src={feature.icon}
+										alt="Feature icon"
+										width={48}
+										height={48}
+										className="h-12 w-12"
+									/>
+									<div className="space-y-2 text-left">
+										<h3 className="font-semibold text-lg text-slate-900">
 											{feature.title}
 										</h3>
-										<p className="text-slate-600 text-sm" style={bodyFont}>
+										<p className="text-slate-600 text-sm">
 											{feature.description}
 										</p>
 									</div>
@@ -238,46 +228,76 @@ export default function HomePage() {
 								className="font-bold text-3xl text-slate-900 sm:text-4xl"
 								style={headingFont}
 							>
-								What our users say
+								Loved by operations teams everywhere
 							</h2>
 							<p
 								className="text-base text-slate-600 sm:text-lg"
 								style={bodyFont}
 							>
-								Teams across industries rely on CalendarSync to stay aligned.
+								Hear how CalendarSync keeps organizations aligned week after
+								week.
 							</p>
 						</div>
 						<div className="grid gap-6 md:grid-cols-3">
 							{testimonials.map((testimonial) => (
 								<div
 									key={testimonial.name}
-									className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+									className="space-y-4 rounded-2xl bg-white p-6 shadow-lg"
 								>
-									<div className="flex items-center gap-3">
-										<Image
-											src={testimonial.avatar}
-											alt={testimonial.name}
-											width={48}
-											height={48}
-											className="rounded-full"
-										/>
-										<div>
-											<p
-												className="font-semibold text-slate-900"
-												style={headingFont}
-											>
-												{testimonial.name}
-											</p>
-											<p className="text-slate-600 text-sm" style={bodyFont}>
-												{testimonial.role}
-											</p>
-										</div>
-									</div>
-									<p className="text-slate-600 text-sm" style={bodyFont}>
+									<p className="text-base text-slate-700" style={bodyFont}>
 										“{testimonial.quote}”
 									</p>
+									<div className="space-y-1 text-left">
+										<p
+											className="font-semibold text-slate-900"
+											style={bodyFont}
+										>
+											{testimonial.name}
+										</p>
+										<p className="text-slate-500 text-sm" style={bodyFont}>
+											{testimonial.role}
+										</p>
+									</div>
 								</div>
 							))}
+						</div>
+					</div>
+				</section>
+
+				<section className="relative overflow-hidden bg-[var(--primary)]">
+					<div
+						className="absolute inset-0 bg-gradient-to-r from-[var(--primary)] to-[var(--secondary)] opacity-90"
+						aria-hidden
+					/>
+					<div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-6 px-6 py-16 text-center text-white lg:px-10">
+						<h2
+							className="font-bold text-3xl leading-tight sm:text-4xl"
+							style={headingFont}
+						>
+							Ready to orchestrate every event?
+						</h2>
+						<p
+							className="max-w-2xl text-base text-white/90 sm:text-lg"
+							style={bodyFont}
+						>
+							Join organizations that trust CalendarSync to streamline event
+							intake, approval, and publishing with ease.
+						</p>
+						<div className="flex flex-wrap items-center justify-center gap-4">
+							<Link
+								href="/auth/sign-in"
+								className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 font-semibold text-[var(--primary)] text-sm shadow-lg transition hover:bg-white/90"
+								style={bodyFont}
+							>
+								Sign in with TUKI
+							</Link>
+							<a
+								href="mailto:team@calendarsync.app"
+								className="inline-flex items-center justify-center rounded-full border border-white/50 px-6 py-3 font-semibold text-sm text-white transition hover:border-white"
+								style={bodyFont}
+							>
+								Talk to our team
+							</a>
 						</div>
 					</div>
 				</section>

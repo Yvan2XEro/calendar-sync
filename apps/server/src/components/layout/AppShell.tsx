@@ -54,7 +54,7 @@ export type NavGroup = {
 export type Crumb = { label: string; href?: string; current?: boolean };
 
 const WORKSPACE_ITEMS: NavItem[] = [
-	{ title: "Overview", href: "/", icon: LayoutDashboard },
+	{ title: "Overview", href: "/dashboard", icon: LayoutDashboard },
 	{ title: "Events", href: "/events", icon: CalendarDays },
 	{ title: "Organizations", href: "/organizations", icon: Building2 },
 	{ title: "Account settings", href: "/account/settings", icon: Settings },
@@ -94,7 +94,7 @@ export default function AppShell({
 	consoleName = "Admin Console",
 	navigation = defaultNavigation,
 	breadcrumbs = [
-		{ label: "Admin", href: "/" },
+		{ label: "Admin", href: "/admin/overview" },
 		{ label: "Overview", current: true },
 	],
 	headerRight,
@@ -162,8 +162,8 @@ export default function AppShell({
 												<SidebarMenuButton
 													asChild
 													isActive={
-														(item.href === pathname && pathname === "/") ||
-														(pathname.startsWith(item.href) &&
+														pathname === item.href ||
+														(pathname.startsWith(`${item.href}/`) &&
 															item.href !== "/")
 													}
 												>
