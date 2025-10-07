@@ -13,6 +13,7 @@
 - `bun run --filter worker dev`: Run the worker in watch mode; use `bun run --filter worker dev:test` for the scripted extraction smoke test.
 - `bun run db:start|db:stop|db:seed`: Manage the Postgres container and seed baseline providers (proxied to the server workspace scripts).
 - `bun run check`: Format + lint with Biome; run before every PR.
+- After each task, confirm the server build stays green via `bun run build` (fan-out to `bun run --filter server build`).
 
 ## Coding Style & Naming Conventions
 
