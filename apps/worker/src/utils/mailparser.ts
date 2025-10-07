@@ -1,4 +1,5 @@
 import { google } from "@ai-sdk/google";
+import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
 import { z } from "zod";
 
@@ -111,7 +112,8 @@ Follow the rules strictly and respond with either:
 	let raw = "";
 	try {
 		const { text: modelText } = await generateText({
-			model: google("gemini-1.5-flash"),
+			// model: google("gemini-1.5-flash"),
+			model: anthropic("claude-3-5-sonnet-20240620"),
 			system: SYSTEM_INSTRUCTIONS,
 			prompt: userPrompt,
 			temperature: 0.2,
