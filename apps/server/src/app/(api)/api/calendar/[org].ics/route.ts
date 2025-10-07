@@ -7,10 +7,6 @@ import { buildICS } from "@/lib/calendar-links";
 
 export const runtime = "nodejs";
 
-type RouteHandlerContext = {
-	params?: Promise<Record<string, string | string[] | undefined>>;
-};
-
 function escapeText(value: string): string {
 	return value
 		.replace(/\\/g, "\\\\")
@@ -75,9 +71,8 @@ function buildCalendarFeed(
 
 export async function GET(
 	_req: Request,
-	context: RouteHandlerContext,
+	{ params }: { params: { [key: string]: string | string[] | undefined } },
 ): Promise<Response> {
-	const params = await context.params;
 	const orgParam = params?.org;
 	const slug = Array.isArray(orgParam) ? orgParam.at(0) : orgParam;
 	if (!slug || slug.trim().length === 0) {
