@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { EventLandingDetails } from "@/components/events/EventLandingDetails";
@@ -72,11 +72,12 @@ export async function generateStaticParams() {
 	return rows.map((row) => ({ slug: row.slug }));
 }
 
-export async function generateMetadata({
-	params,
-}: {
-	params: { slug: string };
-}): Promise<Metadata> {
+type EventRoute = "/events/[slug]";
+
+export async function generateMetadata(
+	props: PageProps<EventRoute>,
+): Promise<Metadata> {
+	const params = await props.params;
 	const record = await fetchPublishedEvent(params.slug);
 	if (!record) {
 		return {
@@ -133,13 +134,11 @@ export async function generateMetadata({
 	} satisfies Metadata;
 }
 
-export default async function EventLandingPage({
-	params,
-}: {
-	params: { slug: string };
-}) {
+export default async function EventLandingPage(
+	props: PageProps<EventRoute>,
+) {
+	const params = await props.params;
 	const record = await fetchPublishedEvent(params.slug);
-	console.log({ record });
 	if (!record) notFound();
 
 	const ticketsData = await getEventTicketInventory(record.id);

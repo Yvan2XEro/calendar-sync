@@ -87,7 +87,7 @@ export async function POST(req: Request) {
 						paymentIntentId:
 							charge.payment_intent && typeof charge.payment_intent === "string"
 								? charge.payment_intent
-								: (charge.payment_intent?.id ?? null),
+								: ((charge.payment_intent as any)?.id ?? null),
 						externalState: charge.status,
 					});
 				}

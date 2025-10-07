@@ -17,68 +17,100 @@ export type GoogleCalendarEventInput = {
 	metadata?: Record<string, unknown> | null;
 };
 
+// If you're on Node 18+, global fetch is available; otherwise:
+// import fetch from "node-fetch";
+
 type ServiceAccountConfig = {
-	clientEmail: string;
-	privateKey: string;
-	impersonatedUser?: string;
+	serviceAccountEmail: string;
+	impersonatedUser: string;
 };
 
 let cachedConfig: ServiceAccountConfig | null = null;
 
 function getServiceAccountConfig(): ServiceAccountConfig {
-	if (cachedConfig) {
-		return cachedConfig;
-	}
+	if (cachedConfig) return cachedConfig;
 
-	const clientEmail = process.env.GOOGLE_CALENDAR_CLIENT_EMAIL?.trim();
-	const privateKey = process.env.GOOGLE_CALENDAR_PRIVATE_KEY;
-
-	if (!clientEmail || !privateKey) {
-		throw new Error(
-			"Google Calendar service account credentials are not configured",
-		);
-	}
-
-	const normalizedKey = privateKey.includes("\\n")
-		? privateKey.replace(/\\n/g, "\n")
-		: privateKey;
-
+	const serviceAccountEmail = process.env.GOOGLE_CALENDAR_CLIENT_EMAIL?.trim();
 	const impersonatedUser =
 		process.env.GOOGLE_CALENDAR_IMPERSONATED_USER?.trim();
 
-	cachedConfig = {
-		clientEmail,
-		privateKey: normalizedKey,
-		impersonatedUser:
-			impersonatedUser && impersonatedUser.length > 0
-				? impersonatedUser
-				: undefined,
-	} satisfies ServiceAccountConfig;
+	if (!serviceAccountEmail)
+		throw new Error("Missing GOOGLE_CALENDAR_CLIENT_EMAIL");
+	if (!impersonatedUser)
+		throw new Error("Missing GOOGLE_CALENDAR_IMPERSONATED_USER");
 
+	cachedConfig = { serviceAccountEmail, impersonatedUser };
 	return cachedConfig;
 }
 
-export function isGoogleCalendarConfigured(): boolean {
-	try {
-		getServiceAccountConfig();
-		return true;
-	} catch {
-		return false;
+async function getDwdAccessToken(
+	scopes: readonly string[],
+	subEmail: string,
+	saEmail: string,
+): Promise<string> {
+	const now = Math.floor(Date.now() / 1000);
+	const claims = {
+		iss: saEmail,
+		sub: subEmail,
+		scope: scopes.join(" "),
+		aud: "https://oauth2.googleapis.com/token",
+		iat: now,
+		exp: now + 3600,
+	};
+
+	// Obtain an authenticated client (ADC or runtime SA)
+	const auth = new google.auth.GoogleAuth({
+		scopes: ["https://www.googleapis.com/auth/iam"],
+	});
+	const client = await auth.getClient();
+
+	// Ask Google to sign the JWT (no local private key)
+	const iam = google.iamcredentials("v1");
+	const { data } = await iam.projects.serviceAccounts.signJwt({
+		name: `projects/-/serviceAccounts/${saEmail}`,
+		requestBody: { payload: JSON.stringify(claims) },
+		auth: client as any,
+	});
+
+	const signedJwt = data.signedJwt;
+	if (!signedJwt) throw new Error("signJwt did not return a signedJwt");
+
+	// Exchange signed JWT for an OAuth2 access token
+	const res = await fetch("https://oauth2.googleapis.com/token", {
+		method: "POST",
+		headers: { "content-type": "application/x-www-form-urlencoded" },
+		body: new URLSearchParams({
+			grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+			assertion: signedJwt,
+		}),
+	});
+
+	const json = (await res.json()) as {
+		access_token?: string;
+		error?: string;
+		error_description?: string;
+	};
+	if (!res.ok || !json.access_token) {
+		throw new Error(
+			`Token exchange failed: ${json.error ?? res.statusText} ${json.error_description ?? ""}`.trim(),
+		);
 	}
+	return json.access_token;
 }
 
 async function getCalendarClient(): Promise<calendar_v3.Calendar> {
-	const config = getServiceAccountConfig();
-	const auth = new google.auth.JWT({
-		email: config.clientEmail,
-		key: config.privateKey,
-		scopes: SCOPES,
-		subject: config.impersonatedUser,
-	});
+	const { serviceAccountEmail, impersonatedUser } = getServiceAccountConfig();
 
-	await auth.authorize();
+	const accessToken = await getDwdAccessToken(
+		SCOPES,
+		impersonatedUser,
+		serviceAccountEmail,
+	);
 
-	return google.calendar({ version: "v3", auth });
+	const oauth2 = new google.auth.OAuth2();
+	oauth2.setCredentials({ access_token: accessToken });
+
+	return google.calendar({ version: "v3", auth: oauth2 });
 }
 
 type DateParts = {

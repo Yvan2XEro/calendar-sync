@@ -36,4 +36,4 @@
 ## Environment & Configuration Tips
 
 - Copy `.env.example` to `.env` and fill mandatory secrets before running `bun run dev`. The worker shares the database credentials with the server.
-- After altering the `event` table (columns, constraints, indexes), review the worker SQL helpers (`apps/worker/src/db/events.ts`) and the generated event object types/shape (`apps/worker/src/utils/mailparser.ts`) to ensure inserts remain valid and all required fields are populated.
+- After altering the `event` table (columns, constraints, indexes), immediately audit the worker app SQL queries (`apps/worker/src/db/events.ts`) and the generated event object type/structure (`apps/worker/src/utils/mailparser.ts`) to confirm inserts remain valid and every required field is still populated.

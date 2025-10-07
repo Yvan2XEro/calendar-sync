@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { NextRequest } from "next/server";
 
 import { db } from "@/db";
 import { event } from "@/db/schema/app";
@@ -69,12 +70,16 @@ function buildCalendarFeed(
 	return calendarLines.join("\r\n");
 }
 
-export async function GET(
-	_req: Request,
-	{ params }: { params: { [key: string]: string | string[] | undefined } },
-): Promise<Response> {
-	const orgParam = params?.org;
-	const slug = Array.isArray(orgParam) ? orgParam.at(0) : orgParam;
+function resolveSlug(raw: string | string[] | undefined): string | null {
+	if (!raw) return null;
+	const first = Array.isArray(raw) ? raw.at(0) : raw;
+	const normalized = first?.trim();
+	return normalized && normalized.length > 0 ? normalized : null;
+}
+
+export async function GET(_req: NextRequest, context: any): Promise<Response> {
+	const params = context.params ? await context.params : undefined;
+	const slug = resolveSlug(params?.org);
 	if (!slug || slug.trim().length === 0) {
 		return new Response("Not found", { status: 404 });
 	}
