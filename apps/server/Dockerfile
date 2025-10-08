@@ -55,4 +55,8 @@ COPY --from=builder /app/apps/server/.next ./apps/server/.next
 COPY --from=builder /app/apps/server/src/db ./apps/server/src/db
 
 EXPOSE 3000
+COPY --from=builder /app/apps/server/docker-entrypoint.sh ./docker-entrypoint.sh
+RUN chmod +x ./docker-entrypoint.sh
+
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["bun", "run", "--filter", "server", "start"]
