@@ -64,6 +64,61 @@ To boot the entire stack in the background run:
 docker compose up --build -d
 ```
 
+## Building & Publishing Container Images
+
+All deployable artifacts live in the GitHub Container Registry under the `ghcr.io/yvan2xero` namespace. The repo provides Dockerfiles for the server (`apps/server/Dockerfile`), worker (`apps/worker/Dockerfile`), and cron loop (`apps/cron/Dockerfile`).
+
+1. **Authenticate with GHCR**
+
+   ```bash
+   echo "$GHCR_TOKEN" | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+   ```
+
+2. **Load build arguments** — Several server build args come from `.env`. Export them locally (do not commit secrets):
+
+   ```bash
+   export $(grep -v '^#' .env | xargs)
+   ```
+
+3. **Build images**
+
+   ```bash
+   docker build \
+     -f apps/server/Dockerfile \
+     --build-arg NEXT_PUBLIC_OIDC_PROVIDER_ID="$NEXT_PUBLIC_OIDC_PROVIDER_ID" \
+     --build-arg OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
+     --build-arg OIDC_DISCOVERY_URL="$OIDC_DISCOVERY_URL" \
+     --build-arg OIDC_CLIENT_SECRET="$OIDC_CLIENT_SECRET" \
+     --build-arg OIDC_USER_INFO_URL="$OIDC_USER_INFO_URL" \
+     -t ghcr.io/yvan2xero/calendarsync-server:latest .
+
+   docker build \
+     -f apps/worker/Dockerfile \
+     -t ghcr.io/yvan2xero/calendarsync-worker:latest .
+
+   docker build \
+     -f apps/cron/Dockerfile \
+     -t ghcr.io/yvan2xero/calendarsync-cron:latest \
+     apps/cron
+   ```
+
+4. **Push to the registry**
+
+   ```bash
+   docker push ghcr.io/yvan2xero/calendarsync-server:latest
+   docker push ghcr.io/yvan2xero/calendarsync-worker:latest
+   docker push ghcr.io/yvan2xero/calendarsync-cron:latest
+   ```
+
+5. **Deploy using prebuilt images** — The `docker-compose.deploy.yml` file consumes the published images and wires the cron sidecar, worker, and server together:
+
+   ```bash
+   docker compose -f docker-compose.deploy.yml up -d
+   ```
+
+   Ensure the environment provides `CRON_SECRET` (for the cron sidecar) and the usual application variables (see `.env` template). The compose file exposes ports `3000` (server) and `54322` (Postgres).
+
+Setting `CRON_INTERVAL` overrides the default 10-minute polling cadence for the cron container, and `CRON_BASE_URL` can be pointed at a public load balancer when running outside the compose network.
 ## Monitoring worker activity
 
 Administrators can open [`/admin/logs`](apps/server/src/app/(site)/admin/logs/page.tsx) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
