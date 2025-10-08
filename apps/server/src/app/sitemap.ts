@@ -21,20 +21,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 		},
 	];
 
-	const rows = await db
-		.select({
-			slug: event.slug,
-			updatedAt: event.updatedAt,
-			createdAt: event.createdAt,
-		})
-		.from(event)
-		.where(and(eq(event.isPublished, true), eq(event.status, "approved")));
+	try {
+		const rows = await db
+			.select({
+				slug: event.slug,
+				updatedAt: event.updatedAt,
+				createdAt: event.createdAt,
+			})
+			.from(event)
+			.where(and(eq(event.isPublished, true), eq(event.status, "approved")));
 
-	const eventRoutes: MetadataRoute.Sitemap = rows.map((row) => ({
-		url: buildAbsoluteUrl(`/events/${row.slug}`),
-		lastModified:
-			(row.updatedAt ?? row.createdAt)?.toISOString?.() ?? undefined,
-	}));
+		const eventRoutes: MetadataRoute.Sitemap = rows.map((row) => ({
+			url: buildAbsoluteUrl(`/events/${row.slug}`),
+			lastModified:
+				(row.updatedAt ?? row.createdAt)?.toISOString?.() ?? undefined,
+		}));
 
-	return [...staticRoutes, ...eventRoutes];
+		return [...staticRoutes, ...eventRoutes];
+	} catch (error) {
+		console.warn("sitemap fallback due to database error", error);
+		return staticRoutes;
+	}
 }

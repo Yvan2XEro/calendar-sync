@@ -133,8 +133,7 @@ async function loadAllSchedules(): Promise<ScheduleRecord[]> {
 export const adminDigestsRouter = router({
 	listSchedules: adminProcedure.query(async () => {
 		const rows = await loadAllSchedules();
-		// return rows.map(mapSchedule);
-		return [];
+		return rows.map(mapSchedule);
 	}),
 	updateSchedule: adminProcedure
 		.input(updateSchema)

@@ -82,6 +82,8 @@ export function EventListView({
 				{events.map((event) => {
 					const isSelected = selectedIdSet.has(event.id);
 					const visibility = getVisibilityBadge(event);
+					const statusKey = event.status as keyof typeof statusOptionMap;
+					const statusConfig = statusOptionMap[statusKey];
 					return (
 						<Card
 							key={event.id}
@@ -106,10 +108,8 @@ export function EventListView({
 													}
 													aria-label={`Select event ${event.title}`}
 												/>
-												<Badge
-													variant={statusOptionMap[event.status].badgeVariant}
-												>
-													{statusOptionMap[event.status].label}
+												<Badge variant={statusConfig.badgeVariant}>
+													{statusConfig.label}
 												</Badge>
 											</>
 										}
@@ -192,6 +192,8 @@ export function EventListView({
 					{events.map((event) => {
 						const isSelected = selectedIdSet.has(event.id);
 						const visibility = getVisibilityBadge(event);
+						const statusKey = event.status as keyof typeof statusOptionMap;
+						const statusConfig = statusOptionMap[statusKey];
 						return (
 							<TableRow key={event.id} className="align-top">
 								<TableCell>
@@ -220,8 +222,8 @@ export function EventListView({
 								</TableCell>
 								<TableCell>
 									<div className="flex flex-col gap-1">
-										<Badge variant={statusOptionMap[event.status].badgeVariant}>
-											{statusOptionMap[event.status].label}
+										<Badge variant={statusConfig.badgeVariant}>
+											{statusConfig.label}
 										</Badge>
 										{event.autoApproval ? (
 											<span className="flex items-center gap-1 text-muted-foreground text-xs">

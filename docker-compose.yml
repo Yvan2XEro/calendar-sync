@@ -25,6 +25,10 @@ services:
       dockerfile: apps/server/Dockerfile
       args:
         NEXT_PUBLIC_OIDC_PROVIDER_ID: ${NEXT_PUBLIC_OIDC_PROVIDER_ID:-tuki-sso}
+        OIDC_CLIENT_ID: ${OIDC_CLIENT_ID}
+        OIDC_DISCOVERY_URL: ${OIDC_DISCOVERY_URL:-https://sso.tuki.dev/.well-known/openid-configuration}
+        OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET}
+        OIDC_USER_INFO_URL: ${OIDC_USER_INFO_URL:-https://tuki.shattereddev.com/api/user}
     depends_on:
       postgres:
         condition: service_healthy

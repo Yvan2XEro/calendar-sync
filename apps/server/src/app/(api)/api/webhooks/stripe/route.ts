@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 type OrderStatus = (typeof eventOrder.status.enumValues)[number];
 
 function mapIntentStatus(
-	eventType: string,
+	eventType: Stripe.Event.Type,
 	paymentIntent: Stripe.PaymentIntent,
 ): OrderStatus | null {
 	switch (eventType) {
@@ -21,14 +21,22 @@ function mapIntentStatus(
 		case "payment_intent.payment_failed":
 		case "payment_intent.canceled":
 			return "cancelled";
-		case "payment_intent.requires_action":
-		case "payment_intent.requires_payment_method":
-			return "requires_action";
 		case "payment_intent.processing":
 			return "pending_payment";
+		case "payment_intent.requires_action":
+			return "requires_action";
 		default:
-			return null;
+			break;
 	}
+
+	const status = paymentIntent.status;
+	if (status === "requires_action" || status === "requires_payment_method") {
+		return "requires_action";
+	}
+	if (status === "processing") {
+		return "pending_payment";
+	}
+	return null;
 }
 
 export async function POST(req: Request) {
@@ -59,7 +67,6 @@ export async function POST(req: Request) {
 			case "payment_intent.payment_failed":
 			case "payment_intent.canceled":
 			case "payment_intent.requires_action":
-			case "payment_intent.requires_payment_method":
 			case "payment_intent.processing": {
 				const paymentIntent = event.data.object as Stripe.PaymentIntent;
 				const orderId = paymentIntent.metadata?.orderId;

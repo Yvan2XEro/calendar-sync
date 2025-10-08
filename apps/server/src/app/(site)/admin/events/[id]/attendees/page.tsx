@@ -239,7 +239,7 @@ export default function EventAttendeesPage() {
 			return trpcClient.events.attendees.list.query(listParams);
 		},
 		enabled: Boolean(listParams),
-		keepPreviousData: true,
+		placeholderData: (previous: AttendeeListOutput | undefined) => previous,
 	});
 
 	const updateStatusMutation = useMutation<
@@ -604,8 +604,8 @@ export default function EventAttendeesPage() {
 												No attendees found for these filters.
 											</TableCell>
 										</TableRow>
-									) : (
-										attendees.map((attendee) => {
+					) : (
+						attendees.map((attendee: AttendeeListItem) => {
 											const isUpdating = isUpdatingAttendee(attendee.id);
 											const checkInText = attendee.checkInAt
 												? formatDistanceToNow(new Date(attendee.checkInAt), {
@@ -780,12 +780,12 @@ export default function EventAttendeesPage() {
 					<div className="space-y-4 py-2">
 						<div className="space-y-2">
 							<Label htmlFor={audienceSelectId}>Audience</Label>
-							<Select
-								value={announcementAudience}
-								onValueChange={(value: BulkAnnouncementInput["audience"]) =>
-									setAnnouncementAudience(value)
-								}
-							>
+			<Select
+				value={announcementAudience}
+				onValueChange={(value) =>
+					setAnnouncementAudience(value as BulkAnnouncementInput["audience"])
+				}
+			>
 								<SelectTrigger id={audienceSelectId}>
 									<SelectValue />
 								</SelectTrigger>

@@ -335,7 +335,7 @@ function useJoinOrganizationMutation({
 						items: [
 							optimisticJoined,
 							...firstPage.items.filter(
-								(item) => item.id !== optimisticJoined.id,
+								(item: JoinedOrganization) => item.id !== optimisticJoined.id,
 							),
 						],
 					};
@@ -344,10 +344,10 @@ function useJoinOrganizationMutation({
 						...existing,
 						pages: [
 							updatedFirstPage,
-							...restPages.map((page) => ({
+							...restPages.map((page: JoinedPage) => ({
 								...page,
 								items: page.items.filter(
-									(item) => item.id !== optimisticJoined.id,
+									(item: JoinedOrganization) => item.id !== optimisticJoined.id,
 								),
 							})),
 						],
@@ -361,10 +361,11 @@ function useJoinOrganizationMutation({
 					if (!existing) return existing;
 					return {
 						...existing,
-						pages: existing.pages.map((page) => ({
+						pages: existing.pages.map((page: DiscoverPage) => ({
 							...page,
 							items: page.items.filter(
-								(item) => item.id !== variables.optimisticOrg.id,
+								(item: DiscoverOrganization) =>
+									item.id !== variables.optimisticOrg.id,
 							),
 						})),
 					};
@@ -403,19 +404,23 @@ function useJoinOrganizationMutation({
 
 					return {
 						...existing,
-						pages: existing.pages.map((page, index) =>
+						pages: existing.pages.map((page: JoinedPage, index) =>
 							index === 0
 								? {
 										...page,
 										items: [
 											result,
-											...page.items.filter((item) => item.id !== result.id),
+											...page.items.filter(
+												(item: JoinedOrganization) => item.id !== result.id,
+											),
 										],
 									}
 								: {
 										...page,
-										items: page.items.filter((item) => item.id !== result.id),
-									},
+										items: page.items.filter(
+											(item: JoinedOrganization) => item.id !== result.id,
+										),
+								},
 						),
 					};
 				},

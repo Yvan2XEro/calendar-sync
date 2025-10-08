@@ -27,6 +27,13 @@ type ServiceAccountConfig = {
 
 let cachedConfig: ServiceAccountConfig | null = null;
 
+export function isGoogleCalendarConfigured(): boolean {
+	return (
+		Boolean(process.env.GOOGLE_CALENDAR_CLIENT_EMAIL?.trim()) &&
+		Boolean(process.env.GOOGLE_CALENDAR_IMPERSONATED_USER?.trim())
+	);
+}
+
 function getServiceAccountConfig(): ServiceAccountConfig {
 	if (cachedConfig) return cachedConfig;
 

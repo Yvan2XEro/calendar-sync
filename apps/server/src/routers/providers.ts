@@ -406,10 +406,16 @@ export const providersRouter = router({
 					throw new TRPCError({ code: "UNAUTHORIZED" });
 				}
 
-				const org = await ensureOrganizationAdmin(
-					input.slug,
-					ctx.session.user.id,
-				);
+				const sessionUser = ctx.session?.user;
+				const userId =
+					typeof (sessionUser as { id?: unknown })?.id === "string"
+						? (sessionUser as { id: string }).id
+						: null;
+				if (!userId) {
+					throw new TRPCError({ code: "UNAUTHORIZED", message: "Session invalid" });
+				}
+
+				const org = await ensureOrganizationAdmin(input.slug, userId);
 
 				const [linkedRows, catalogRows] = await Promise.all([
 					db
@@ -445,10 +451,16 @@ export const providersRouter = router({
 					throw new TRPCError({ code: "UNAUTHORIZED" });
 				}
 
-				const org = await ensureOrganizationAdmin(
-					input.slug,
-					ctx.session.user.id,
-				);
+				const sessionUser = ctx.session?.user;
+				const userId =
+					typeof (sessionUser as { id?: unknown })?.id === "string"
+						? (sessionUser as { id: string }).id
+						: null;
+				if (!userId) {
+					throw new TRPCError({ code: "UNAUTHORIZED", message: "Session invalid" });
+				}
+
+				const org = await ensureOrganizationAdmin(input.slug, userId);
 
 				const uniqueIds = Array.from(new Set(input.providerIds));
 				const requestedSet = new Set(uniqueIds);

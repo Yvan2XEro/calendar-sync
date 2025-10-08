@@ -135,7 +135,7 @@ async function upsertAttendeeProfile(
 		.where(and(eq(attendeeProfile.email, email), organizationCondition))
 		.limit(1);
 
-	const payload: typeof attendeeProfile.$inferInsert = {
+	const payload: Omit<typeof attendeeProfile.$inferInsert, "id"> = {
 		email,
 		organizationId: input.organizationId ?? null,
 		displayName: input.displayName ?? null,

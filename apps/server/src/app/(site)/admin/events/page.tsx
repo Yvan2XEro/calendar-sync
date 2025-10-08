@@ -82,6 +82,8 @@ type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
 type ProvidersCatalogListOutput = RouterOutputs["providers"]["catalog"]["list"];
 
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
 const adminEventKeys = {
 	all: ["adminEvents"] as const,
 	list: (params: {
@@ -95,7 +97,7 @@ function patchEventsInCache(
 	queryClient: QueryClient,
 	queryKey: ReturnType<typeof adminEventKeys.list>,
 	ids: Iterable<string>,
-	patch: Partial<EventListItem>,
+	patch: Partial<Mutable<EventListItem>>,
 ) {
 	const idSet = new Set(ids);
 	queryClient.setQueryData<EventsListOutput>(
@@ -151,7 +153,9 @@ function removeEventsFromCache(
 		queryKey,
 		(previous: EventsListOutput | undefined) => {
 			if (!previous) return previous;
-			const filtered = previous.items.filter((item) => !idSet.has(item.id));
+			const filtered = previous.items.filter(
+				(item: EventListItem) => !idSet.has(item.id),
+			);
 			const removedCount = previous.items.length - filtered.length;
 			if (removedCount === 0) return previous;
 			return {
@@ -345,7 +349,7 @@ export default function AdminEventsPage() {
 			await queryClient.cancelQueries({ queryKey: listQueryKey });
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
 			const currentItem = previous?.items.find(
-				(item) => item.id === variables.id,
+				(item: EventListItem) => item.id === variables.id,
 			);
 			const nextPublished = derivePublishStateFromAction(
 				currentItem,
@@ -389,7 +393,7 @@ export default function AdminEventsPage() {
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
 			const shouldPatchPublished =
 				variables.publish !== undefined || variables.status !== "approved";
-			const patch: Partial<EventListItem> = {
+			const patch: Partial<Mutable<EventListItem>> = {
 				status: variables.status,
 				updatedAt: new Date().toISOString(),
 			};
@@ -438,7 +442,7 @@ export default function AdminEventsPage() {
 		onMutate: async (variables) => {
 			await queryClient.cancelQueries({ queryKey: listQueryKey });
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-			const patch: Partial<EventListItem> = {
+			const patch: Partial<Mutable<EventListItem>> = {
 				updatedAt: new Date().toISOString(),
 				...(variables.slug !== undefined ? { slug: variables.slug } : {}),
 				...(variables.title !== undefined ? { title: variables.title } : {}),

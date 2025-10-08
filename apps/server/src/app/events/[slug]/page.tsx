@@ -65,11 +65,16 @@ const fetchPublishedEvent = cache(async (slug: string) => {
 });
 
 export async function generateStaticParams() {
-	const rows = await db
-		.select({ slug: event.slug })
-		.from(event)
-		.where(and(eq(event.isPublished, true), eq(event.status, "approved")));
-	return rows.map((row) => ({ slug: row.slug }));
+	try {
+		const rows = await db
+			.select({ slug: event.slug })
+			.from(event)
+			.where(and(eq(event.isPublished, true), eq(event.status, "approved")));
+		return rows.map((row) => ({ slug: row.slug }));
+	} catch (error) {
+		console.warn("generateStaticParams skipped due to database error", error);
+		return [];
+	}
 }
 
 type EventRoute = "/events/[slug]";
@@ -77,26 +82,27 @@ type EventRoute = "/events/[slug]";
 export async function generateMetadata(
 	props: PageProps<EventRoute>,
 ): Promise<Metadata> {
-	const params = await props.params;
-	const record = await fetchPublishedEvent(params.slug);
-	if (!record) {
-		return {
-			title: "Event not found",
-		} satisfies Metadata;
-	}
+	try {
+		const params = await props.params;
+		const record = await fetchPublishedEvent(params.slug);
+		if (!record) {
+			return {
+				title: "Event not found",
+			} satisfies Metadata;
+		}
 
-	const canonical = buildAbsoluteUrl(`/events/${record.slug}`);
-	const baseTitle = record.landingPage?.headline ?? record.title;
-	const description =
-		record.landingPage?.seoDescription ??
-		record.landingPage?.subheadline ??
-		record.description ??
-		undefined;
-	const hero = record.heroMedia;
-	const images =
-		hero?.type === "image" && hero.url ? [{ url: hero.url }] : undefined;
-	const videos =
-		hero?.type === "video" && hero.url
+		const canonical = buildAbsoluteUrl(`/events/${record.slug}`);
+		const baseTitle = record.landingPage?.headline ?? record.title;
+		const description =
+			record.landingPage?.seoDescription ??
+			record.landingPage?.subheadline ??
+			record.description ??
+			undefined;
+		const hero = record.heroMedia;
+		const images =
+			hero?.type === "image" && hero.url ? [{ url: hero.url }] : undefined;
+		const videos =
+			hero?.type === "video" && hero.url
 			? [
 					{
 						url: hero.url,
@@ -107,31 +113,38 @@ export async function generateMetadata(
 				]
 			: undefined;
 
-	return {
-		metadataBase: new URL(getSiteBaseUrl()),
-		title: baseTitle,
-		description,
-		alternates: {
-			canonical,
-		},
-		openGraph: {
+		return {
+			metadataBase: new URL(getSiteBaseUrl()),
 			title: baseTitle,
 			description,
-			url: canonical,
-			type: "article",
-			images,
-			videos,
-			// startTime: record.startAt?.toISOString(),
-			// endTime: record.endAt?.toISOString(),
-			locale: "en_US",
-		},
-		twitter: {
-			card: images?.length ? "summary_large_image" : "summary",
-			title: baseTitle,
-			description,
-			images: images?.map((image) => image.url),
-		},
-	} satisfies Metadata;
+			alternates: {
+				canonical,
+			},
+			openGraph: {
+				title: baseTitle,
+				description,
+				url: canonical,
+				type: "article",
+				images,
+				videos,
+				// startTime: record.startAt?.toISOString(),
+				// endTime: record.endAt?.toISOString(),
+				locale: "en_US",
+			},
+			twitter: {
+				card: images?.length ? "summary_large_image" : "summary",
+				title: baseTitle,
+				description,
+				images: images?.map((image) => image.url),
+			},
+		} satisfies Metadata;
+	} catch (error) {
+		console.warn("generateMetadata fallback due to database error", error);
+		return {
+			title: "Event",
+			description: "Event details",
+		} satisfies Metadata;
+	}
 }
 
 export default async function EventLandingPage(

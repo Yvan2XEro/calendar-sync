@@ -216,7 +216,8 @@ export function EventRegistrationSection({
 	}, [maxQuantity, quantity]);
 
 	const registerMutation = useMutation({
-		mutationFn: trpcClient.events.register.mutate,
+		mutationFn: (variables: Parameters<typeof trpcClient.events.register.mutate>[0]) =>
+			trpcClient.events.register.mutate(variables),
 		onSuccess: (result) => {
 			setOrder(result);
 			if (result.paymentIntentClientSecret) {
@@ -236,7 +237,8 @@ export function EventRegistrationSection({
 	});
 
 	const waitlistMutation = useMutation({
-		mutationFn: trpcClient.events.waitlist.mutate,
+		mutationFn: (variables: Parameters<typeof trpcClient.events.waitlist.mutate>[0]) =>
+			trpcClient.events.waitlist.mutate(variables),
 		onSuccess: () => {
 			toast.success("Added to waitlist");
 		},
@@ -260,14 +262,14 @@ export function EventRegistrationSection({
 			return;
 		}
 
-		const attendeePayload = attendees.map((attendee, index) => {
+		const attendeePayload = attendees.map((attendee: AttendeeState, index) => {
 			const email = attendee.email || (index === 0 ? purchaserEmail : "");
 			if (!validateEmail(email)) {
 				throw new Error(`Attendee ${index + 1} requires a valid email address`);
 			}
 			return {
 				email,
-				name: attendee.name || purchaserName || null,
+				name: attendee.name || purchaserName || undefined,
 			};
 		});
 
@@ -277,13 +279,13 @@ export function EventRegistrationSection({
 				ticketTypeId: selectedTicket.id,
 				purchaser: {
 					email: purchaserEmail,
-					name: purchaserName || null,
-					phone: purchaserPhone || null,
+					name: purchaserName || undefined,
+					phone: purchaserPhone || undefined,
 					metadata: notes ? { notes } : undefined,
 				},
 				attendees: attendeePayload.map((attendee) => ({
 					email: attendee.email,
-					name: attendee.name ?? null,
+					name: attendee.name,
 				})),
 				metadata: notes ? { notes } : undefined,
 			});
@@ -311,7 +313,7 @@ export function EventRegistrationSection({
 		await waitlistMutation.mutateAsync({
 			eventId,
 			ticketTypeId: ticketId || undefined,
-			person: { email, name: name || null },
+			person: { email, name: name || undefined },
 		});
 		event.currentTarget.reset();
 	};

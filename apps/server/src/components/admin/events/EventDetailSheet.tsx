@@ -4,7 +4,7 @@ import { ShieldCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import type { ComponentProps } from "react";
-import type { EventStatus } from "@/app/(site)/admin/events/event-filters";
+import type { UrlObject } from "url";
 import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,7 +45,7 @@ function resolveVisibility(
 type EventDetailSheetProps = {
 	event: EventListItem | null;
 	statusActions: StatusAction[];
-	onUpdateStatus: (eventId: string, status: EventStatus) => void;
+	onUpdateStatus: (eventId: string, action: StatusAction) => void;
 	onEdit: (event: EventListItem) => void;
 	onClose: () => void;
 	statusLoading: boolean;
@@ -69,7 +69,9 @@ export function EventDetailSheet({
 	const autoApprovalTimestamp = autoApproval?.at
 		? new Date(autoApproval.at)
 		: null;
-	const publicPath = event ? `/events/${event.slug}` : null;
+	const publicHref: UrlObject | null = event
+		? { pathname: "/events/[slug]", query: { slug: event.slug } }
+		: null;
 	const heroMedia = event?.heroMedia ?? null;
 	const hasHero = Boolean(heroMedia?.type && heroMedia?.url);
 	const landing = event?.landingPage ?? null;
@@ -79,6 +81,8 @@ export function EventDetailSheet({
 			? landing.body.trim().split(/\n{2,}/)
 			: [];
 	const visibility = resolveVisibility(event);
+	const statusKey = (event?.status ?? "pending") as keyof typeof statusOptionMap;
+	const statusConfig = statusOptionMap[statusKey];
 	return (
 		<Sheet
 			open={event != null}
@@ -100,7 +104,12 @@ export function EventDetailSheet({
 					<div className="mt-6 space-y-6">
 						<div className="flex flex-wrap items-center gap-2">
 							<Button asChild size="sm" variant="outline">
-								<Link href={`/admin/events/${event.id}/attendees`}>
+								<Link
+									href={{
+										pathname: "/admin/events/[id]/attendees",
+										query: { id: event.id },
+									}}
+								>
 									Open attendee roster
 								</Link>
 							</Button>
@@ -115,13 +124,13 @@ export function EventDetailSheet({
 								</p>
 							) : null}
 							<div className="flex flex-wrap gap-2">
-								<Badge variant={statusOptionMap[event.status].badgeVariant}>
-									{statusOptionMap[event.status].label}
+								<Badge variant={statusConfig.badgeVariant}>
+									{statusConfig.label}
 								</Badge>
 								{visibility ? (
 									<Badge variant={visibility.variant}>{visibility.label}</Badge>
 								) : null}
-								{event.isAllDay ? (
+						{event.isAllDay ? (
 									<Badge variant="outline">All-day</Badge>
 								) : null}
 								{autoApproval ? (
@@ -147,8 +156,8 @@ export function EventDetailSheet({
 									{autoApprovalTimestamp ? (
 										<p>Recorded at: {autoApprovalTimestamp.toLocaleString()}</p>
 									) : null}
-								</div>
-							) : null}
+					</div>
+				) : null}
 						</div>
 						<div className="space-y-1 text-sm">
 							<p className="font-semibold text-foreground">Schedule</p>
@@ -179,16 +188,16 @@ export function EventDetailSheet({
 							) : null}
 						</div>
 						<EventAnalyticsSummary eventId={event.id} />
-						{publicPath ? (
+						{publicHref ? (
 							<div className="space-y-2 text-sm">
 								<p className="font-semibold text-foreground">Public link</p>
 								<div className="flex flex-wrap items-center gap-2">
 									<code className="rounded-md bg-muted px-2 py-1 font-mono text-xs">
-										{publicPath}
+										{`/events/${event.slug}`}
 									</code>
 									<Button asChild size="sm" variant="outline">
 										<Link
-											href={publicPath}
+											href={publicHref}
 											target="_blank"
 											rel="noopener noreferrer"
 										>
@@ -251,7 +260,7 @@ export function EventDetailSheet({
 								) : null}
 								{landingBodyParagraphs.length > 0 ? (
 									<div className="space-y-2 text-muted-foreground">
-										{landingBodyParagraphs.map((paragraph, index) => (
+										{landingBodyParagraphs.map((paragraph: string, index: number) => (
 											<p
 												key={`${index}-${paragraph.slice(0, 16)}`}
 												className="whitespace-pre-wrap leading-relaxed"
@@ -289,12 +298,12 @@ export function EventDetailSheet({
 							</pre>
 						</div>
 						<div className="flex flex-wrap gap-2">
-							{statusActions.map((action) => (
-								<Button
-									key={action.status}
-									onClick={() => onUpdateStatus(event.id, action.status)}
-									disabled={statusLoading}
-								>
+						{statusActions.map((action) => (
+							<Button
+								key={`${action.status}-${action.publish ?? "default"}`}
+								onClick={() => onUpdateStatus(event.id, action)}
+								disabled={statusLoading}
+							>
 									<action.icon className="mr-2 size-4" />
 									{action.label}
 								</Button>

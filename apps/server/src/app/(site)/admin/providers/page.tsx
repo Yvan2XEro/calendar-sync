@@ -142,7 +142,7 @@ export default function ProvidersAdminPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{rows.map((row) => {
+								{rows.map((row: CatalogListOutput[number]) => {
 									const isImapTesting =
 										imapTestMutation.isPending &&
 										imapTestMutation.variables?.providerId === row.id;

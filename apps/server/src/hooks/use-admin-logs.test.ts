@@ -28,7 +28,7 @@ describe("mergeLogsIntoPages", () => {
 	it("adds logs when no existing pages are cached", () => {
 		const result = mergeLogsIntoPages(undefined, [createLog(1)]);
 
-		expect(result.pages[0]?.logs.map((log) => log.id)).toEqual([1]);
+		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([1]);
 	});
 
 	it("prepends logs to the first page and removes duplicates from later pages", () => {
@@ -50,14 +50,14 @@ describe("mergeLogsIntoPages", () => {
 
 		const result = mergeLogsIntoPages(existing, incoming);
 
-		expect(result.pages[0]?.logs.map((log) => log.id)).toEqual([4, 1, 2]);
-		expect(result.pages[1]?.logs.map((log) => log.id)).toEqual([3]);
+		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([4, 1, 2]);
+		expect(result.pages[1]?.logs.map((log: LogEntry) => log.id)).toEqual([3]);
 	});
 
 	it("ignores duplicate incoming ids while preserving newest-first ordering", () => {
 		const incoming = [createLog(5), createLog(5), createLog(4)];
 		const result = mergeLogsIntoPages(undefined, incoming);
 
-		expect(result.pages[0]?.logs.map((log) => log.id)).toEqual([5, 4]);
+		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([5, 4]);
 	});
 });

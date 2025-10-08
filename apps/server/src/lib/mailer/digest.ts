@@ -665,7 +665,7 @@ export async function scheduleDigestDeliveries({
 			recipientsConsidered: 0,
 		};
 	}
-	let userQuery = db
+	const userQueryBase = db
 		.select({
 			id: user.id,
 			email: user.email,
@@ -674,10 +674,9 @@ export async function scheduleDigestDeliveries({
 		})
 		.from(user)
 		.orderBy(user.createdAt);
-	if (limitUsers && limitUsers > 0) {
-		userQuery = userQuery.limit(limitUsers);
-	}
-	const usersToProcess = await userQuery;
+	const usersToProcess = await (limitUsers && limitUsers > 0
+		? userQueryBase.limit(limitUsers)
+		: userQueryBase);
 	let queued = 0;
 	let recipientsConsidered = 0;
 	const segmentsWithEvents = new Set<DigestSegmentValue>();

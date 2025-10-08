@@ -13,7 +13,8 @@
 - `bun run --filter worker dev`: Run the worker in watch mode; use `bun run --filter worker dev:test` for the scripted extraction smoke test.
 - `bun run db:start|db:stop|db:seed`: Manage the Postgres container and seed baseline providers (proxied to the server workspace scripts).
 - `bun run check`: Format + lint with Biome; run before every PR.
-- Defore every PR, confirm the server build stays green via `bun run build` (fan-out to `bun run --filter server build`).
+- After each task, confirm the server build stays green via `bun run build` (fan-out to `bun run --filter server build`).
+- `bun x tsc` / `bun x tsc --noEmit`: Type-check the server workspace; these commands run without DB access when build-time queries are wrapped in try/catch.
 
 ## Coding Style & Naming Conventions
 
@@ -37,3 +38,4 @@
 
 - Copy `.env.example` to `.env` and fill mandatory secrets before running `bun run dev`. The worker shares the database credentials with the server.
 - After altering the `event` table (columns, constraints, indexes), immediately audit the worker app SQL queries (`apps/worker/src/db/events.ts`) and the generated event object type/structure (`apps/worker/src/utils/mailparser.ts`) to confirm inserts remain valid and every required field is still populated.
+- Always wrap build-time database calls (`generateStaticParams`, `generateMetadata`, `sitemap`, etc.) in try/catch to provide DB error guards; Docker/CI builds should succeed even when Postgres isn’t reachable.

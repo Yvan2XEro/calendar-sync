@@ -308,7 +308,7 @@ export default function AdminDigestsPage() {
 							? placeholders.map((token) => (
 									<Skeleton key={token} className="h-48 w-full" />
 								))
-							: schedules.map((schedule) => renderCard(schedule))}
+							: schedules.map((schedule: Schedule) => renderCard(schedule))}
 					</div>
 				)}
 			</section>

@@ -114,7 +114,17 @@ export const orgsRouter = router({
 	listForUser: protectedProcedure
 		.input(listForUserInput)
 		.query(async ({ ctx, input }) => {
-			const userId = ctx.session.user.id;
+			const sessionUser = ctx.session.user;
+			const userId =
+				typeof (sessionUser as { id?: unknown })?.id === "string"
+					? (sessionUser as { id: string }).id
+					: null;
+			if (!userId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "Session user missing",
+				});
+			}
 			const segment = input.segment;
 			const page = input.page ?? 1;
 			const limit = input.limit ?? DEFAULT_PAGE_SIZE;
@@ -233,8 +243,23 @@ export const orgsRouter = router({
 			};
 		}),
 	join: protectedProcedure.input(joinInput).mutation(async ({ ctx, input }) => {
-		const userId = ctx.session.user.id;
-		ensureUserCanJoin(ctx.session.user as SessionUser);
+		const sessionUser = ctx.session.user;
+		if (!sessionUser || typeof sessionUser !== "object") {
+			throw new TRPCError({
+				code: "UNAUTHORIZED",
+				message: "Authentication required",
+			});
+		}
+
+		const userId = (sessionUser as { id?: unknown }).id;
+		if (typeof userId !== "string" || userId.trim().length === 0) {
+			throw new TRPCError({
+				code: "UNAUTHORIZED",
+				message: "Invalid session user",
+			});
+		}
+
+		ensureUserCanJoin(sessionUser as SessionUser);
 
 		const existing = await db
 			.select({ id: member.id })

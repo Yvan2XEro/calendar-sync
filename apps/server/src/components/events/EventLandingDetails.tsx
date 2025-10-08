@@ -86,9 +86,9 @@ export function EventLandingDetails({
 						) : null}
 						{ctaHref && ctaLabel ? (
 							<Button asChild className="mt-2 w-fit">
-								<Link href={ctaHref} target="_blank" rel="noopener noreferrer">
+								<a href={ctaHref} target="_blank" rel="noopener noreferrer">
 									{ctaLabel}
-								</Link>
+								</a>
 							</Button>
 						) : null}
 					</div>

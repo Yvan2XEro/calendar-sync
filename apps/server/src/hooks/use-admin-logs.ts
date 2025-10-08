@@ -97,7 +97,7 @@ export function mergeLogsIntoPages(
 		} satisfies InfiniteData<LogListResult>;
 	}
 
-	const dedupeIds = new Set<number>(uniqueIncoming.map((log) => log.id));
+	const dedupeIds = new Set<number>(uniqueIncoming.map((log: LogEntry) => log.id));
 	const [firstPage, ...rest] = existing.pages;
 
 	return {
@@ -107,12 +107,16 @@ export function mergeLogsIntoPages(
 				...firstPage,
 				logs: [
 					...uniqueIncoming,
-					...firstPage.logs.filter((log) => !dedupeIds.has(log.id)),
+					...firstPage.logs.filter(
+						(log: LogEntry) => !dedupeIds.has(log.id),
+					),
 				],
 			},
-			...rest.map((page) => ({
+			...rest.map((page: LogListResult) => ({
 				...page,
-				logs: page.logs.filter((log) => !dedupeIds.has(log.id)),
+				logs: page.logs.filter(
+					(log: LogEntry) => !dedupeIds.has(log.id),
+				),
 			})),
 		],
 	} satisfies InfiniteData<LogListResult>;

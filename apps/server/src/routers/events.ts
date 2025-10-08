@@ -254,14 +254,13 @@ function buildAttendeeWhereClauses(
 	}
 	if (input.q && input.q.length > 0) {
 		const term = `%${input.q.replace(/\s+/g, " ")}%`;
-		clauses.push(
-			or(
-				ilike(attendee.confirmationCode, term),
-				ilike(attendeeProfile.email, term),
-				ilike(attendeeProfile.displayName, term),
-				ilike(eventOrder.contactEmail, term),
-			),
-		);
+		const searchClause = or(
+			ilike(attendee.confirmationCode, term) as SQL<unknown>,
+			ilike(attendeeProfile.email, term) as SQL<unknown>,
+			ilike(attendeeProfile.displayName, term) as SQL<unknown>,
+			ilike(eventOrder.contactEmail, term) as SQL<unknown>,
+		) as SQL<unknown>;
+		clauses.push(searchClause);
 	}
 	return clauses;
 }
@@ -997,7 +996,17 @@ export const eventsRouter = router({
 	listRecentForUser: protectedProcedure
 		.input(recentEventsInput)
 		.query(async ({ ctx, input }) => {
-			const userId = ctx.session.user.id;
+			const sessionUser = ctx.session.user;
+			const userId =
+				typeof (sessionUser as { id?: unknown })?.id === "string"
+					? (sessionUser as { id: string }).id
+					: null;
+			if (!userId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "Session user missing",
+				});
+			}
 			const limit = input?.limit ?? RECENT_EVENTS_DEFAULT_LIMIT;
 
 			const now = new Date();
@@ -1447,7 +1456,7 @@ export const eventsRouter = router({
 					salesStartAt: ticket.salesStartAt,
 					salesEndAt: ticket.salesEndAt,
 				}),
-			) as const;
+			);
 		}),
 	register: publicProcedure
 		.input(registerInputSchema)
@@ -1665,10 +1674,10 @@ export const eventsRouter = router({
 			.mutation(async ({ input }) => {
 				const updates: Partial<typeof attendee.$inferInsert> = {
 					status: input.status,
-					updatedAt: sql`now()`,
+					updatedAt: new Date(),
 				};
 				if (input.status === "checked_in") {
-					updates.checkInAt = sql`now()`;
+					updates.checkInAt = new Date();
 					updates.noShow = false;
 				} else {
 					updates.checkInAt = null;
