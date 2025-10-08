@@ -24,13 +24,28 @@ bun install
 
 ## Running with Docker Compose
 
-The repository now includes a root-level `docker-compose.yml` that builds the admin server and worker images alongside PostgreSQL. To boot the entire stack in the background run:
+### Prerequisites
+
+- [Docker Engine](https://docs.docker.com/engine/install/) and [Docker Compose Plugin](https://docs.docker.com/compose/install/) installed locally.
+- A `.env` file at the repository root that provides the secrets consumed by the compose file. At a minimum you must define the OpenID Connect credentials (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`), the tRPC cron secret (`CRON_SECRET`), and any third-party API keys (for example `GOOGLE_GENERATIVE_AI_API_KEY`). The compose file loads this file automatically through the `env_file` directive.
+- Available host ports `3000` (web UI), `54322` (PostgreSQL), and an outbound network connection so the worker can reach remote mail providers.
+
+### Service overview
+
+The root-level [`docker-compose.yml`](docker-compose.yml) wires four long-running services together:
+
+- **postgres** – A `postgres:16.2-alpine` container that seeds the `calendar-sync` database, persists data on the `calendar-sync_postgres_data` volume, and exposes port `54322` to the host. The application containers depend on its health check before starting.
+- **server** – Builds the Next.js admin/server image from [`apps/server/Dockerfile`](apps/server/Dockerfile). It injects database, authentication, and third-party credentials via environment variables and runs on port `3000` with a health check hitting the tRPC `healthCheck` endpoint.
+- **cron** – A lightweight `curl` runner that periodically calls the server’s internal cron endpoints (`/api/cron/calendar`, `/api/cron/emails`, `/api/cron/waitlist`). It requires the `CRON_SECRET` environment variable to authenticate each request.
+- **worker** – Builds the Bun-based ingestion worker from [`apps/worker/Dockerfile`](apps/worker/Dockerfile). It waits for both `postgres` and `server` to become healthy, then processes IMAP inboxes and other background jobs against the shared database.
+
+All of the runtime environment variables documented in the [wiki](WIKI.md#8-environment--deployment) are exposed through the compose file. Override them by exporting variables locally or creating the `.env` file noted above.
+
+To boot the entire stack in the background run:
 
 ```bash
 docker compose up --build -d
 ```
-
-All of the runtime environment variables documented in the [wiki](WIKI.md#8-environment--deployment) are exposed through the compose file. Override them by exporting variables locally or creating a `.env` file next to `docker-compose.yml` before running the command above.
 
 ## Monitoring worker activity
 
