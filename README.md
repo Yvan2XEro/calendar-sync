@@ -11,6 +11,7 @@ This project was created with [Better-T-Stack](https://github.com/AmanVarshney01
 - **Drizzle** - TypeScript-first ORM
 - **PostgreSQL** - Database engine
 - **Authentication** - Better-Auth
+- **Email digests** - Curated newsletters for joined and recommended organizations
 - **Biome** - Linting and formatting
 
 ## Getting Started
@@ -34,6 +35,12 @@ All of the runtime environment variables documented in the [wiki](WIKI.md#8-envi
 ## Monitoring worker activity
 
 Administrators can open [`/admin/logs`](apps/server/src/app/(site)/admin/logs/page.tsx) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
+
+## Scheduling email digests
+
+The admin navigation includes an **Email digests** workspace at [`/admin/digests`](apps/server/src/app/(site)/admin/digests/page.tsx) where operators can toggle each segment, tune cadence (in hours), and adjust the lookahead window (in days) before saving the configuration. Each card surfaces recent metadata—last and next send times, queued recipients, and the number of populated segments—so teams can verify digest activity at a glance.【F:apps/server/src/config/ui.ts†L13-L32】【F:apps/server/src/app/(site)/admin/digests/page.tsx†L28-L200】
+
+When an administrator saves changes, the TRPC router ensures a schedule exists for every supported segment, persists the enabled state, and enforces cadence and lookahead bounds with sensible defaults (weekly cadence over a two-week window).【F:apps/server/src/routers/admin-digests.ts†L17-L159】 Downstream, the digest composer groups approved, published events into "joined" and "discover" segments, limits the number of highlights per organization, and builds the HTML/text payload that is eventually queued for email delivery.【F:apps/server/src/lib/mailer/digest.ts†L57-L382】
 
 ## Moderating synchronized events
 
