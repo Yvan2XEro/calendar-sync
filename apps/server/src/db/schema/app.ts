@@ -13,7 +13,7 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { organization } from "./auth";
+import { organization, user } from "./auth";
 
 const timestamps = {
 	createdAt: timestamp("created_at", { withTimezone: true })
@@ -64,6 +64,18 @@ export const waitlistStatus = pgEnum("event_waitlist_status", [
 	"invited",
 	"converted",
 	"removed",
+]);
+
+export const calendarProviderType = pgEnum("calendar_provider_type", [
+	"google",
+	"outlook",
+]);
+
+export const calendarConnectionStatus = pgEnum("calendar_connection_status", [
+	"pending",
+	"connected",
+	"error",
+	"revoked",
 ]);
 
 export const eventEmailType = pgEnum("event_email_type", [
@@ -222,6 +234,40 @@ export const event = pgTable(
 			desc(table.createdAt),
 		),
 		organizationIdx: index("event_organization_idx").on(table.organizationId),
+	}),
+);
+
+export const calendarConnection = pgTable(
+	"calendar_connection",
+	{
+		id: text("id").primaryKey(),
+		organizationId: text("organization_id")
+			.notNull()
+			.references(() => organization.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		providerType: calendarProviderType("provider_type").notNull(),
+		externalAccountId: text("external_account_id"),
+		calendarId: text("calendar_id"),
+		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+		scope: text("scope"),
+		stateToken: text("state_token"),
+		status: calendarConnectionStatus("status").notNull().default("pending"),
+		lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+		failureReason: text("failure_reason"),
+		metadata: jsonb("metadata")
+			.$type<Record<string, unknown>>()
+			.notNull()
+			.default(sql`'{}'::jsonb`),
+		...timestamps,
+	},
+	(table) => ({
+		organizationProviderUnique: uniqueIndex(
+			"calendar_connection_user_org_provider_unique",
+		).on(table.userId, table.organizationId, table.providerType),
 	}),
 );
 

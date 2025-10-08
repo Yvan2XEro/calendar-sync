@@ -8,19 +8,42 @@ import {
 	provider,
 } from "@/db/schema/app";
 import {
+	clearConnectionCredentials,
+	markConnectionStatus,
+	resolveGoogleCalendarConnection,
+	type SanitizedCalendarConnection,
+	touchConnectionSynced,
+	updateConnectionCredentials,
+} from "@/lib/calendar-connections";
+import {
 	deleteGoogleCalendarEvent,
 	type GoogleCalendarEventInput,
+	type GoogleStoredOAuthCredentials,
+	getOAuthCalendarClient,
 	isGoogleCalendarConfigured,
 	upsertGoogleCalendarEvent,
 } from "@/lib/integrations/google-calendar";
+import { buildAbsoluteUrl } from "@/lib/site-metadata";
 
 const DEFAULT_BATCH_SIZE = 10;
 
 type SyncAction = "created" | "updated" | "deleted" | "skipped";
 
-type OrganizationCalendarConfig = {
+type OAuthCalendarConfig = {
+	type: "oauth";
+	calendarId: string;
+	credentials: GoogleStoredOAuthCredentials;
+	connection: SanitizedCalendarConnection;
+};
+
+type ServiceAccountCalendarConfig = {
+	type: "service-account";
 	calendarId: string;
 };
+
+type OrganizationCalendarConfig =
+	| OAuthCalendarConfig
+	| ServiceAccountCalendarConfig;
 
 type EventRow = {
 	id: string;
@@ -62,6 +85,46 @@ function parseCalendarId(config: Record<string, unknown>): string | null {
 async function resolveOrganizationCalendar(
 	organizationId: string,
 ): Promise<OrganizationCalendarConfig | null> {
+	const oauthConnection = await resolveGoogleCalendarConnection(organizationId);
+	if (oauthConnection) {
+		if (!oauthConnection.calendarId) {
+			await markConnectionStatus(
+				oauthConnection.id,
+				"error",
+				"Connected Google Calendar is missing a calendar identifier",
+			);
+			throw new Error(
+				"Connected Google Calendar is missing a calendar identifier",
+			);
+		}
+
+		if (!oauthConnection.accessToken) {
+			await markConnectionStatus(
+				oauthConnection.id,
+				"error",
+				"Google Calendar OAuth credentials are missing",
+			);
+			throw new Error("Google Calendar OAuth credentials are missing");
+		}
+
+		const credentials: GoogleStoredOAuthCredentials = {
+			accessToken: oauthConnection.accessToken,
+			refreshToken: oauthConnection.refreshToken ?? undefined,
+			scope: oauthConnection.scope ?? undefined,
+		};
+
+		if (oauthConnection.tokenExpiresAt) {
+			credentials.tokenExpiresAt = oauthConnection.tokenExpiresAt;
+		}
+
+		return {
+			type: "oauth",
+			calendarId: oauthConnection.calendarId,
+			connection: oauthConnection,
+			credentials,
+		} satisfies OAuthCalendarConfig;
+	}
+
 	const rows = await db
 		.select({ config: provider.config })
 		.from(organizationProvider)
@@ -78,7 +141,10 @@ async function resolveOrganizationCalendar(
 		if (!row.config || !isRecord(row.config)) continue;
 		const calendarId = parseCalendarId(row.config);
 		if (calendarId) {
-			return { calendarId } satisfies OrganizationCalendarConfig;
+			return {
+				type: "service-account",
+				calendarId,
+			} satisfies ServiceAccountCalendarConfig;
 		}
 	}
 
@@ -102,10 +168,6 @@ function toGoogleCalendarInput(row: EventRow): GoogleCalendarEventInput {
 export async function syncEventWithGoogleCalendar(
 	eventId: string,
 ): Promise<SyncAction> {
-	if (!isGoogleCalendarConfigured()) {
-		throw new Error("Google Calendar integration is not configured");
-	}
-
 	const rows = await db
 		.select({
 			id: event.id,
@@ -145,15 +207,78 @@ export async function syncEventWithGoogleCalendar(
 		throw new Error("Organization is not linked to a Google Calendar");
 	}
 
+	if (
+		calendarConfig.type === "service-account" &&
+		!isGoogleCalendarConfigured()
+	) {
+		throw new Error("Google Calendar integration is not configured");
+	}
+
+	const oauthContext =
+		calendarConfig.type === "oauth"
+			? await (async () => {
+					try {
+						return await getOAuthCalendarClient({
+							redirectUri: buildAbsoluteUrl(
+								"/api/integrations/google-calendar/callback",
+							),
+							stored: calendarConfig.credentials,
+						});
+					} catch (error) {
+						const message =
+							error instanceof Error
+								? error.message
+								: "Unable to refresh Google Calendar credentials";
+						await markConnectionStatus(
+							calendarConfig.connection.id,
+							"error",
+							message,
+						);
+						throw error;
+					}
+				})()
+			: null;
+
+	const oauthClient = oauthContext?.client;
+
+	const handleSuccess = async () => {
+		if (calendarConfig.type !== "oauth") return;
+		if (oauthContext?.refreshedCredentials) {
+			await updateConnectionCredentials(
+				calendarConfig.connection,
+				oauthContext.refreshedCredentials,
+			);
+		}
+		await touchConnectionSynced(calendarConfig.connection.id);
+	};
+
+	const handleError = async (error: unknown) => {
+		if (calendarConfig.type !== "oauth") return;
+		const message =
+			(error as { response?: { data?: { error?: string } } })?.response?.data
+				?.error || (error instanceof Error ? error.message : "Unknown error");
+		await markConnectionStatus(calendarConfig.connection.id, "error", message);
+		if (message && /invalid_grant/i.test(message)) {
+			await clearConnectionCredentials(calendarConfig.connection.id);
+		}
+	};
+
 	if (current.status !== "approved" || !current.isPublished) {
 		if (!current.googleCalendarEventId) {
 			return "skipped";
 		}
 
-		await deleteGoogleCalendarEvent({
-			calendarId: calendarConfig.calendarId,
-			eventId: current.googleCalendarEventId,
-		});
+		try {
+			await deleteGoogleCalendarEvent({
+				calendarId: calendarConfig.calendarId,
+				eventId: current.googleCalendarEventId,
+				client: oauthClient,
+			});
+			await handleSuccess();
+		} catch (error) {
+			await handleError(error);
+			throw error;
+		}
 
 		await db
 			.update(event)
@@ -163,11 +288,20 @@ export async function syncEventWithGoogleCalendar(
 		return "deleted";
 	}
 
-	const googleEventId = await upsertGoogleCalendarEvent({
-		calendarId: calendarConfig.calendarId,
-		existingEventId: current.googleCalendarEventId,
-		event: toGoogleCalendarInput(current),
-	});
+	let googleEventId: string;
+
+	try {
+		googleEventId = await upsertGoogleCalendarEvent({
+			calendarId: calendarConfig.calendarId,
+			existingEventId: current.googleCalendarEventId,
+			event: toGoogleCalendarInput(current),
+			client: oauthClient,
+		});
+		await handleSuccess();
+	} catch (error) {
+		await handleError(error);
+		throw error;
+	}
 
 	if (googleEventId !== current.googleCalendarEventId) {
 		await db

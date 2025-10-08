@@ -46,6 +46,8 @@ Define the following keys in `.env` before launching the stack. Unless noted oth
 | `CORS_ORIGIN` | server, worker | Comma-separated list of allowed origins used to configure CORS and credentialed requests across the stack. 【F:docker-compose.yml†L34-L45】【F:apps/server/src/lib/auth.ts†L35-L45】|
 | `CRON_SECRET` | cron, server | Shared secret that authenticates the curl-based cron runner against the internal `/api/cron/*` endpoints. 【F:docker-compose.yml†L60-L74】【F:apps/server/src/app/(api)/api/cron/calendar/route.ts†L5-L26】|
 | `GOOGLE_GENERATIVE_AI_API_KEY` | server, worker | API key required when enabling the Gemini-powered email extraction pipeline described in the operational wiki. 【F:docker-compose.yml†L40-L45】【F:WIKI.md†L144-L152】|
+| `GOOGLE_OAUTH_CLIENT_ID` | server | Google OAuth client identifier used when launching the admin consent flow for calendar connections. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L100】【F:apps/server/src/app/(api)/api/integrations/google-calendar/start/route.ts†L13-L116】|
+| `GOOGLE_OAUTH_CLIENT_SECRET` | server | Secret paired with the OAuth client that allows the callback route to exchange authorization codes for tokens. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L144】【F:apps/server/src/app/(api)/api/integrations/google-calendar/callback/route.ts†L1-L240】|
 
 ### Service overview
 

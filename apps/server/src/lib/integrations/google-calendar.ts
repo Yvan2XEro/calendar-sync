@@ -1,8 +1,17 @@
+import type { Credentials } from "google-auth-library";
 import { type calendar_v3, google } from "googleapis";
 
 import { getEventTimezone } from "@/lib/calendar-links";
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar"] as const;
+export const GOOGLE_CALENDAR_SCOPES = [
+	"https://www.googleapis.com/auth/calendar",
+] as const;
+
+export const GOOGLE_OAUTH_SCOPES = [
+	...GOOGLE_CALENDAR_SCOPES,
+	"openid",
+	"email",
+] as const;
 const DEFAULT_MEETING_LENGTH_MS = 60 * 60 * 1000;
 
 export type GoogleCalendarEventInput = {
@@ -31,6 +40,13 @@ export function isGoogleCalendarConfigured(): boolean {
 	return (
 		Boolean(process.env.GOOGLE_CALENDAR_CLIENT_EMAIL?.trim()) &&
 		Boolean(process.env.GOOGLE_CALENDAR_IMPERSONATED_USER?.trim())
+	);
+}
+
+export function isGoogleOAuthConfigured(): boolean {
+	return (
+		Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID?.trim()) &&
+		Boolean(process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim())
 	);
 }
 
@@ -109,7 +125,7 @@ async function getCalendarClient(): Promise<calendar_v3.Calendar> {
 	const { serviceAccountEmail, impersonatedUser } = getServiceAccountConfig();
 
 	const accessToken = await getDwdAccessToken(
-		SCOPES,
+		GOOGLE_CALENDAR_SCOPES,
 		impersonatedUser,
 		serviceAccountEmail,
 	);
@@ -118,6 +134,85 @@ async function getCalendarClient(): Promise<calendar_v3.Calendar> {
 	oauth2.setCredentials({ access_token: accessToken });
 
 	return google.calendar({ version: "v3", auth: oauth2 });
+}
+
+function getOAuthClientConfig() {
+	const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+	const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
+
+	if (!clientId) {
+		throw new Error("Missing GOOGLE_OAUTH_CLIENT_ID");
+	}
+
+	if (!clientSecret) {
+		throw new Error("Missing GOOGLE_OAUTH_CLIENT_SECRET");
+	}
+
+	return { clientId, clientSecret } as const;
+}
+
+export function createGoogleOAuthClient(redirectUri: string) {
+	const { clientId, clientSecret } = getOAuthClientConfig();
+	return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+}
+
+export type GoogleStoredOAuthCredentials = {
+	accessToken: string;
+	refreshToken?: string | null;
+	tokenExpiresAt?: Date | null;
+	scope?: string | null;
+};
+
+function shouldRefreshCredentials(credentials: Credentials): boolean {
+	if (!credentials.access_token) {
+		return true;
+	}
+
+	if (typeof credentials.expiry_date === "number") {
+		const threshold = Date.now() + 60_000;
+		return credentials.expiry_date <= threshold;
+	}
+
+	return false;
+}
+
+export async function getOAuthCalendarClient({
+	redirectUri,
+	stored,
+}: {
+	redirectUri: string;
+	stored: GoogleStoredOAuthCredentials;
+}): Promise<{
+	client: calendar_v3.Calendar;
+	refreshedCredentials: Credentials | null;
+}> {
+	const oauth2 = createGoogleOAuthClient(redirectUri);
+
+	oauth2.setCredentials({
+		access_token: stored.accessToken,
+		refresh_token: stored.refreshToken ?? undefined,
+		expiry_date: stored.tokenExpiresAt?.getTime(),
+		scope: stored.scope ?? undefined,
+	});
+
+	let refreshed: Credentials | null = null;
+
+	if (shouldRefreshCredentials(oauth2.credentials)) {
+		if (!stored.refreshToken) {
+			throw new Error(
+				"Google Calendar access token is expired and no refresh token is available",
+			);
+		}
+
+		const response = await oauth2.refreshAccessToken();
+		refreshed = response.credentials;
+		oauth2.setCredentials(response.credentials);
+	}
+
+	return {
+		client: google.calendar({ version: "v3", auth: oauth2 }),
+		refreshedCredentials: refreshed,
+	};
 }
 
 type DateParts = {
@@ -248,16 +343,18 @@ export async function upsertGoogleCalendarEvent({
 	calendarId,
 	event,
 	existingEventId,
+	client,
 }: {
 	calendarId: string;
 	event: GoogleCalendarEventInput;
 	existingEventId?: string | null;
+	client?: calendar_v3.Calendar;
 }): Promise<string> {
-	const client = await getCalendarClient();
+	const calendarClient = client ?? (await getCalendarClient());
 	const requestBody = buildEventResource(event);
 
 	if (existingEventId) {
-		const response = await client.events.patch({
+		const response = await calendarClient.events.patch({
 			calendarId,
 			eventId: existingEventId,
 			requestBody,
@@ -266,7 +363,7 @@ export async function upsertGoogleCalendarEvent({
 		return response.data.id ?? existingEventId;
 	}
 
-	const response = await client.events.insert({
+	const response = await calendarClient.events.insert({
 		calendarId,
 		requestBody,
 	});
@@ -298,14 +395,16 @@ function isNotFoundError(error: unknown): boolean {
 export async function deleteGoogleCalendarEvent({
 	calendarId,
 	eventId,
+	client,
 }: {
 	calendarId: string;
 	eventId: string;
+	client?: calendar_v3.Calendar;
 }): Promise<void> {
-	const client = await getCalendarClient();
+	const calendarClient = client ?? (await getCalendarClient());
 
 	try {
-		await client.events.delete({
+		await calendarClient.events.delete({
 			calendarId,
 			eventId,
 		});

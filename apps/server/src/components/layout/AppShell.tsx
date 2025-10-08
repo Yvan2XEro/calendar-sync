@@ -3,6 +3,7 @@
 import { OrganizationSwitcher } from "@daveyplate/better-auth-ui";
 import {
 	Building2,
+	CalendarCheck,
 	CalendarDays,
 	LayoutDashboard,
 	Settings,
@@ -57,6 +58,11 @@ const WORKSPACE_ITEMS: NavItem[] = [
 	{ title: "Overview", href: "/dashboard", icon: LayoutDashboard },
 	{ title: "Events", href: "/events", icon: CalendarDays },
 	{ title: "Organizations", href: "/organizations", icon: Building2 },
+	{
+		title: "Calendar connections",
+		href: "/account/integrations/calendars",
+		icon: CalendarCheck,
+	},
 	{ title: "Account settings", href: "/account/settings", icon: Settings },
 ];
 

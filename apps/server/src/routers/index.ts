@@ -3,6 +3,7 @@ import { adminDigestsRouter } from "./admin-digests";
 import { adminFlagsRouter } from "./admin-flags";
 import { adminLogsRouter } from "./admin-logs";
 import { adminUsersRouter } from "./admin-users";
+import { calendarConnectionsRouter } from "./calendar-connections";
 import { eventsRouter } from "./events";
 import { orgsRouter } from "./orgs";
 import { providersRouter } from "./providers";
@@ -24,5 +25,6 @@ export const appRouter = router({
 	adminFlags: adminFlagsRouter,
 	adminLogs: adminLogsRouter,
 	adminDigests: adminDigestsRouter,
+	calendarConnections: calendarConnectionsRouter,
 });
 export type AppRouter = typeof appRouter;
