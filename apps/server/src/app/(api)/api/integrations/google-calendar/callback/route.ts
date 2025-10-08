@@ -10,7 +10,7 @@ import {
 } from "@/lib/integrations/google-calendar";
 import {
 	getOrganizationBySlug,
-	getOrganizationMembership,
+	isUserOrganizationAdmin,
 } from "@/lib/org-membership";
 import { buildAbsoluteUrl } from "@/lib/site-metadata";
 
@@ -73,7 +73,7 @@ function buildRedirectUrl(
 ) {
 	const base = returnTo?.startsWith("/")
 		? returnTo
-		: "/account/integrations/calendars";
+		: "/admin/integrations/calendars";
 	const redirectUrl = new URL(base, buildAbsoluteUrl("/"));
 	redirectUrl.searchParams.set("organization", slug);
 	redirectUrl.searchParams.set("status", status);
@@ -135,14 +135,14 @@ export async function GET(request: Request): Promise<NextResponse> {
 		);
 	}
 
-	const membership = await getOrganizationMembership({
+	const isAdmin = await isUserOrganizationAdmin({
 		organizationId: organization.id,
 		userId: session.user.id,
 	});
 
-	if (!membership) {
+	if (!isAdmin) {
 		return NextResponse.json(
-			{ error: "Organization membership required" },
+			{ error: "Administrator permissions are required" },
 			{ status: 403 },
 		);
 	}

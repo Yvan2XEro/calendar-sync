@@ -1,5 +1,6 @@
 import {
 	Building2,
+	CalendarCheck,
 	FlagIcon,
 	LayoutDashboard,
 	ListTodo,
@@ -18,6 +19,11 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Organizations", href: "/admin/orgs", icon: Building2 },
 			{ title: "Users", href: "/admin/users", icon: Users },
 			{ title: "Providers", href: "/admin/providers", icon: Network },
+			{
+				title: "Calendar connections",
+				href: "/admin/integrations/calendars",
+				icon: CalendarCheck,
+			},
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Email digests", href: "/admin/digests", icon: Mail },
 		],

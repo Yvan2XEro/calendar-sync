@@ -1,4 +1,5 @@
 import { protectedProcedure, publicProcedure, router } from "../lib/trpc";
+import { adminCalendarConnectionsRouter } from "./admin-calendar-connections";
 import { adminDigestsRouter } from "./admin-digests";
 import { adminFlagsRouter } from "./admin-flags";
 import { adminLogsRouter } from "./admin-logs";
@@ -26,5 +27,6 @@ export const appRouter = router({
 	adminLogs: adminLogsRouter,
 	adminDigests: adminDigestsRouter,
 	calendarConnections: calendarConnectionsRouter,
+	adminCalendarConnections: adminCalendarConnectionsRouter,
 });
 export type AppRouter = typeof appRouter;
