@@ -30,6 +30,23 @@ bun install
 - A `.env` file at the repository root that provides the secrets consumed by the compose file. At a minimum you must define the OpenID Connect credentials (`OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`), the tRPC cron secret (`CRON_SECRET`), and any third-party API keys (for example `GOOGLE_GENERATIVE_AI_API_KEY`). The compose file loads this file automatically through the `env_file` directive.
 - Available host ports `3000` (web UI), `54322` (PostgreSQL), and an outbound network connection so the worker can reach remote mail providers.
 
+### Required environment variables
+
+Define the following keys in `.env` before launching the stack. Unless noted otherwise, both the `server` and `worker` containers read the values through the shared env file.
+
+| Variable | Service(s) | Description |
+| --- | --- | --- |
+| `NEXT_PUBLIC_OIDC_PROVIDER_ID` | server | Stable identifier for the external OpenID Connect provider that Better Auth uses when constructing the OAuth configuration. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L23-L58】|
+| `OIDC_CLIENT_ID` | server | OAuth client identifier issued by the identity provider; injected as a build argument and consumed by the Better Auth generic OAuth plugin. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】|
+| `OIDC_CLIENT_SECRET` | server | Client secret paired with the OIDC client ID so the server can complete token exchanges with the provider. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】|
+| `OIDC_DISCOVERY_URL` | server | Discovery document URL that describes the provider’s authorization, token, and JWKS endpoints. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L26-L57】|
+| `OIDC_USER_INFO_URL` | server | Optional override that lets the server fetch user profile claims from a custom endpoint after OAuth completes. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L62-L75】|
+| `BETTER_AUTH_SECRET` | server, worker | Shared signing secret required by Better Auth to mint and validate encrypted session cookies. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】|
+| `BETTER_AUTH_URL` | server, worker | Canonical URL for the Better Auth instance so callbacks and hosted views resolve to the correct origin. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】|
+| `CORS_ORIGIN` | server, worker | Comma-separated list of allowed origins used to configure CORS and credentialed requests across the stack. 【F:docker-compose.yml†L34-L45】【F:apps/server/src/lib/auth.ts†L35-L45】|
+| `CRON_SECRET` | cron, server | Shared secret that authenticates the curl-based cron runner against the internal `/api/cron/*` endpoints. 【F:docker-compose.yml†L60-L74】【F:apps/server/src/app/(api)/api/cron/calendar/route.ts†L5-L26】|
+| `GOOGLE_GENERATIVE_AI_API_KEY` | server, worker | API key required when enabling the Gemini-powered email extraction pipeline described in the operational wiki. 【F:docker-compose.yml†L40-L45】【F:WIKI.md†L144-L152】|
+
 ### Service overview
 
 The root-level [`docker-compose.yml`](docker-compose.yml) wires four long-running services together:
