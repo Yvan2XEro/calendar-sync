@@ -103,15 +103,15 @@ export async function generateMetadata(
 			hero?.type === "image" && hero.url ? [{ url: hero.url }] : undefined;
 		const videos =
 			hero?.type === "video" && hero.url
-			? [
-					{
-						url: hero.url,
-						width: 1280,
-						height: 720,
-						alt: hero.alt,
-					},
-				]
-			: undefined;
+				? [
+						{
+							url: hero.url,
+							width: 1280,
+							height: 720,
+							alt: hero.alt,
+						},
+					]
+				: undefined;
 
 		return {
 			metadataBase: new URL(getSiteBaseUrl()),
@@ -147,9 +147,7 @@ export async function generateMetadata(
 	}
 }
 
-export default async function EventLandingPage(
-	props: PageProps<EventRoute>,
-) {
+export default async function EventLandingPage(props: PageProps<EventRoute>) {
 	const params = await props.params;
 	const record = await fetchPublishedEvent(params.slug);
 	if (!record) notFound();

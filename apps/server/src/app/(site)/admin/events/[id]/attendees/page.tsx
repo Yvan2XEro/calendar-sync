@@ -604,8 +604,8 @@ export default function EventAttendeesPage() {
 												No attendees found for these filters.
 											</TableCell>
 										</TableRow>
-					) : (
-						attendees.map((attendee: AttendeeListItem) => {
+									) : (
+										attendees.map((attendee: AttendeeListItem) => {
 											const isUpdating = isUpdatingAttendee(attendee.id);
 											const checkInText = attendee.checkInAt
 												? formatDistanceToNow(new Date(attendee.checkInAt), {
@@ -780,12 +780,14 @@ export default function EventAttendeesPage() {
 					<div className="space-y-4 py-2">
 						<div className="space-y-2">
 							<Label htmlFor={audienceSelectId}>Audience</Label>
-			<Select
-				value={announcementAudience}
-				onValueChange={(value) =>
-					setAnnouncementAudience(value as BulkAnnouncementInput["audience"])
-				}
-			>
+							<Select
+								value={announcementAudience}
+								onValueChange={(value) =>
+									setAnnouncementAudience(
+										value as BulkAnnouncementInput["audience"],
+									)
+								}
+							>
 								<SelectTrigger id={audienceSelectId}>
 									<SelectValue />
 								</SelectTrigger>

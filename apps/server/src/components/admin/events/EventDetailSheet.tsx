@@ -81,7 +81,8 @@ export function EventDetailSheet({
 			? landing.body.trim().split(/\n{2,}/)
 			: [];
 	const visibility = resolveVisibility(event);
-	const statusKey = (event?.status ?? "pending") as keyof typeof statusOptionMap;
+	const statusKey = (event?.status ??
+		"pending") as keyof typeof statusOptionMap;
 	const statusConfig = statusOptionMap[statusKey];
 	return (
 		<Sheet
@@ -130,7 +131,7 @@ export function EventDetailSheet({
 								{visibility ? (
 									<Badge variant={visibility.variant}>{visibility.label}</Badge>
 								) : null}
-						{event.isAllDay ? (
+								{event.isAllDay ? (
 									<Badge variant="outline">All-day</Badge>
 								) : null}
 								{autoApproval ? (
@@ -156,8 +157,8 @@ export function EventDetailSheet({
 									{autoApprovalTimestamp ? (
 										<p>Recorded at: {autoApprovalTimestamp.toLocaleString()}</p>
 									) : null}
-					</div>
-				) : null}
+								</div>
+							) : null}
 						</div>
 						<div className="space-y-1 text-sm">
 							<p className="font-semibold text-foreground">Schedule</p>
@@ -260,14 +261,16 @@ export function EventDetailSheet({
 								) : null}
 								{landingBodyParagraphs.length > 0 ? (
 									<div className="space-y-2 text-muted-foreground">
-										{landingBodyParagraphs.map((paragraph: string, index: number) => (
-											<p
-												key={`${index}-${paragraph.slice(0, 16)}`}
-												className="whitespace-pre-wrap leading-relaxed"
-											>
-												{paragraph}
-											</p>
-										))}
+										{landingBodyParagraphs.map(
+											(paragraph: string, index: number) => (
+												<p
+													key={`${index}-${paragraph.slice(0, 16)}`}
+													className="whitespace-pre-wrap leading-relaxed"
+												>
+													{paragraph}
+												</p>
+											),
+										)}
 									</div>
 								) : null}
 								{landing.seoDescription ? (
@@ -298,12 +301,12 @@ export function EventDetailSheet({
 							</pre>
 						</div>
 						<div className="flex flex-wrap gap-2">
-						{statusActions.map((action) => (
-							<Button
-								key={`${action.status}-${action.publish ?? "default"}`}
-								onClick={() => onUpdateStatus(event.id, action)}
-								disabled={statusLoading}
-							>
+							{statusActions.map((action) => (
+								<Button
+									key={`${action.status}-${action.publish ?? "default"}`}
+									onClick={() => onUpdateStatus(event.id, action)}
+									disabled={statusLoading}
+								>
 									<action.icon className="mr-2 size-4" />
 									{action.label}
 								</Button>

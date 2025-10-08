@@ -1,5 +1,5 @@
-import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
+import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
 

@@ -412,7 +412,10 @@ export const providersRouter = router({
 						? (sessionUser as { id: string }).id
 						: null;
 				if (!userId) {
-					throw new TRPCError({ code: "UNAUTHORIZED", message: "Session invalid" });
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "Session invalid",
+					});
 				}
 
 				const org = await ensureOrganizationAdmin(input.slug, userId);
@@ -457,7 +460,10 @@ export const providersRouter = router({
 						? (sessionUser as { id: string }).id
 						: null;
 				if (!userId) {
-					throw new TRPCError({ code: "UNAUTHORIZED", message: "Session invalid" });
+					throw new TRPCError({
+						code: "UNAUTHORIZED",
+						message: "Session invalid",
+					});
 				}
 
 				const org = await ensureOrganizationAdmin(input.slug, userId);

@@ -216,8 +216,9 @@ export function EventRegistrationSection({
 	}, [maxQuantity, quantity]);
 
 	const registerMutation = useMutation({
-		mutationFn: (variables: Parameters<typeof trpcClient.events.register.mutate>[0]) =>
-			trpcClient.events.register.mutate(variables),
+		mutationFn: (
+			variables: Parameters<typeof trpcClient.events.register.mutate>[0],
+		) => trpcClient.events.register.mutate(variables),
 		onSuccess: (result) => {
 			setOrder(result);
 			if (result.paymentIntentClientSecret) {
@@ -237,8 +238,9 @@ export function EventRegistrationSection({
 	});
 
 	const waitlistMutation = useMutation({
-		mutationFn: (variables: Parameters<typeof trpcClient.events.waitlist.mutate>[0]) =>
-			trpcClient.events.waitlist.mutate(variables),
+		mutationFn: (
+			variables: Parameters<typeof trpcClient.events.waitlist.mutate>[0],
+		) => trpcClient.events.waitlist.mutate(variables),
 		onSuccess: () => {
 			toast.success("Added to waitlist");
 		},

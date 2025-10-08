@@ -11,10 +11,15 @@ function assertSessionData(session: SessionLike): asserts session is {
 		throw redirect("/auth/sign-in");
 	}
 	const user = (session as Record<string, unknown>).user;
-	if (!user || typeof user !== "object" || typeof (user as { id?: unknown }).id !== "string") {
+	if (
+		!user ||
+		typeof user !== "object" ||
+		typeof (user as { id?: unknown }).id !== "string"
+	) {
 		throw redirect("/auth/sign-in");
 	}
 }
+
 import { auth, enforceTukiSessionRoles } from "@/lib/auth";
 
 export default async function DashboardPage() {

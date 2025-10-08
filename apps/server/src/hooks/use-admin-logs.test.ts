@@ -50,7 +50,9 @@ describe("mergeLogsIntoPages", () => {
 
 		const result = mergeLogsIntoPages(existing, incoming);
 
-		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([4, 1, 2]);
+		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([
+			4, 1, 2,
+		]);
 		expect(result.pages[1]?.logs.map((log: LogEntry) => log.id)).toEqual([3]);
 	});
 
@@ -58,6 +60,8 @@ describe("mergeLogsIntoPages", () => {
 		const incoming = [createLog(5), createLog(5), createLog(4)];
 		const result = mergeLogsIntoPages(undefined, incoming);
 
-		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([5, 4]);
+		expect(result.pages[0]?.logs.map((log: LogEntry) => log.id)).toEqual([
+			5, 4,
+		]);
 	});
 });

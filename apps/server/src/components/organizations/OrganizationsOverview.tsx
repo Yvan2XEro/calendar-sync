@@ -420,7 +420,7 @@ function useJoinOrganizationMutation({
 										items: page.items.filter(
 											(item: JoinedOrganization) => item.id !== result.id,
 										),
-								},
+									},
 						),
 					};
 				},
