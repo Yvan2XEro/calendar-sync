@@ -35,12 +35,12 @@ export function sanitizeConnection(
 
 export async function listConnectionsForOrganization(
 	organizationId: string,
-	userId: string,
+	memberId: string,
 ) {
 	const rows = await db.query.calendarConnection.findMany({
 		where: and(
 			eq(calendarConnection.organizationId, organizationId),
-			eq(calendarConnection.userId, userId),
+			eq(calendarConnection.memberId, memberId),
 		),
 		orderBy: (table) => [desc(table.updatedAt)],
 	});

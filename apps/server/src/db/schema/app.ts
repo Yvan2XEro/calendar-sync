@@ -13,7 +13,7 @@ import {
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-import { organization, user } from "./auth";
+import { member, organization, user } from "./auth";
 
 const timestamps = {
 	createdAt: timestamp("created_at", { withTimezone: true })
@@ -244,9 +244,9 @@ export const calendarConnection = pgTable(
 		organizationId: text("organization_id")
 			.notNull()
 			.references(() => organization.id, { onDelete: "cascade" }),
-		userId: text("user_id")
+		memberId: text("member_id")
 			.notNull()
-			.references(() => user.id, { onDelete: "cascade" }),
+			.references(() => member.id, { onDelete: "cascade" }),
 		providerType: calendarProviderType("provider_type").notNull(),
 		externalAccountId: text("external_account_id"),
 		calendarId: text("calendar_id"),
@@ -266,8 +266,8 @@ export const calendarConnection = pgTable(
 	},
 	(table) => ({
 		organizationProviderUnique: uniqueIndex(
-			"calendar_connection_user_org_provider_unique",
-		).on(table.userId, table.organizationId, table.providerType),
+			"calendar_connection_member_org_provider_unique",
+		).on(table.memberId, table.organizationId, table.providerType),
 	}),
 );
 

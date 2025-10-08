@@ -10,6 +10,7 @@ import {
 } from "@/lib/integrations/google-calendar";
 import {
 	getOrganizationBySlug,
+	getOrganizationMembership,
 	isUserOrganizationAdmin,
 } from "@/lib/org-membership";
 import { buildAbsoluteUrl } from "@/lib/site-metadata";
@@ -128,9 +129,14 @@ export async function GET(request: Request): Promise<NextResponse> {
 		);
 	}
 
-	if (connection.userId !== session.user.id) {
+	const membership = await getOrganizationMembership({
+		organizationId: organization.id,
+		userId: session.user.id,
+	});
+
+	if (!membership || connection.memberId !== membership.id) {
 		return NextResponse.json(
-			{ error: "OAuth session is associated with a different user" },
+			{ error: "OAuth session is associated with a different member" },
 			{ status: 403 },
 		);
 	}

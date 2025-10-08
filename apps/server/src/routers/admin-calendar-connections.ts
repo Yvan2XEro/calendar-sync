@@ -11,7 +11,7 @@ import {
 } from "@/lib/calendar-connections";
 import {
 	getOrganizationBySlug,
-	isUserOrganizationAdmin,
+	getOrganizationMembership,
 } from "@/lib/org-membership";
 import { adminProcedure, router } from "@/lib/trpc";
 
@@ -49,19 +49,26 @@ async function ensureOrgAdmin(
 		});
 	}
 
-	const isAdmin = await isUserOrganizationAdmin({
+	const membership = await getOrganizationMembership({
 		organizationId: organization.id,
 		userId: sessionUser.id,
 	});
 
-	if (!isAdmin) {
+	if (!membership) {
 		throw new TRPCError({
 			code: "FORBIDDEN",
 			message: "You must be an administrator of this organization",
 		});
 	}
 
-	return organization;
+	if (membership.role !== "owner" && membership.role !== "admin") {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "You must be an administrator of this organization",
+		});
+	}
+
+	return { organization, membership } as const;
 }
 
 function serializeConnection(connection: SanitizedCalendarConnection) {
@@ -90,17 +97,20 @@ export const adminCalendarConnectionsRouter = router({
 			});
 		}
 
-		const organization = await ensureOrgAdmin(input.slug, sessionUser);
+		const { organization, membership } = await ensureOrgAdmin(
+			input.slug,
+			sessionUser,
+		);
 		const connections = await listConnectionsForOrganization(
 			organization.id,
-			sessionUser.id,
+			membership.id,
 		);
 		return connections.map(serializeConnection);
 	}),
 	disconnect: adminProcedure
 		.input(connectionIdInput)
 		.mutation(async ({ ctx, input }) => {
-			const organization = await ensureOrgAdmin(
+			const { organization, membership } = await ensureOrgAdmin(
 				input.slug,
 				ctx.session?.user as SessionUser,
 			);
@@ -118,7 +128,7 @@ export const adminCalendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== sessionUser.id
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
@@ -142,7 +152,7 @@ export const adminCalendarConnectionsRouter = router({
 	updateCalendar: adminProcedure
 		.input(updateCalendarInput)
 		.mutation(async ({ ctx, input }) => {
-			const organization = await ensureOrgAdmin(
+			const { organization, membership } = await ensureOrgAdmin(
 				input.slug,
 				ctx.session?.user as SessionUser,
 			);
@@ -160,7 +170,7 @@ export const adminCalendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== sessionUser.id
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",

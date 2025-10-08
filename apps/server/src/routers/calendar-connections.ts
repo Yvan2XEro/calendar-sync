@@ -60,7 +60,7 @@ async function ensureOrgMember(
 		});
 	}
 
-	return organization;
+	return { organization, membership } as const;
 }
 
 function serializeConnection(connection: SanitizedCalendarConnection) {
@@ -82,17 +82,13 @@ function serializeConnection(connection: SanitizedCalendarConnection) {
 export const calendarConnectionsRouter = router({
 	list: protectedProcedure.input(slugInput).query(async ({ ctx, input }) => {
 		const sessionUser = ctx.session?.user as SessionUser;
-		const organization = await ensureOrgMember(input.slug, sessionUser);
-		const userId = sessionUser?.id;
-		if (!userId) {
-			throw new TRPCError({
-				code: "UNAUTHORIZED",
-				message: "Authentication required",
-			});
-		}
+		const { organization, membership } = await ensureOrgMember(
+			input.slug,
+			sessionUser,
+		);
 		const connections = await listConnectionsForOrganization(
 			organization.id,
-			userId,
+			membership.id,
 		);
 		return connections.map(serializeConnection);
 	}),
@@ -100,14 +96,10 @@ export const calendarConnectionsRouter = router({
 		.input(connectionIdInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const organization = await ensureOrgMember(input.slug, sessionUser);
-			const userId = sessionUser?.id;
-			if (!userId) {
-				throw new TRPCError({
-					code: "UNAUTHORIZED",
-					message: "Authentication required",
-				});
-			}
+			const { organization, membership } = await ensureOrgMember(
+				input.slug,
+				sessionUser,
+			);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
@@ -115,7 +107,7 @@ export const calendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== userId
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
@@ -140,14 +132,10 @@ export const calendarConnectionsRouter = router({
 		.input(updateCalendarInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const organization = await ensureOrgMember(input.slug, sessionUser);
-			const userId = sessionUser?.id;
-			if (!userId) {
-				throw new TRPCError({
-					code: "UNAUTHORIZED",
-					message: "Authentication required",
-				});
-			}
+			const { organization, membership } = await ensureOrgMember(
+				input.slug,
+				sessionUser,
+			);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
@@ -155,7 +143,7 @@ export const calendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== userId
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",

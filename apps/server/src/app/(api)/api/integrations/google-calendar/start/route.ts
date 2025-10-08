@@ -12,6 +12,7 @@ import {
 } from "@/lib/integrations/google-calendar";
 import {
 	getOrganizationBySlug,
+	getOrganizationMembership,
 	isUserOrganizationAdmin,
 } from "@/lib/org-membership";
 import { buildAbsoluteUrl } from "@/lib/site-metadata";
@@ -79,11 +80,23 @@ export async function GET(request: Request): Promise<NextResponse> {
 		);
 	}
 
+	const membership = await getOrganizationMembership({
+		organizationId: organization.id,
+		userId: session.user.id,
+	});
+
+	if (!membership) {
+		return NextResponse.json(
+			{ error: "Membership not found" },
+			{ status: 403 },
+		);
+	}
+
 	const existing = await db.query.calendarConnection.findFirst({
 		where: (table, { and, eq }) =>
 			and(
 				eq(table.organizationId, organization.id),
-				eq(table.userId, session.user.id),
+				eq(table.memberId, membership.id),
 				eq(table.providerType, "google"),
 			),
 	});
@@ -100,7 +113,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 		await db.insert(calendarConnection).values({
 			id: connectionId,
 			organizationId: organization.id,
-			userId: session.user.id,
+			memberId: membership.id,
 			providerType: "google",
 			status: "pending",
 			stateToken,
