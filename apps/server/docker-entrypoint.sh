@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euo pipefail
+set -eu
 
 if [ "${SKIP_DB_MIGRATE:-}" = "" ]; then
   echo "Running database migrations..."

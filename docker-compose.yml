@@ -62,14 +62,15 @@ services:
         condition: service_started
     environment:
       CRON_SECRET: ${CRON_SECRET:?CRON_SECRET must be set}
-    entrypoint: ["/bin/sh","-c"]
-    command: |
-      while true; do 
-        curl -fsS -H "x-cron-secret:$CRON_SECRET" http://server:3000/api/cron/calendar || echo "calendar cron failed"; 
-        curl -fsS -H "x-cron-secret:$CRON_SECRET" http://server:3000/api/cron/emails || echo "emails cron failed"; 
-        curl -fsS -H "x-cron-secret:$CRON_SECRET" "http://server:3000/api/cron/waitlist?limit=50&expiresInHours=24" || echo "waitlist cron failed"; 
-        sleep 600; 
-      done
+    entrypoint: ["/bin/sh", "-c"]
+    command: [
+        "while :; do \
+        curl -fsS -H \"x-cron-secret:$CRON_SECRET\" http://server:3000/api/cron/calendar || echo \"calendar cron failed\"; \
+        curl -fsS -H \"x-cron-secret:$CRON_SECRET\" http://server:3000/api/cron/emails || echo \"emails cron failed\"; \
+        curl -fsS -H \"x-cron-secret:$CRON_SECRET\" \"http://server:3000/api/cron/waitlist?limit=50&expiresInHours=24\" || echo \"waitlist cron failed\"; \
+        sleep ${CRON_INTERVAL:-600}; \
+        done",
+      ]
     restart: unless-stopped
 
   worker:
