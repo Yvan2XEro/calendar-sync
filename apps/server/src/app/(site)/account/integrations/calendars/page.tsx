@@ -148,9 +148,6 @@ export default function AccountCalendarConnectionsPage() {
 		});
 	}, [connectionsQuery.data]);
 
-	const connectDisabled =
-		!selectedSlug || joinedOrganizations.length === 0 || orgsQuery.isLoading;
-
 	const disconnectMutation = useMutation({
 		mutationFn: (connectionId: string) => {
 			if (!selectedSlug) throw new Error("Organization slug is required");
@@ -208,6 +205,35 @@ export default function AccountCalendarConnectionsPage() {
 		},
 	});
 
+	const startGoogleOAuthMutation = useMutation({
+		mutationFn: async () => {
+			if (!selectedSlug) throw new Error("Organization slug is required");
+			const response =
+				await trpcClient.calendarConnections.startGoogleOAuth.mutate({
+					slug: selectedSlug,
+					returnTo: `${window.location.pathname}${window.location.search}`,
+				});
+
+			return response.authorizationUrl;
+		},
+		onSuccess: (authorizationUrl) => {
+			window.location.href = authorizationUrl;
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to launch Google authorization",
+			);
+		},
+	});
+
+	const connectDisabled =
+		!selectedSlug ||
+		joinedOrganizations.length === 0 ||
+		orgsQuery.isLoading ||
+		startGoogleOAuthMutation.isPending;
+
 	const handleOrganizationChange = (slug: string) => {
 		setSelectedSlug(slug);
 		const next = new URL(window.location.href);
@@ -227,17 +253,7 @@ export default function AccountCalendarConnectionsPage() {
 	};
 
 	const handleConnect = () => {
-		if (!selectedSlug) return;
-		const url = new URL(
-			"/api/integrations/google-calendar/start",
-			window.location.origin,
-		);
-		url.searchParams.set("organization", selectedSlug);
-		url.searchParams.set(
-			"returnTo",
-			`${window.location.pathname}${window.location.search}`,
-		);
-		window.location.href = url.toString();
+		startGoogleOAuthMutation.mutate();
 	};
 
 	const connections = connectionsQuery.data ?? [];

@@ -50,6 +50,27 @@
 			"when": 1759759740619,
 			"tag": "0006_google_calendar_sync",
 			"breakpoints": false
+		},
+		{
+			"idx": 7,
+			"version": "7",
+			"when": 1759761740619,
+			"tag": "0007_digest_scheduling",
+			"breakpoints": false
+		},
+		{
+			"idx": 8,
+			"version": "7",
+			"when": 1759762740619,
+			"tag": "0008_calendar_connections",
+			"breakpoints": false
+		},
+		{
+			"idx": 9,
+			"version": "7",
+			"when": 1759763740619,
+			"tag": "0009_calendar_connections_member",
+			"breakpoints": false
 		}
 	]
 }

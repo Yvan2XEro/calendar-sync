@@ -1,32 +1,13 @@
-import { randomUUID } from "node:crypto";
-
 import { NextResponse } from "next/server";
 
-import { db } from "@/db";
-import { calendarConnection } from "@/db/schema/app";
 import { auth } from "@/lib/auth";
-import {
-	createGoogleOAuthClient,
-	GOOGLE_OAUTH_SCOPES,
-	isGoogleOAuthConfigured,
-} from "@/lib/integrations/google-calendar";
+import { createGoogleOAuthAuthorizationUrl } from "@/lib/calendar-connections/google-oauth";
+import { isGoogleOAuthConfigured } from "@/lib/integrations/google-calendar";
 import {
 	getOrganizationBySlug,
+	getOrganizationMembership,
 	isUserOrganizationAdmin,
 } from "@/lib/org-membership";
-import { buildAbsoluteUrl } from "@/lib/site-metadata";
-
-function parseMetadata(value: unknown): Record<string, unknown> {
-	if (!value || typeof value !== "object" || Array.isArray(value)) {
-		return {};
-	}
-	return { ...(value as Record<string, unknown>) };
-}
-
-function buildState(payload: Record<string, unknown>): string {
-	const json = JSON.stringify(payload);
-	return Buffer.from(json, "utf8").toString("base64url");
-}
 
 export async function GET(request: Request): Promise<NextResponse> {
 	if (!isGoogleOAuthConfigured()) {
@@ -79,62 +60,24 @@ export async function GET(request: Request): Promise<NextResponse> {
 		);
 	}
 
-	const existing = await db.query.calendarConnection.findFirst({
-		where: (table, { and, eq }) =>
-			and(
-				eq(table.organizationId, organization.id),
-				eq(table.userId, session.user.id),
-				eq(table.providerType, "google"),
-			),
+	const membership = await getOrganizationMembership({
+		organizationId: organization.id,
+		userId: session.user.id,
 	});
 
-	const stateToken = randomUUID();
-	const metadata = parseMetadata(existing?.metadata);
-	metadata.lastConnectionStartAt = new Date().toISOString();
-	metadata.lastConnectionStartedBy = session.user.id;
-
-	let connectionId: string;
-
-	if (!existing) {
-		connectionId = randomUUID();
-		await db.insert(calendarConnection).values({
-			id: connectionId,
-			organizationId: organization.id,
-			userId: session.user.id,
-			providerType: "google",
-			status: "pending",
-			stateToken,
-			metadata,
-		});
-	} else {
-		connectionId = existing.id;
-		await db
-			.update(calendarConnection)
-			.set({
-				status: "pending",
-				stateToken,
-				failureReason: null,
-				metadata,
-			})
-			.where((table, { eq }) => eq(table.id, existing.id));
+	if (!membership) {
+		return NextResponse.json(
+			{ error: "Membership not found" },
+			{ status: 403 },
+		);
 	}
 
-	const redirectUri = buildAbsoluteUrl(
-		"/api/integrations/google-calendar/callback",
-	);
-	const client = createGoogleOAuthClient(redirectUri);
-	const state = buildState({
-		connectionId,
+	const { authorizationUrl } = await createGoogleOAuthAuthorizationUrl({
+		organizationId: organization.id,
+		memberId: membership.id,
 		slug,
-		token: stateToken,
-		returnTo: returnTo?.startsWith("/") ? returnTo : null,
-	});
-	const authorizationUrl = client.generateAuthUrl({
-		access_type: "offline",
-		scope: GOOGLE_OAUTH_SCOPES,
-		include_granted_scopes: true,
-		prompt: "consent",
-		state,
+		userId: session.user.id,
+		returnTo,
 	});
 
 	return NextResponse.redirect(authorizationUrl);

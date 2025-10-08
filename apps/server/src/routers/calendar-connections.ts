@@ -9,9 +9,12 @@ import {
 	listConnectionsForOrganization,
 	type SanitizedCalendarConnection,
 } from "@/lib/calendar-connections";
+import { createGoogleOAuthAuthorizationUrl } from "@/lib/calendar-connections/google-oauth";
+import { isGoogleOAuthConfigured } from "@/lib/integrations/google-calendar";
 import {
 	getOrganizationBySlug,
 	getOrganizationMembership,
+	isUserOrganizationAdmin,
 } from "@/lib/org-membership";
 import { protectedProcedure, router } from "@/lib/trpc";
 
@@ -23,6 +26,10 @@ const connectionIdInput = slugInput.extend({
 
 const updateCalendarInput = connectionIdInput.extend({
 	calendarId: z.string().trim().min(1, "Calendar identifier is required"),
+});
+
+const startGoogleOAuthInput = slugInput.extend({
+	returnTo: z.string().optional(),
 });
 
 type SessionUser = {
@@ -60,7 +67,28 @@ async function ensureOrgMember(
 		});
 	}
 
-	return organization;
+	return { organization, membership } as const;
+}
+
+async function ensureOrgAdmin(
+	slug: string,
+	sessionUser: SessionUser | null | undefined,
+) {
+	const { organization, membership } = await ensureOrgMember(slug, sessionUser);
+
+	const isAdmin = await isUserOrganizationAdmin({
+		organizationId: organization.id,
+		userId: sessionUser!.id!,
+	});
+
+	if (!isAdmin) {
+		throw new TRPCError({
+			code: "FORBIDDEN",
+			message: "Administrator permissions are required",
+		});
+	}
+
+	return { organization, membership } as const;
 }
 
 function serializeConnection(connection: SanitizedCalendarConnection) {
@@ -80,19 +108,41 @@ function serializeConnection(connection: SanitizedCalendarConnection) {
 }
 
 export const calendarConnectionsRouter = router({
+	startGoogleOAuth: protectedProcedure
+		.input(startGoogleOAuthInput)
+		.mutation(async ({ ctx, input }) => {
+			if (!isGoogleOAuthConfigured()) {
+				throw new TRPCError({
+					code: "INTERNAL_SERVER_ERROR",
+					message: "Google OAuth is not configured",
+				});
+			}
+
+			const sessionUser = ctx.session?.user as SessionUser;
+			const { organization, membership } = await ensureOrgAdmin(
+				input.slug,
+				sessionUser,
+			);
+
+			const { authorizationUrl } = await createGoogleOAuthAuthorizationUrl({
+				organizationId: organization.id,
+				memberId: membership.id,
+				slug: input.slug,
+				userId: sessionUser.id!,
+				returnTo: input.returnTo,
+			});
+
+			return { authorizationUrl } as const;
+		}),
 	list: protectedProcedure.input(slugInput).query(async ({ ctx, input }) => {
 		const sessionUser = ctx.session?.user as SessionUser;
-		const organization = await ensureOrgMember(input.slug, sessionUser);
-		const userId = sessionUser?.id;
-		if (!userId) {
-			throw new TRPCError({
-				code: "UNAUTHORIZED",
-				message: "Authentication required",
-			});
-		}
+		const { organization, membership } = await ensureOrgMember(
+			input.slug,
+			sessionUser,
+		);
 		const connections = await listConnectionsForOrganization(
 			organization.id,
-			userId,
+			membership.id,
 		);
 		return connections.map(serializeConnection);
 	}),
@@ -100,14 +150,10 @@ export const calendarConnectionsRouter = router({
 		.input(connectionIdInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const organization = await ensureOrgMember(input.slug, sessionUser);
-			const userId = sessionUser?.id;
-			if (!userId) {
-				throw new TRPCError({
-					code: "UNAUTHORIZED",
-					message: "Authentication required",
-				});
-			}
+			const { organization, membership } = await ensureOrgMember(
+				input.slug,
+				sessionUser,
+			);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
@@ -115,7 +161,7 @@ export const calendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== userId
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
@@ -140,14 +186,10 @@ export const calendarConnectionsRouter = router({
 		.input(updateCalendarInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const organization = await ensureOrgMember(input.slug, sessionUser);
-			const userId = sessionUser?.id;
-			if (!userId) {
-				throw new TRPCError({
-					code: "UNAUTHORIZED",
-					message: "Authentication required",
-				});
-			}
+			const { organization, membership } = await ensureOrgMember(
+				input.slug,
+				sessionUser,
+			);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
@@ -155,7 +197,7 @@ export const calendarConnectionsRouter = router({
 			if (
 				!existing ||
 				existing.organizationId !== organization.id ||
-				existing.userId !== userId
+				existing.memberId !== membership.id
 			) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
