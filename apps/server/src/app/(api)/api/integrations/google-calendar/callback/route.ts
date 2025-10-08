@@ -71,9 +71,9 @@ function buildRedirectUrl(
 	message?: string | null,
 	returnTo?: string | null,
 ) {
-        const base = returnTo?.startsWith("/")
-                ? returnTo
-                : "/account/integrations/calendars";
+	const base = returnTo?.startsWith("/")
+		? returnTo
+		: "/account/integrations/calendars";
 	const redirectUrl = new URL(base, buildAbsoluteUrl("/"));
 	redirectUrl.searchParams.set("organization", slug);
 	redirectUrl.searchParams.set("status", status);

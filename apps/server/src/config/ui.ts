@@ -1,12 +1,12 @@
 import {
-        Building2,
-        FlagIcon,
-        LayoutDashboard,
-        ListTodo,
-        Mail,
-        MessageSquare,
-        Network,
-        Users,
+	Building2,
+	FlagIcon,
+	LayoutDashboard,
+	ListTodo,
+	Mail,
+	MessageSquare,
+	Network,
+	Users,
 } from "lucide-react";
 import type { NavGroup } from "@/components/layout/AppShell";
 
@@ -17,8 +17,8 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
 			{ title: "Organizations", href: "/admin/orgs", icon: Building2 },
 			{ title: "Users", href: "/admin/users", icon: Users },
-                        { title: "Providers", href: "/admin/providers", icon: Network },
-                        { title: "Flags", href: "/admin/flags", icon: FlagIcon },
+			{ title: "Providers", href: "/admin/providers", icon: Network },
+			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Email digests", href: "/admin/digests", icon: Mail },
 		],
 	},
