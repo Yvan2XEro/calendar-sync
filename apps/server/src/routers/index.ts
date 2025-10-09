@@ -7,9 +7,9 @@ import { adminTicketTypesRouter } from "./admin-ticket-types";
 import { adminUsersRouter } from "./admin-users";
 import { calendarConnectionsRouter } from "./calendar-connections";
 import { eventsRouter } from "./events";
+import { googleCalendarRouter } from "./google-calendar";
 import { orgsRouter } from "./orgs";
 import { providersRouter } from "./providers";
-import { googleCalendarRouter } from "./google-calendar";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -30,7 +30,7 @@ export const appRouter = router({
 	adminDigests: adminDigestsRouter,
 	adminTicketTypes: adminTicketTypesRouter,
 	calendarConnections: calendarConnectionsRouter,
-        adminCalendarConnections: adminCalendarConnectionsRouter,
-        googleCalendar: googleCalendarRouter,
+	adminCalendarConnections: adminCalendarConnectionsRouter,
+	googleCalendar: googleCalendarRouter,
 });
 export type AppRouter = typeof appRouter;

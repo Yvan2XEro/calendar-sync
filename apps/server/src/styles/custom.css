@@ -31,6 +31,9 @@
 .hero-gradient {
 	@apply bg-gradient-to-b from-[var(--primary)] via-[color-mix(in_oklch,var(--primary)_65%,_white)] to-white;
 }
+div[data-slot="dropdown-menu-item"]:has(svg.lucide-circle-plus) {
+	display: none !important;
+}
 /** iOS Dynamic System Font Scaling */
 /* @supports (-webkit-touch-callout:none) {
 	html {
