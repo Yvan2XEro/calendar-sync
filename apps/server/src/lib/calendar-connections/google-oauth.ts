@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import { calendarConnection } from "@/db/schema/app";
@@ -46,30 +46,34 @@ export async function createGoogleOAuthAuthorizationUrl({
 	metadata.lastConnectionStartAt = new Date().toISOString();
 	metadata.lastConnectionStartedBy = userId;
 
-	let connectionId: string;
+        const connectionId = existing?.id ?? randomUUID();
 
-	if (!existing) {
-		connectionId = randomUUID();
-		await db.insert(calendarConnection).values({
-			id: connectionId,
-			memberId,
-			providerType: "google",
-			status: "pending",
-			stateToken,
-			metadata,
-		});
-	} else {
-		connectionId = existing.id;
-		await db
-			.update(calendarConnection)
-			.set({
-				status: "pending",
-				stateToken,
-				failureReason: null,
-				metadata,
-			})
-			.where(eq(calendarConnection.id, existing.id));
-	}
+        const [upsertedConnection] = await db
+                .insert(calendarConnection)
+                .values({
+                        id: connectionId,
+                        memberId,
+                        providerType: "google",
+                        status: "pending",
+                        stateToken,
+                        metadata,
+                })
+                .onConflictDoUpdate({
+                        target: [
+                                calendarConnection.memberId,
+                                calendarConnection.providerType,
+                        ],
+                        set: {
+                                status: "pending",
+                                stateToken,
+                                failureReason: null,
+                                metadata,
+                                updatedAt: sql`now()`,
+                        },
+                })
+                .returning({ id: calendarConnection.id });
+
+        const resolvedConnectionId = upsertedConnection.id;
 
 	const redirectUri = buildAbsoluteUrl(
 		"/api/integrations/google-calendar/callback",
@@ -78,11 +82,11 @@ export async function createGoogleOAuthAuthorizationUrl({
 	const sanitizedReturnTo =
 		returnTo && returnTo.startsWith("/") ? returnTo : null;
 	const state = buildState({
-		connectionId,
-		slug,
-		token: stateToken,
-		returnTo: sanitizedReturnTo,
-	});
+                connectionId: resolvedConnectionId,
+                slug,
+                token: stateToken,
+                returnTo: sanitizedReturnTo,
+        });
 	const authorizationUrl = client.generateAuthUrl({
 		access_type: "offline",
 		scope: [...GOOGLE_OAUTH_SCOPES],
@@ -91,5 +95,5 @@ export async function createGoogleOAuthAuthorizationUrl({
 		state,
 	});
 
-	return { authorizationUrl, connectionId };
+        return { authorizationUrl, connectionId: resolvedConnectionId };
 }
