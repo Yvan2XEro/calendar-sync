@@ -9,6 +9,7 @@ import { calendarConnectionsRouter } from "./calendar-connections";
 import { eventsRouter } from "./events";
 import { orgsRouter } from "./orgs";
 import { providersRouter } from "./providers";
+import { googleCalendarRouter } from "./google-calendar";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -29,6 +30,7 @@ export const appRouter = router({
 	adminDigests: adminDigestsRouter,
 	adminTicketTypes: adminTicketTypesRouter,
 	calendarConnections: calendarConnectionsRouter,
-	adminCalendarConnections: adminCalendarConnectionsRouter,
+        adminCalendarConnections: adminCalendarConnectionsRouter,
+        googleCalendar: googleCalendarRouter,
 });
 export type AppRouter = typeof appRouter;

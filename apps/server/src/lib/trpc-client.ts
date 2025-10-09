@@ -47,15 +47,21 @@ type ListForUserInput = RouterInputs["orgs"]["listForUser"];
 type ListForUserOutput = RouterOutputs["orgs"]["listForUser"];
 
 export const eventsApi = {
-	listRecentForUser: (input?: RouterInputs["events"]["listRecentForUser"]) =>
-		trpcClient.events.listRecentForUser.query(input),
+        listRecentForUser: (input?: RouterInputs["events"]["listRecentForUser"]) =>
+                trpcClient.events.listRecentForUser.query(input),
+};
+
+export const googleCalendarApi = {
+        listUpcomingEvents: (
+                input?: RouterInputs["googleCalendar"]["listUpcomingEvents"],
+        ) => trpcClient.googleCalendar.listUpcomingEvents.query(input),
 };
 
 export const orgsApi = {
-	listForUser: async <TSegment extends ListForUserInput["segment"]>(
-		input: ListForUserInput & { segment: TSegment },
-	) =>
-		(await trpcClient.orgs.listForUser.query(input)) as Extract<
+        listForUser: async <TSegment extends ListForUserInput["segment"]>(
+                input: ListForUserInput & { segment: TSegment },
+        ) =>
+                (await trpcClient.orgs.listForUser.query(input)) as Extract<
 			ListForUserOutput,
 			{ segment: TSegment }
 		>,
