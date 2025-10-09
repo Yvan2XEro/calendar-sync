@@ -9,6 +9,7 @@ import { calendarConnectionsRouter } from "./calendar-connections";
 import { eventsRouter } from "./events";
 import { orgsRouter } from "./orgs";
 import { providersRouter } from "./providers";
+import { cronRouter } from "./cron";
 
 export const appRouter = router({
 	healthCheck: publicProcedure.query(() => {
@@ -20,15 +21,16 @@ export const appRouter = router({
 			user: ctx.session.user,
 		};
 	}),
-	providers: providersRouter,
-	events: eventsRouter,
-	orgs: orgsRouter,
-	adminUsers: adminUsersRouter,
-	adminFlags: adminFlagsRouter,
-	adminLogs: adminLogsRouter,
-	adminDigests: adminDigestsRouter,
-	adminTicketTypes: adminTicketTypesRouter,
-	calendarConnections: calendarConnectionsRouter,
-	adminCalendarConnections: adminCalendarConnectionsRouter,
+        providers: providersRouter,
+        events: eventsRouter,
+        orgs: orgsRouter,
+        adminUsers: adminUsersRouter,
+        adminFlags: adminFlagsRouter,
+        adminLogs: adminLogsRouter,
+        adminDigests: adminDigestsRouter,
+        adminTicketTypes: adminTicketTypesRouter,
+        calendarConnections: calendarConnectionsRouter,
+        adminCalendarConnections: adminCalendarConnectionsRouter,
+        cron: cronRouter,
 });
 export type AppRouter = typeof appRouter;

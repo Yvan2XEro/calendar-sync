@@ -298,8 +298,8 @@ function resolveEndDate(start: Date, rawEnd: Date | null): Date {
 	return rawEnd;
 }
 
-function buildEventResource(
-	event: GoogleCalendarEventInput,
+export function buildEventResource(
+        event: GoogleCalendarEventInput,
 ): calendar_v3.Schema$Event {
 	const timezone = getEventTimezone({
 		id: event.id,
@@ -380,7 +380,7 @@ export async function upsertGoogleCalendarEvent({
 	return id;
 }
 
-function isNotFoundError(error: unknown): boolean {
+export function isNotFoundError(error: unknown): boolean {
 	if (!error) return false;
 
 	const maybeCode = (error as { code?: number }).code;
