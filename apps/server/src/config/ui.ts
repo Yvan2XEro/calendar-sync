@@ -6,6 +6,7 @@ import {
 	Mail,
 	MessageSquare,
 	Network,
+	Ticket,
 	Users,
 } from "lucide-react";
 import type { NavGroup } from "@/components/layout/AppShell";
@@ -20,6 +21,7 @@ export const defaultNavigation: NavGroup[] = [
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Email digests", href: "/admin/digests", icon: Mail },
+			{ title: "Ticket types", href: "/admin/ticket-types", icon: Ticket },
 		],
 	},
 	{
