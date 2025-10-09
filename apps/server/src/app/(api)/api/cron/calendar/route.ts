@@ -1,53 +1,70 @@
-import { createContext } from "@/lib/context";
-import { appRouter } from "@/routers";
+import { ZodError } from "zod";
+
+import { syncGoogleCalendars } from "@/lib/cron/google-calendar-sync";
 
 export const runtime = "nodejs";
 
+function parseQueryNumber(value: string | null): number | undefined | null {
+        if (value == null) return undefined;
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) return null;
+        return parsed;
+}
+
 async function handleRequest(req: Request) {
-	const cronSecret = process.env.CRON_SECRET;
-	if (cronSecret) {
-		const provided = req.headers.get("x-cron-secret");
-		if (provided !== cronSecret) {
-			return new Response("Unauthorized", { status: 401 });
-		}
-	}
+        const cronSecret = process.env.CRON_SECRET;
+        if (cronSecret) {
+                const provided = req.headers.get("x-cron-secret");
+                if (provided !== cronSecret) {
+                        return new Response("Unauthorized", { status: 401 });
+                }
+        }
 
         try {
-                const ctx = await createContext(req);
-                const caller = appRouter.createCaller(ctx);
-
                 const url = new URL(req.url);
-                const limitParam = url.searchParams.get("limit");
-                const lookaheadParam = url.searchParams.get("lookaheadHours");
+                const limitValue = parseQueryNumber(url.searchParams.get("limit"));
+                const lookaheadValue = parseQueryNumber(url.searchParams.get("lookaheadHours"));
 
-                let limit = limitParam ? Number(limitParam) : undefined;
-                if (limit !== undefined && !Number.isFinite(limit)) {
-                        limit = undefined;
+                if (limitValue === null || lookaheadValue === null) {
+                        return Response.json(
+                                { error: "Invalid numeric query parameter" },
+                                { status: 400 },
+                        );
                 }
 
-                let lookaheadHours = lookaheadParam ? Number(lookaheadParam) : undefined;
-                if (lookaheadHours !== undefined && !Number.isFinite(lookaheadHours)) {
-                        lookaheadHours = undefined;
+                const options: {
+                        limit?: number;
+                        lookaheadHours?: number;
+                } = {};
+
+                if (limitValue !== undefined) {
+                        options.limit = limitValue;
                 }
 
-                const input =
-                        limit === undefined && lookaheadHours === undefined
-                                ? undefined
-                                : { limit, lookaheadHours };
+                if (lookaheadValue !== undefined) {
+                        options.lookaheadHours = lookaheadValue;
+                }
 
-                const result = await caller.cron.syncGoogleCalendars(input);
+                const result = await syncGoogleCalendars(options);
                 return Response.json(result);
         } catch (error) {
+                if (error instanceof ZodError) {
+                        return Response.json(
+                                { error: "Invalid query parameter value", details: error.issues },
+                                { status: 400 },
+                        );
+                }
+
                 const message =
                         error instanceof Error ? error.message : "Calendar sync failed";
-		return Response.json({ error: message }, { status: 500 });
-	}
+                return Response.json({ error: message }, { status: 500 });
+        }
 }
 
 export async function GET(req: Request) {
-	return handleRequest(req);
+        return handleRequest(req);
 }
 
 export async function POST(req: Request) {
-	return handleRequest(req);
+        return handleRequest(req);
 }

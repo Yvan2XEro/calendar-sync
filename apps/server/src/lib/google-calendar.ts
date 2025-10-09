@@ -72,6 +72,6 @@ export async function getCalendarClientForUser(
 
   await auth.getAccessToken();
 
-  const calendar = google.calendar({ version: "v3", auth });
+  const calendar = google.calendar({ version: "v3", auth: auth as unknown as any });
   return { auth, calendar };
 }

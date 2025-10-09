@@ -9,18 +9,17 @@ import { calendarConnectionsRouter } from "./calendar-connections";
 import { eventsRouter } from "./events";
 import { orgsRouter } from "./orgs";
 import { providersRouter } from "./providers";
-import { cronRouter } from "./cron";
 
 export const appRouter = router({
-	healthCheck: publicProcedure.query(() => {
-		return "OK";
-	}),
-	privateData: protectedProcedure.query(({ ctx }) => {
-		return {
-			message: "This is private",
-			user: ctx.session.user,
-		};
-	}),
+        healthCheck: publicProcedure.query(() => {
+                return "OK";
+        }),
+        privateData: protectedProcedure.query(({ ctx }) => {
+                return {
+                        message: "This is private",
+                        user: ctx.session.user,
+                };
+        }),
         providers: providersRouter,
         events: eventsRouter,
         orgs: orgsRouter,
@@ -31,6 +30,5 @@ export const appRouter = router({
         adminTicketTypes: adminTicketTypesRouter,
         calendarConnections: calendarConnectionsRouter,
         adminCalendarConnections: adminCalendarConnectionsRouter,
-        cron: cronRouter,
 });
 export type AppRouter = typeof appRouter;
