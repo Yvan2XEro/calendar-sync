@@ -98,7 +98,7 @@ export default function AccountCalendarConnectionsPage() {
 		queryFn: () =>
 			trpcClient.orgs.listForUser.query({
 				segment: "joined",
-				limit: 50,
+				limit: 24,
 			}),
 	});
 
