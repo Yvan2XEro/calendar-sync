@@ -5,6 +5,7 @@ import {
 	calendarConnection,
 	type calendarConnectionStatus,
 } from "@/db/schema/app";
+import { member } from "@/db/schema/auth";
 
 export type CalendarConnectionRow = typeof calendarConnection.$inferSelect;
 
@@ -33,30 +34,30 @@ export function sanitizeConnection(
 	};
 }
 
-export async function listConnectionsForOrganization(
-	organizationId: string,
-	memberId: string,
-) {
+export async function listConnectionsForMember(memberId: string) {
 	const rows = await db.query.calendarConnection.findMany({
-		where: and(
-			eq(calendarConnection.organizationId, organizationId),
-			eq(calendarConnection.memberId, memberId),
-		),
+		where: eq(calendarConnection.memberId, memberId),
 		orderBy: (table) => [desc(table.updatedAt)],
 	});
 	return rows.map(sanitizeConnection);
 }
 
 export async function resolveGoogleCalendarConnection(organizationId: string) {
-	const row = await db.query.calendarConnection.findFirst({
-		where: and(
-			eq(calendarConnection.organizationId, organizationId),
-			eq(calendarConnection.providerType, "google"),
-			eq(calendarConnection.status, CONNECTED_STATUS),
-		),
-		orderBy: (table) => [desc(table.updatedAt)],
-	});
-	return row ? sanitizeConnection(row) : null;
+	const rows = await db
+		.select({ connection: calendarConnection })
+		.from(calendarConnection)
+		.innerJoin(member, eq(member.id, calendarConnection.memberId))
+		.where(
+			and(
+				eq(member.organizationId, organizationId),
+				eq(calendarConnection.providerType, "google"),
+				eq(calendarConnection.status, CONNECTED_STATUS),
+			),
+		)
+		.orderBy(desc(calendarConnection.updatedAt))
+		.limit(1);
+	const row = rows.at(0);
+	return row ? sanitizeConnection(row.connection) : null;
 }
 
 export async function updateConnectionCredentials(

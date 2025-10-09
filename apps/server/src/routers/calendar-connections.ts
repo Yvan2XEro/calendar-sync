@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { calendarConnection } from "@/db/schema/app";
 import {
 	clearConnectionCredentials,
-	listConnectionsForOrganization,
+	listConnectionsForMember,
 	type SanitizedCalendarConnection,
 } from "@/lib/calendar-connections";
 import { createGoogleOAuthAuthorizationUrl } from "@/lib/calendar-connections/google-oauth";
@@ -119,13 +119,9 @@ export const calendarConnectionsRouter = router({
 			}
 
 			const sessionUser = ctx.session?.user as SessionUser;
-			const { organization, membership } = await ensureOrgAdmin(
-				input.slug,
-				sessionUser,
-			);
+			const { membership } = await ensureOrgAdmin(input.slug, sessionUser);
 
 			const { authorizationUrl } = await createGoogleOAuthAuthorizationUrl({
-				organizationId: organization.id,
 				memberId: membership.id,
 				slug: input.slug,
 				userId: sessionUser.id!,
@@ -136,33 +132,20 @@ export const calendarConnectionsRouter = router({
 		}),
 	list: protectedProcedure.input(slugInput).query(async ({ ctx, input }) => {
 		const sessionUser = ctx.session?.user as SessionUser;
-		const { organization, membership } = await ensureOrgMember(
-			input.slug,
-			sessionUser,
-		);
-		const connections = await listConnectionsForOrganization(
-			organization.id,
-			membership.id,
-		);
+		const { membership } = await ensureOrgMember(input.slug, sessionUser);
+		const connections = await listConnectionsForMember(membership.id);
 		return connections.map(serializeConnection);
 	}),
 	disconnect: protectedProcedure
 		.input(connectionIdInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const { organization, membership } = await ensureOrgMember(
-				input.slug,
-				sessionUser,
-			);
+			const { membership } = await ensureOrgMember(input.slug, sessionUser);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
 
-			if (
-				!existing ||
-				existing.organizationId !== organization.id ||
-				existing.memberId !== membership.id
-			) {
+			if (!existing || existing.memberId !== membership.id) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Calendar connection not found",
@@ -186,19 +169,12 @@ export const calendarConnectionsRouter = router({
 		.input(updateCalendarInput)
 		.mutation(async ({ ctx, input }) => {
 			const sessionUser = ctx.session?.user as SessionUser;
-			const { organization, membership } = await ensureOrgMember(
-				input.slug,
-				sessionUser,
-			);
+			const { membership } = await ensureOrgMember(input.slug, sessionUser);
 			const existing = await db.query.calendarConnection.findFirst({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
 
-			if (
-				!existing ||
-				existing.organizationId !== organization.id ||
-				existing.memberId !== membership.id
-			) {
+			if (!existing || existing.memberId !== membership.id) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Calendar connection not found",

@@ -122,7 +122,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 	}
 
 	const organization = await getOrganizationBySlug(state.slug);
-	if (!organization || organization.id !== connection.organizationId) {
+	if (!organization) {
 		return NextResponse.json(
 			{ error: "Organization mismatch" },
 			{ status: 400 },

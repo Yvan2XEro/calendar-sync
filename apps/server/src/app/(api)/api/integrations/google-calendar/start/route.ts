@@ -73,7 +73,6 @@ export async function GET(request: Request): Promise<NextResponse> {
 	}
 
 	const { authorizationUrl } = await createGoogleOAuthAuthorizationUrl({
-		organizationId: organization.id,
 		memberId: membership.id,
 		slug,
 		userId: session.user.id,
