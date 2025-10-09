@@ -1,16 +1,17 @@
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import type { calendar_v3 } from "googleapis";
 import { z } from "zod";
-
+import { randomUUID } from "crypto";
 import { db } from "@/db";
 import { event } from "@/db/schema/app";
 import { account } from "@/db/schema/auth";
 import { getCalendarClientForUser } from "@/lib/google-calendar";
 import {
-	buildEventResource,
-	type GoogleCalendarEventInput,
-	isNotFoundError,
+  buildEventResource,
+  type GoogleCalendarEventInput,
+  isNotFoundError,
 } from "@/lib/integrations/google-calendar";
+import { addDays } from "date-fns";
 
 const DEFAULT_EVENT_LIMIT = 50;
 const DEFAULT_LOOKAHEAD_HOURS = 24 * 30;
@@ -66,7 +67,7 @@ export type SyncResult = {
 export type SyncOptions = z.infer<typeof syncOptionsSchema>;
 
 function normalizeMetadata(
-  value: EventSelection["metadata"]
+  value: EventSelection["metadata"],
 ): Record<string, unknown> | undefined {
   if (!value) return undefined;
   if (typeof value !== "object" || Array.isArray(value)) return undefined;
@@ -99,9 +100,11 @@ function isConflictError(error: unknown): boolean {
 
 async function syncEventForUser(
   calendar: calendar_v3.Calendar,
-  eventInput: GoogleCalendarEventInput
+  eventInput: GoogleCalendarEventInput,
 ): Promise<SyncAction> {
-  const resource = buildEventResource(eventInput);
+  const resource = buildEventResource({
+    ...eventInput,
+  });
 
   try {
     await calendar.events.patch({
@@ -119,7 +122,10 @@ async function syncEventForUser(
   try {
     await calendar.events.insert({
       calendarId: USER_CALENDAR_ID,
-      requestBody: { ...resource, id: eventInput.id },
+      requestBody: {
+        ...resource,
+        id: randomUUID().replace(/-/g, "").toLowerCase(),
+      },
     });
     return "created";
   } catch (error) {
@@ -136,7 +142,7 @@ async function syncEventForUser(
 }
 
 export async function syncGoogleCalendars(
-  options?: SyncOptions
+  options?: SyncOptions,
 ): Promise<SyncResult> {
   const parsed = syncOptionsSchema.parse(options ?? {});
 
@@ -164,8 +170,8 @@ export async function syncGoogleCalendars(
         eq(event.status, "approved"),
         eq(event.isPublished, true),
         gte(event.startAt, now),
-        lte(event.startAt, lookahead)
-      )
+        lte(event.startAt, lookahead),
+      ),
     )
     .orderBy(asc(event.startAt))
     .limit(limit);
@@ -196,11 +202,14 @@ export async function syncGoogleCalendars(
 
   for (const acct of googleAccounts) {
     try {
-      const { calendar } = await getCalendarClientForUser(acct.userId);
+      console.log("SUPER");
+
+      const { calendar, auth } = await getCalendarClientForUser(acct.userId);
       for (const row of eventsToSync) {
         const eventInput = toGoogleInput(row);
         try {
           const action = await syncEventForUser(calendar, eventInput);
+
           if (action === "created") {
             summary.created += 1;
           } else {

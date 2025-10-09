@@ -1,6 +1,6 @@
 import type { Credentials, OAuth2Client } from "google-auth-library";
 import { type calendar_v3, google } from "googleapis";
-
+import { randomUUID } from "crypto";
 import { getEventTimezone } from "@/lib/calendar-links";
 
 export const GOOGLE_CALENDAR_SCOPES = [
@@ -69,7 +69,7 @@ function getServiceAccountConfig(): ServiceAccountConfig {
 async function getDwdAccessToken(
   scopes: readonly string[],
   subEmail: string,
-  saEmail: string
+  saEmail: string,
 ): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
   const claims = {
@@ -115,9 +115,8 @@ async function getDwdAccessToken(
   };
   if (!res.ok || !json.access_token) {
     throw new Error(
-      `Token exchange failed: ${json.error ?? res.statusText} ${
-        json.error_description ?? ""
-      }`.trim()
+      `Token exchange failed: ${json.error ?? res.statusText} ${json.error_description ?? ""
+        }`.trim(),
     );
   }
   return json.access_token;
@@ -129,7 +128,7 @@ async function getCalendarClient(): Promise<calendar_v3.Calendar> {
   const accessToken = await getDwdAccessToken(
     GOOGLE_CALENDAR_SCOPES,
     impersonatedUser,
-    serviceAccountEmail
+    serviceAccountEmail,
   );
 
   const oauth2 = new google.auth.OAuth2();
@@ -158,7 +157,7 @@ export function createGoogleOAuthClient(redirectUri: string) {
   return new google.auth.OAuth2(
     clientId,
     clientSecret,
-    redirectUri
+    redirectUri,
   ) as unknown as OAuth2Client;
 }
 
@@ -206,7 +205,7 @@ export async function getOAuthCalendarClient({
   if (shouldRefreshCredentials(oauth2.credentials)) {
     if (!stored.refreshToken) {
       throw new Error(
-        "Google Calendar access token is expired and no refresh token is available"
+        "Google Calendar access token is expired and no refresh token is available",
       );
     }
 
@@ -301,7 +300,7 @@ function resolveEndDate(start: Date, rawEnd: Date | null): Date {
 }
 
 export function buildEventResource(
-  event: GoogleCalendarEventInput
+  event: GoogleCalendarEventInput,
 ): calendar_v3.Schema$Event {
   const timezone = getEventTimezone({
     id: event.id,
@@ -312,6 +311,7 @@ export function buildEventResource(
   });
 
   const resource: calendar_v3.Schema$Event = {
+    id: randomUUID().replace(/-/g, "").toLowerCase(),
     summary: event.title,
     description: event.description ?? undefined,
     location: event.location ?? undefined,

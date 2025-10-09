@@ -1,10 +1,10 @@
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import {
-	admin,
-	genericOAuth,
-	openAPI,
-	organization,
+  admin,
+  genericOAuth,
+  openAPI,
+  organization,
 } from "better-auth/plugins";
 
 import { db } from "../db";
@@ -41,7 +41,7 @@ export const auth = betterAuth<BetterAuthOptions>({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       scope: ["https://www.googleapis.com/auth/calendar", "openid", "email"],
-      prompt: "consent",
+      prompt: "select_account consent",
       accessType: "offline",
       // disableDefaultScope
     },
@@ -71,17 +71,17 @@ export const auth = betterAuth<BetterAuthOptions>({
 
           getUserInfo: process.env.OIDC_USER_INFO_URL
             ? async (t) => {
-                const response = await fetch(process.env.OIDC_USER_INFO_URL!, {
-                  headers: {
-                    Authorization: `Bearer ${t.accessToken}`,
-                  },
-                });
-                const json = await response.json();
-                return {
-                  ...json,
-                  emailVerified: true,
-                };
-              }
+              const response = await fetch(process.env.OIDC_USER_INFO_URL!, {
+                headers: {
+                  Authorization: `Bearer ${t.accessToken}`,
+                },
+              });
+              const json = await response.json();
+              return {
+                ...json,
+                emailVerified: true,
+              };
+            }
             : undefined,
         },
       ],

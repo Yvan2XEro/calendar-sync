@@ -27,13 +27,13 @@ async function handleRequest(req: Request) {
     const url = new URL(req.url);
     const limitValue = parseQueryNumber(url.searchParams.get("limit"));
     const lookaheadValue = parseQueryNumber(
-      url.searchParams.get("lookaheadHours")
+      url.searchParams.get("lookaheadHours"),
     );
 
     if (limitValue === null || lookaheadValue === null) {
       return Response.json(
         { error: "Invalid numeric query parameter" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,7 +56,7 @@ async function handleRequest(req: Request) {
     if (error instanceof ZodError) {
       return Response.json(
         { error: "Invalid query parameter value", details: error.issues },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
