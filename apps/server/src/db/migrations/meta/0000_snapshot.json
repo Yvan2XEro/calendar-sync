@@ -142,12 +142,8 @@
           "name": "event_attendee_event_id_event_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -155,12 +151,8 @@
           "name": "event_attendee_order_id_event_order_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event_order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -168,12 +160,8 @@
           "name": "event_attendee_order_item_id_event_order_item_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event_order_item",
-          "columnsFrom": [
-            "order_item_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_item_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -181,12 +169,8 @@
           "name": "event_attendee_ticket_type_id_event_ticket_type_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event_ticket_type",
-          "columnsFrom": [
-            "ticket_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ticket_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -194,12 +178,8 @@
           "name": "event_attendee_profile_id_event_attendee_profile_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event_attendee_profile",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -207,12 +187,8 @@
           "name": "event_attendee_waitlist_entry_id_event_waitlist_entry_id_fk",
           "tableFrom": "event_attendee",
           "tableTo": "event_waitlist_entry",
-          "columnsFrom": [
-            "waitlist_entry_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["waitlist_entry_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -322,12 +298,8 @@
           "name": "event_attendee_profile_organization_id_organization_id_fk",
           "tableFrom": "event_attendee_profile",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -473,12 +445,8 @@
           "name": "calendar_connection_member_id_member_id_fk",
           "tableFrom": "calendar_connection",
           "tableTo": "member",
-          "columnsFrom": [
-            "member_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["member_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -922,12 +890,8 @@
           "name": "event_provider_id_provider_id_fk",
           "tableFrom": "event",
           "tableTo": "provider",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -935,12 +899,8 @@
           "name": "event_organization_id_organization_id_fk",
           "tableFrom": "event",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -948,12 +908,8 @@
           "name": "event_flag_id_flag_id_fk",
           "tableFrom": "event",
           "tableTo": "flag",
-          "columnsFrom": [
-            "flag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["flag_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1092,12 +1048,8 @@
           "name": "event_automation_job_event_id_event_id_fk",
           "tableFrom": "event_automation_job",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1284,12 +1236,8 @@
           "name": "event_email_delivery_event_id_event_id_fk",
           "tableFrom": "event_email_delivery",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1297,12 +1245,8 @@
           "name": "event_email_delivery_order_id_event_order_id_fk",
           "tableFrom": "event_email_delivery",
           "tableTo": "event_order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1310,12 +1254,8 @@
           "name": "event_email_delivery_attendee_id_event_attendee_id_fk",
           "tableFrom": "event_email_delivery",
           "tableTo": "event_attendee",
-          "columnsFrom": [
-            "attendee_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["attendee_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1528,12 +1468,8 @@
           "name": "event_order_event_id_event_id_fk",
           "tableFrom": "event_order",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1541,12 +1477,8 @@
           "name": "event_order_organization_id_organization_id_fk",
           "tableFrom": "event_order",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -1554,12 +1486,8 @@
           "name": "event_order_purchaser_profile_id_event_attendee_profile_id_fk",
           "tableFrom": "event_order",
           "tableTo": "event_attendee_profile",
-          "columnsFrom": [
-            "purchaser_profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["purchaser_profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1663,12 +1591,8 @@
           "name": "event_order_item_order_id_event_order_id_fk",
           "tableFrom": "event_order_item",
           "tableTo": "event_order",
-          "columnsFrom": [
-            "order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["order_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1676,12 +1600,8 @@
           "name": "event_order_item_ticket_type_id_event_ticket_type_id_fk",
           "tableFrom": "event_order_item",
           "tableTo": "event_ticket_type",
-          "columnsFrom": [
-            "ticket_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ticket_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -1821,12 +1741,8 @@
           "name": "organization_provider_organization_id_organization_id_fk",
           "tableFrom": "organization_provider",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1834,12 +1750,8 @@
           "name": "organization_provider_provider_id_provider_id_fk",
           "tableFrom": "organization_provider",
           "tableTo": "provider",
-          "columnsFrom": [
-            "provider_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["provider_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2046,12 +1958,8 @@
           "name": "event_ticket_type_event_id_event_id_fk",
           "tableFrom": "event_ticket_type",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2187,12 +2095,8 @@
           "name": "event_waitlist_entry_event_id_event_id_fk",
           "tableFrom": "event_waitlist_entry",
           "tableTo": "event",
-          "columnsFrom": [
-            "event_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2200,12 +2104,8 @@
           "name": "event_waitlist_entry_ticket_type_id_event_ticket_type_id_fk",
           "tableFrom": "event_waitlist_entry",
           "tableTo": "event_ticket_type",
-          "columnsFrom": [
-            "ticket_type_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ticket_type_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -2213,12 +2113,8 @@
           "name": "event_waitlist_entry_profile_id_event_attendee_profile_id_fk",
           "tableFrom": "event_waitlist_entry",
           "tableTo": "event_attendee_profile",
-          "columnsFrom": [
-            "profile_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["profile_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2226,12 +2122,8 @@
           "name": "event_waitlist_entry_promoted_order_id_event_order_id_fk",
           "tableFrom": "event_waitlist_entry",
           "tableTo": "event_order",
-          "columnsFrom": [
-            "promoted_order_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["promoted_order_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -2387,12 +2279,8 @@
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2456,12 +2344,8 @@
           "name": "invitation_inviter_id_user_id_fk",
           "tableFrom": "invitation",
           "tableTo": "user",
-          "columnsFrom": [
-            "inviter_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["inviter_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2469,12 +2353,8 @@
           "name": "invitation_organization_id_organization_id_fk",
           "tableFrom": "invitation",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2526,12 +2406,8 @@
           "name": "member_user_id_user_id_fk",
           "tableFrom": "member",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2539,12 +2415,8 @@
           "name": "member_organization_id_organization_id_fk",
           "tableFrom": "member",
           "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2603,9 +2475,7 @@
         "organization_slug_unique": {
           "name": "organization_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -2683,12 +2553,8 @@
           "name": "session_impersonated_by_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "impersonated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["impersonated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2696,12 +2562,8 @@
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
           "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -2709,12 +2571,8 @@
           "name": "session_active_organization_id_organization_id_fk",
           "tableFrom": "session",
           "tableTo": "organization",
-          "columnsFrom": [
-            "active_organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["active_organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2724,9 +2582,7 @@
         "session_token_unique": {
           "name": "session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -2812,9 +2668,7 @@
         "user_email_unique": {
           "name": "user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         }
       },
       "policies": {},
@@ -2886,56 +2740,32 @@
     "public.calendar_connection_status": {
       "name": "calendar_connection_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "connected",
-        "error",
-        "revoked"
-      ]
+      "values": ["pending", "connected", "error", "revoked"]
     },
     "public.calendar_provider_type": {
       "name": "calendar_provider_type",
       "schema": "public",
-      "values": [
-        "google",
-        "outlook"
-      ]
+      "values": ["google", "outlook"]
     },
     "public.digest_segment": {
       "name": "digest_segment",
       "schema": "public",
-      "values": [
-        "joined",
-        "discover"
-      ]
+      "values": ["joined", "discover"]
     },
     "public.event_automation_status": {
       "name": "event_automation_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "processing",
-        "completed",
-        "failed"
-      ]
+      "values": ["pending", "processing", "completed", "failed"]
     },
     "public.event_automation_type": {
       "name": "event_automation_type",
       "schema": "public",
-      "values": [
-        "calendar_sync",
-        "digest_refresh"
-      ]
+      "values": ["calendar_sync", "digest_refresh"]
     },
     "public.event_email_status": {
       "name": "event_email_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "sending",
-        "sent",
-        "failed"
-      ]
+      "values": ["pending", "sending", "sent", "failed"]
     },
     "public.event_email_type": {
       "name": "event_email_type",
@@ -2964,40 +2794,22 @@
     "public.event_status": {
       "name": "event_status",
       "schema": "public",
-      "values": [
-        "pending",
-        "approved",
-        "rejected"
-      ]
+      "values": ["pending", "approved", "rejected"]
     },
     "public.provider_status": {
       "name": "provider_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "beta",
-        "active",
-        "deprecated"
-      ]
+      "values": ["draft", "beta", "active", "deprecated"]
     },
     "public.event_ticket_type_status": {
       "name": "event_ticket_type_status",
       "schema": "public",
-      "values": [
-        "draft",
-        "active",
-        "archived"
-      ]
+      "values": ["draft", "active", "archived"]
     },
     "public.event_waitlist_status": {
       "name": "event_waitlist_status",
       "schema": "public",
-      "values": [
-        "active",
-        "invited",
-        "converted",
-        "removed"
-      ]
+      "values": ["active", "invited", "converted", "removed"]
     }
   },
   "schemas": {},

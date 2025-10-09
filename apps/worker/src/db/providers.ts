@@ -61,8 +61,7 @@ export async function setProviderCursor(
       '{runtime,cursor}',
       to_jsonb(${uid}),
       true
-    ),
-    updated_at = now()
+    )
     WHERE id = ${providerId}
   `;
 }

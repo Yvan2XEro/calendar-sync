@@ -1,6 +1,6 @@
-import { google } from "googleapis";
-import type { OAuth2Client } from "google-auth-library";
 import { and, eq } from "drizzle-orm";
+import type { OAuth2Client } from "google-auth-library";
+import { google } from "googleapis";
 
 import { db } from "../db";
 import { account } from "../db/schema/auth";
@@ -19,7 +19,9 @@ type GoogleAccountRow = {
   providerId: string;
 };
 
-async function getUserGoogleAccount(userId: string): Promise<GoogleAccountRow | null> {
+async function getUserGoogleAccount(
+  userId: string
+): Promise<GoogleAccountRow | null> {
   const [row] = await db
     .select({
       accessToken: account.accessToken,
@@ -46,9 +48,10 @@ async function saveTokens(userId: string, tokens: GoogleTokens) {
     .where(and(eq(account.userId, userId), eq(account.providerId, "google")));
 }
 
-export async function getCalendarClientForUser(
-  userId: string,
-): Promise<{ auth: OAuth2Client; calendar: ReturnType<typeof google.calendar> }> {
+export async function getCalendarClientForUser(userId: string): Promise<{
+  auth: OAuth2Client;
+  calendar: ReturnType<typeof google.calendar>;
+}> {
   const acct = await getUserGoogleAccount(userId);
   if (!acct) throw new Error("User has no linked Google account");
 
@@ -72,6 +75,9 @@ export async function getCalendarClientForUser(
 
   await auth.getAccessToken();
 
-  const calendar = google.calendar({ version: "v3", auth: auth as unknown as any });
+  const calendar = google.calendar({
+    version: "v3",
+    auth: auth as unknown as any,
+  });
   return { auth, calendar };
 }

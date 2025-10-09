@@ -1,10 +1,10 @@
 import {
 	AccountSettingsCards,
+	AccountsCard,
+	ProvidersCard,
 	RedirectToSignIn,
 	SecuritySettingsCards,
-	ProvidersCard,
 	socialProviders,
-	AccountsCard,
 } from "@daveyplate/better-auth-ui";
 import { accountViewPaths } from "@daveyplate/better-auth-ui/server";
 import AppShell from "@/components/layout/AppShell";

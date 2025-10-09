@@ -1,9 +1,8 @@
 import { AuthView } from "@daveyplate/better-auth-ui";
 import { authViewPaths } from "@daveyplate/better-auth-ui/server";
 import Link from "next/link";
-
-import { SSOAuth } from "@/components/SSOAuth";
 import { GoogleAuthButton } from "@/components/GoogleAuthButton";
+import { SSOAuth } from "@/components/SSOAuth";
 
 export const dynamicParams = false;
 

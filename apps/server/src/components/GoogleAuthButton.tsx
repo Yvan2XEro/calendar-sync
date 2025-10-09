@@ -1,9 +1,9 @@
 "use client";
 import { authClient } from "@/lib/auth-client";
+import { GoogleIcon } from "@daveyplate/better-auth-ui";
+import React, { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
-import React, { useEffect } from "react";
-import { GoogleIcon } from "@daveyplate/better-auth-ui";
 
 const providerId = "google";
 
@@ -25,7 +25,7 @@ export const GoogleAuthButton = () => {
   const handleSignIn = React.useCallback(async () => {
     if (!isConfigured || !providerId) {
       setErrorMessage(
-        "google auth is not fully configured. Contact an administrator to enable TUKI sign-in.",
+        "google auth is not fully configured. Contact an administrator to enable TUKI sign-in."
       );
       return;
     }
@@ -40,8 +40,7 @@ export const GoogleAuthButton = () => {
         });
         if (error) {
           setErrorMessage(
-            error.message ||
-            "Unable to start single sign-on. Please try again.",
+            error.message || "Unable to start single sign-on. Please try again."
           );
         }
       } else {
@@ -51,8 +50,7 @@ export const GoogleAuthButton = () => {
         });
         if (error) {
           setErrorMessage(
-            error.message ||
-            "Unable to start single sign-on. Please try again.",
+            error.message || "Unable to start single sign-on. Please try again."
           );
         }
       }
@@ -60,7 +58,7 @@ export const GoogleAuthButton = () => {
       setErrorMessage(
         err instanceof Error
           ? err.message
-          : "We couldn't start single sign-on. Please try again or reach out to your administrator.",
+          : "We couldn't start single sign-on. Please try again or reach out to your administrator."
       );
     } finally {
       setIsLoading(false);

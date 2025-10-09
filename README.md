@@ -34,20 +34,20 @@ bun install
 
 Define the following keys in `.env` before launching the stack. Unless noted otherwise, both the `server` and `worker` containers read the values through the shared env file.
 
-| Variable | Service(s) | Description |
-| --- | --- | --- |
-| `NEXT_PUBLIC_OIDC_PROVIDER_ID` | server | Stable identifier for the external OpenID Connect provider that Better Auth uses when constructing the OAuth configuration. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L23-L58】|
-| `OIDC_CLIENT_ID` | server | OAuth client identifier issued by the identity provider; injected as a build argument and consumed by the Better Auth generic OAuth plugin. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】|
-| `OIDC_CLIENT_SECRET` | server | Client secret paired with the OIDC client ID so the server can complete token exchanges with the provider. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】|
-| `OIDC_DISCOVERY_URL` | server | Discovery document URL that describes the provider’s authorization, token, and JWKS endpoints. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L26-L57】|
-| `OIDC_USER_INFO_URL` | server | Optional override that lets the server fetch user profile claims from a custom endpoint after OAuth completes. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L62-L75】|
-| `BETTER_AUTH_SECRET` | server, worker | Shared signing secret required by Better Auth to mint and validate encrypted session cookies. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】|
-| `BETTER_AUTH_URL` | server, worker | Canonical URL for the Better Auth instance so callbacks and hosted views resolve to the correct origin. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】|
-| `CORS_ORIGIN` | server, worker | Comma-separated list of allowed origins used to configure CORS and credentialed requests across the stack. 【F:docker-compose.yml†L34-L45】【F:apps/server/src/lib/auth.ts†L35-L45】|
-| `CRON_SECRET` | cron, server | Shared secret that authenticates the curl-based cron runner against the internal `/api/cron/*` endpoints. 【F:docker-compose.yml†L60-L74】【F:apps/server/src/app/(api)/api/cron/calendar/route.ts†L5-L26】|
-| `GOOGLE_GENERATIVE_AI_API_KEY` | server, worker | API key required when enabling the Gemini-powered email extraction pipeline described in the operational wiki. 【F:docker-compose.yml†L40-L45】【F:WIKI.md†L144-L152】|
-| `GOOGLE_OAUTH_CLIENT_ID` | server | Google OAuth client identifier used when launching the admin consent flow for calendar connections. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L100】【F:apps/server/src/app/(api)/api/integrations/google-calendar/start/route.ts†L13-L116】|
-| `GOOGLE_OAUTH_CLIENT_SECRET` | server | Secret paired with the OAuth client that allows the callback route to exchange authorization codes for tokens. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L144】【F:apps/server/src/app/(api)/api/integrations/google-calendar/callback/route.ts†L1-L240】|
+| Variable                       | Service(s)     | Description                                                                                                                                                                                                                                                                 |
+| ------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_OIDC_PROVIDER_ID` | server         | Stable identifier for the external OpenID Connect provider that Better Auth uses when constructing the OAuth configuration. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L23-L58】                                                                       |
+| `OIDC_CLIENT_ID`               | server         | OAuth client identifier issued by the identity provider; injected as a build argument and consumed by the Better Auth generic OAuth plugin. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】                                                       |
+| `OIDC_CLIENT_SECRET`           | server         | Client secret paired with the OIDC client ID so the server can complete token exchanges with the provider. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L24-L57】                                                                                        |
+| `OIDC_DISCOVERY_URL`           | server         | Discovery document URL that describes the provider’s authorization, token, and JWKS endpoints. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L26-L57】                                                                                                    |
+| `OIDC_USER_INFO_URL`           | server         | Optional override that lets the server fetch user profile claims from a custom endpoint after OAuth completes. 【F:docker-compose.yml†L27-L33】【F:apps/server/src/lib/auth.ts†L62-L75】                                                                                    |
+| `BETTER_AUTH_SECRET`           | server, worker | Shared signing secret required by Better Auth to mint and validate encrypted session cookies. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】                                                                                                         |
+| `BETTER_AUTH_URL`              | server, worker | Canonical URL for the Better Auth instance so callbacks and hosted views resolve to the correct origin. 【F:docker-compose.yml†L40-L45】【F:apps/server/.env.example†L1-L11】                                                                                               |
+| `CORS_ORIGIN`                  | server, worker | Comma-separated list of allowed origins used to configure CORS and credentialed requests across the stack. 【F:docker-compose.yml†L34-L45】【F:apps/server/src/lib/auth.ts†L35-L45】                                                                                        |
+| `CRON_SECRET`                  | cron, server   | Shared secret that authenticates the curl-based cron runner against the internal `/api/cron/*` endpoints. 【F:docker-compose.yml†L60-L74】【F:apps/server/src/app/(api)/api/cron/calendar/route.ts†L5-L26】                                                                 |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | server, worker | API key required when enabling the Gemini-powered email extraction pipeline described in the operational wiki. 【F:docker-compose.yml†L40-L45】【F:WIKI.md†L144-L152】                                                                                                      |
+| `GOOGLE_OAUTH_CLIENT_ID`       | server         | Google OAuth client identifier used when launching the admin consent flow for calendar connections. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L100】【F:apps/server/src/app/(api)/api/integrations/google-calendar/start/route.ts†L13-L116】              |
+| `GOOGLE_OAUTH_CLIENT_SECRET`   | server         | Secret paired with the OAuth client that allows the callback route to exchange authorization codes for tokens. 【F:apps/server/src/lib/integrations/google-calendar.ts†L68-L144】【F:apps/server/src/app/(api)/api/integrations/google-calendar/callback/route.ts†L1-L240】 |
 
 ### Service overview
 
@@ -87,11 +87,11 @@ All deployable artifacts live in the GitHub Container Registry under the `ghcr.i
    ```bash
    docker build \
      -f apps/server/Dockerfile \
-     --build-arg NEXT_PUBLIC_OIDC_PROVIDER_ID="$NEXT_PUBLIC_OIDC_PROVIDER_ID" \
+     --build-arg NEXT_PUBLIC_OIDC_PROVIDER_ID="tuki-sso" \
      --build-arg OIDC_CLIENT_ID="$OIDC_CLIENT_ID" \
-     --build-arg OIDC_DISCOVERY_URL="$OIDC_DISCOVERY_URL" \
-     --build-arg OIDC_CLIENT_SECRET="$OIDC_CLIENT_SECRET" \
-     --build-arg OIDC_USER_INFO_URL="$OIDC_USER_INFO_URL" \
+     --build-arg OIDC_DISCOVERY_URL="https://tuki.shattereddev.com/.well-known/openid-configuration" \
+     --build-arg OIDC_CLIENT_SECRET="" \
+     --build-arg OIDC_USER_INFO_URL="https://tuki.shattereddev.com/api/user" \
      -t ghcr.io/yvan2xero/calendarsync-server:latest .
 
    docker build \
@@ -121,19 +121,20 @@ All deployable artifacts live in the GitHub Container Registry under the `ghcr.i
    Ensure the environment provides `CRON_SECRET` (for the cron sidecar) and the usual application variables (see `.env` template). The compose file exposes ports `3000` (server) and `54322` (Postgres).
 
 Setting `CRON_INTERVAL` overrides the default 10-minute polling cadence for the cron container, and `CRON_BASE_URL` can be pointed at a public load balancer when running outside the compose network.
+
 ## Monitoring worker activity
 
-Administrators can open [`/admin/logs`](apps/server/src/app/(site)/admin/logs/page.tsx) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
+Administrators can open [`/admin/logs`](<apps/server/src/app/(site)/admin/logs/page.tsx>) in the admin console to watch worker sessions in real time. The page keeps a live Server-Sent Events (SSE) subscription open to the server, streams new rows from the `worker_log` table into the UI, and augments them with history fetched through tRPC. The SSE channel is strictly one-way for monitoring purposes—no writes or admin actions are performed over the stream.
 
 ## Scheduling email digests
 
-The admin navigation includes an **Email digests** workspace at [`/admin/digests`](apps/server/src/app/(site)/admin/digests/page.tsx) where operators can toggle each segment, tune cadence (in hours), and adjust the lookahead window (in days) before saving the configuration. Each card surfaces recent metadata—last and next send times, queued recipients, and the number of populated segments—so teams can verify digest activity at a glance.【F:apps/server/src/config/ui.ts†L13-L32】【F:apps/server/src/app/(site)/admin/digests/page.tsx†L28-L200】
+The admin navigation includes an **Email digests** workspace at [`/admin/digests`](<apps/server/src/app/(site)/admin/digests/page.tsx>) where operators can toggle each segment, tune cadence (in hours), and adjust the lookahead window (in days) before saving the configuration. Each card surfaces recent metadata—last and next send times, queued recipients, and the number of populated segments—so teams can verify digest activity at a glance.【F:apps/server/src/config/ui.ts†L13-L32】【F:apps/server/src/app/(site)/admin/digests/page.tsx†L28-L200】
 
 When an administrator saves changes, the TRPC router ensures a schedule exists for every supported segment, persists the enabled state, and enforces cadence and lookahead bounds with sensible defaults (weekly cadence over a two-week window).【F:apps/server/src/routers/admin-digests.ts†L17-L159】 Downstream, the digest composer groups approved, published events into "joined" and "discover" segments, limits the number of highlights per organization, and builds the HTML/text payload that is eventually queued for email delivery.【F:apps/server/src/lib/mailer/digest.ts†L57-L382】
 
 ## Moderating synchronized events
 
-The event moderation workspace lives at [`/admin/events`](apps/server/src/app/(site)/admin/events/page.tsx). You must be signed in with an account that has the `admin` role to access it—non-admin users are redirected away by the admin layout guard. Once authenticated, the "Events" item appears in the admin navigation alongside the other moderation tools.
+The event moderation workspace lives at [`/admin/events`](<apps/server/src/app/(site)/admin/events/page.tsx>). You must be signed in with an account that has the `admin` role to access it—non-admin users are redirected away by the admin layout guard. Once authenticated, the "Events" item appears in the admin navigation alongside the other moderation tools.
 
 The page is designed for high-volume review and offers several tools that work together:
 
@@ -149,6 +150,7 @@ Open the drawer or dialog actions in each row/card to see the complete metadata,
 - **Recent events carousel size** – Update the `RECENT_EVENTS_LIMIT` constant inside [`apps/server/src/components/dashboard/SignedInHome.tsx`](apps/server/src/components/dashboard/SignedInHome.tsx) to control how many cards render in the slider at once.
 - **Discover tab sort options** – Adjust the `discoverSortValues` tuple (and its default fallback of `"name-asc" satisfies DiscoverSort`) in [`apps/server/src/routers/orgs.ts`](apps/server/src/routers/orgs.ts) when changing which sort orders are offered to users by default.
 - **Branding copy & visuals** – Edit the hero section markup in the `SignedInHome` component (same module as above) to refresh the welcome message, supporting text, and illustration assets shown to signed-in members.
+
 ## Database Setup
 
 This project uses PostgreSQL with Drizzle ORM.
@@ -160,13 +162,14 @@ This project uses PostgreSQL with Drizzle ORM.
    ```
 
    This uses the same configuration baked into the application containers so local testing mirrors production defaults.
+
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
 
 3. Apply the schema to your database:
+
 ```bash
 bun db:push
 ```
-
 
 Then, run the development server:
 
@@ -175,10 +178,6 @@ bun dev
 ```
 
 The API is running at [http://localhost:3000](http://localhost:3000).
-
-
-
-
 
 ## Project Structure
 
