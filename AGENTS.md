@@ -39,3 +39,37 @@
 - Copy `.env.example` to `.env` and fill mandatory secrets before running `bun run dev`. The worker shares the database credentials with the server.
 - After altering the `event` table (columns, constraints, indexes), immediately audit the worker app SQL queries (`apps/worker/src/db/events.ts`) and the generated event object type/structure (`apps/worker/src/utils/mailparser.ts`) to confirm inserts remain valid and every required field is still populated.
 - Always wrap build-time database calls (`generateStaticParams`, `generateMetadata`, `sitemap`, etc.) in try/catch to provide DB error guards; Docker/CI builds should succeed even when Postgres isn’t reachable.
+
+## Avoid deprecated syntaxes
+
+- **Prefer** — The third parameter of `pgTable` is changing and will only accept an **array** instead of an **object**.
+
+---
+
+### Example
+
+**Deprecated version:**
+
+```ts
+export const users = pgTable(
+  "users",
+  {
+    id: integer(),
+  },
+  (t) => ({
+    idx: index("custom_name").on(t.id),
+  }),
+);
+```
+
+**New version:**
+
+```ts
+export const users = pgTable(
+  "users",
+  {
+    id: integer(),
+  },
+  (t) => [index("custom_name").on(t.id)],
+);
+```

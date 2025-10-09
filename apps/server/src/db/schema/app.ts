@@ -261,11 +261,12 @@ export const calendarConnection = pgTable(
 			.default(sql`'{}'::jsonb`),
 		...timestamps,
 	},
-	(table) => ({
-		memberProviderUnique: uniqueIndex(
-			"calendar_connection_member_provider_unique",
-		).on(table.memberId, table.providerType),
-	}),
+	(table) => [
+		uniqueIndex("calendar_connection_member_provider_unique").on(
+			table.memberId,
+			table.providerType,
+		),
+	],
 );
 
 export const eventAutomationJob = pgTable(
