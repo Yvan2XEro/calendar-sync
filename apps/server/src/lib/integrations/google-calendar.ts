@@ -1,10 +1,10 @@
 import type { Credentials } from "google-auth-library";
-import { type calendar_v3, google } from "googleapis";
-// If you're on Node 18+, global fetch exists. Otherwise:
-// import fetch from "node-fetch";
-
+import { google, type calendar_v3 } from "googleapis";
 import { getEventTimezone } from "@/lib/calendar-links";
 
+// -----------------------
+// Constants
+// -----------------------
 export const GOOGLE_CALENDAR_SCOPES = [
 	"https://www.googleapis.com/auth/calendar",
 ] as const;
@@ -17,7 +17,9 @@ export const GOOGLE_OAUTH_SCOPES = [
 
 const DEFAULT_MEETING_LENGTH_MS = 60 * 60 * 1000;
 
-// ---------- Types ----------
+// -----------------------
+// Types
+// -----------------------
 export type GoogleCalendarEventInput = {
 	id: string;
 	title: string;
@@ -31,11 +33,20 @@ export type GoogleCalendarEventInput = {
 };
 
 type ServiceAccountConfig = {
-	serviceAccountEmail: string; // DWD service account email
-	impersonatedUser: string; // Workspace user to act on behalf of
+	serviceAccountEmail: string;
+	impersonatedUser: string;
 };
 
-// ---------- Env detection ----------
+export type GoogleStoredOAuthCredentials = {
+	accessToken: string;
+	refreshToken?: string | null;
+	tokenExpiresAt?: Date | null;
+	scope?: string | null;
+};
+
+// -----------------------
+// Environment checks
+// -----------------------
 export function isGoogleCalendarConfigured(): boolean {
 	return (
 		Boolean(process.env.GOOGLE_CALENDAR_CLIENT_EMAIL?.trim()) &&
@@ -44,18 +55,13 @@ export function isGoogleCalendarConfigured(): boolean {
 }
 
 export function isGoogleOAuthConfigured(): boolean {
-	console.log({
-		GOOGLE_OAUTH_CLIENT_ID: process.env.GOOGLE_OAUTH_CLIENT_ID,
-		GOOGLE_CALENDAR_IMPERSONATED_USER:
-			process.env.GOOGLE_CALENDAR_IMPERSONATED_USER,
-	});
-	return (
-		Boolean(process.env.GOOGLE_OAUTH_CLIENT_ID?.trim()) &&
-		Boolean(process.env.GOOGLE_CALENDAR_IMPERSONATED_USER?.trim())
-	);
+	// For compatibility; still returns true if Calendar is configured
+	return isGoogleCalendarConfigured();
 }
 
-// ---------- DWD SA config ----------
+// -----------------------
+// Internal configuration
+// -----------------------
 let cachedConfig: ServiceAccountConfig | null = null;
 
 function getServiceAccountConfig(): ServiceAccountConfig {
@@ -74,52 +80,48 @@ function getServiceAccountConfig(): ServiceAccountConfig {
 	return cachedConfig;
 }
 
-// ---------- Keyless DWD: signJwt -> token (with cache) ----------
-type CachedToken = { token: string; exp: number }; // exp = unix seconds
-let accessTokenCache: CachedToken | null = null;
+// -----------------------
+// Keyless service account authentication
+// -----------------------
+type CachedToken = { token: string; exp: number };
+let tokenCache: CachedToken | null = null;
 
-async function getDwdAccessToken(
-	scopes: readonly string[],
-	subEmail: string,
-	saEmail: string,
-): Promise<string> {
+async function getDwdAccessToken(): Promise<string> {
+	const { serviceAccountEmail, impersonatedUser } = getServiceAccountConfig();
 	const now = Math.floor(Date.now() / 1000);
 
-	// Reuse if > 5 min left
-	if (accessTokenCache && accessTokenCache.exp - now > 300) {
-		return accessTokenCache.token;
-	}
+	// Reuse token if still valid for >5 min
+	if (tokenCache && tokenCache.exp - now > 300) return tokenCache.token;
 
 	const claims = {
-		iss: saEmail,
-		sub: subEmail,
-		scope: scopes.join(" "),
+		iss: serviceAccountEmail,
+		sub: impersonatedUser,
+		scope: GOOGLE_CALENDAR_SCOPES.join(" "),
 		aud: "https://oauth2.googleapis.com/token",
 		iat: now,
-		exp: now + 3600, // 1h
+		exp: now + 3600,
 	};
 
 	const auth = new google.auth.GoogleAuth({
 		scopes: ["https://www.googleapis.com/auth/iam"],
 	});
 	const client = await auth.getClient();
-
 	const iam = google.iamcredentials("v1");
+
 	const { data } = await iam.projects.serviceAccounts.signJwt({
-		name: `projects/-/serviceAccounts/${saEmail}`,
+		name: `projects/-/serviceAccounts/${serviceAccountEmail}`,
 		requestBody: { payload: JSON.stringify(claims) },
 		auth: client as any,
 	});
 
-	const signedJwt = data.signedJwt;
-	if (!signedJwt) throw new Error("signJwt did not return a signedJwt");
+	if (!data.signedJwt) throw new Error("signJwt failed: missing signedJwt");
 
 	const res = await fetch("https://oauth2.googleapis.com/token", {
 		method: "POST",
 		headers: { "content-type": "application/x-www-form-urlencoded" },
 		body: new URLSearchParams({
 			grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-			assertion: signedJwt,
+			assertion: data.signedJwt,
 		}),
 	});
 
@@ -130,54 +132,43 @@ async function getDwdAccessToken(
 		error_description?: string;
 	};
 
-	if (!res.ok || !json.access_token) {
+	if (!json.access_token) {
 		throw new Error(
-			`Token exchange failed: ${json.error ?? res.statusText} ${json.error_description ?? ""}`.trim(),
+			`Token exchange failed: ${json.error ?? res.statusText} ${json.error_description ?? ""}`,
 		);
 	}
 
-	const exp = now + (json.expires_in ?? 3600);
-	accessTokenCache = { token: json.access_token, exp };
-	return json.access_token;
+	tokenCache = {
+		token: json.access_token,
+		exp: now + (json.expires_in ?? 3600),
+	};
+
+	return tokenCache.token;
 }
 
+// -----------------------
+// Calendar client factory
+// -----------------------
 async function getCalendarClient(): Promise<calendar_v3.Calendar> {
-	const { serviceAccountEmail, impersonatedUser } = getServiceAccountConfig();
-
-	const accessToken = await getDwdAccessToken(
-		GOOGLE_CALENDAR_SCOPES,
-		impersonatedUser,
-		serviceAccountEmail,
-	);
-
+	const token = await getDwdAccessToken();
 	const oauth2 = new google.auth.OAuth2();
-	oauth2.setCredentials({ access_token: accessToken });
-
+	oauth2.setCredentials({ access_token: token });
 	return google.calendar({ version: "v3", auth: oauth2 });
 }
 
-// ---------- Optional: user-consent OAuth (unchanged) ----------
-function getOAuthClientConfig() {
-	const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
-	const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET?.trim();
-
-	if (!clientId) throw new Error("Missing GOOGLE_OAUTH_CLIENT_ID");
-	if (!clientSecret) throw new Error("Missing GOOGLE_OAUTH_CLIENT_SECRET");
-
-	return { clientId, clientSecret } as const;
-}
-
+// -----------------------
+// OAuth (kept for compatibility; no secret used)
+// -----------------------
 export function createGoogleOAuthClient(redirectUri: string) {
-	const { clientId, clientSecret } = getOAuthClientConfig();
-	return new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+	// Dummy compatible method to avoid breaking imports
+	// Uses the service account token behind the scenes
+	const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID?.trim();
+	if (!clientId) {
+		throw new Error("Missing GOOGLE_OAUTH_CLIENT_ID");
+	}
+	const oauth2 = new google.auth.OAuth2(clientId, undefined, redirectUri);
+	return oauth2;
 }
-
-export type GoogleStoredOAuthCredentials = {
-	accessToken: string;
-	refreshToken?: string | null;
-	tokenExpiresAt?: Date | null;
-	scope?: string | null;
-};
 
 function shouldRefreshCredentials(credentials: Credentials): boolean {
 	if (!credentials.access_token) return true;
@@ -198,100 +189,26 @@ export async function getOAuthCalendarClient({
 	client: calendar_v3.Calendar;
 	refreshedCredentials: Credentials | null;
 }> {
+	// Backward-compatible path — reuses DWD token
+	const accessToken = await getDwdAccessToken();
 	const oauth2 = createGoogleOAuthClient(redirectUri);
-
-	oauth2.setCredentials({
-		access_token: stored.accessToken,
-		refresh_token: stored.refreshToken ?? undefined,
-		expiry_date: stored.tokenExpiresAt?.getTime(),
-		scope: stored.scope ?? undefined,
-	});
-
-	let refreshed: Credentials | null = null;
-
-	if (shouldRefreshCredentials(oauth2.credentials)) {
-		if (!stored.refreshToken) {
-			throw new Error(
-				"Google Calendar access token is expired and no refresh token is available",
-			);
-		}
-		const response = await oauth2.refreshAccessToken();
-		refreshed = response.credentials;
-		oauth2.setCredentials(response.credentials);
-	}
-
+	oauth2.setCredentials({ access_token: accessToken });
 	return {
 		client: google.calendar({ version: "v3", auth: oauth2 }),
-		refreshedCredentials: refreshed,
+		refreshedCredentials: null,
 	};
 }
 
-// ---------- Date helpers (unchanged) ----------
-type DateParts = { year: number; month: number; day: number };
-
-function extractDateParts(date: Date, timeZone?: string): DateParts {
-	const formatter = new Intl.DateTimeFormat("en-CA", {
-		timeZone,
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-	});
-
-	const parts = formatter
-		.formatToParts(date)
-		.reduce<Record<string, string>>((acc, part) => {
-			if (part.type !== "literal") acc[part.type] = part.value;
-			return acc;
-		}, {});
-
-	const year = Number(parts.year);
-	const month = Number(parts.month);
-	const day = Number(parts.day);
-	if (
-		!Number.isFinite(year) ||
-		!Number.isFinite(month) ||
-		!Number.isFinite(day)
-	) {
-		throw new Error("Invalid date parts");
-	}
-	return { year, month, day } satisfies DateParts;
-}
-
-function shiftDateParts(parts: DateParts, days: number): DateParts {
-	const base = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
-	base.setUTCDate(base.getUTCDate() + days);
-	const shifted = extractDateParts(base, "UTC");
-	return shifted;
-}
-
-function formatDateParts(parts: DateParts): string {
-	const year = String(parts.year).padStart(4, "0");
-	const month = String(parts.month).padStart(2, "0");
-	const day = String(parts.day).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
-function formatDateOnly(date: Date, timeZone?: string, offsetDays = 0): string {
-	try {
-		const parts = extractDateParts(date, timeZone);
-		const shifted =
-			offsetDays === 0 ? parts : shiftDateParts(parts, offsetDays);
-		return formatDateParts(shifted);
-	} catch {
-		const adjusted = new Date(date);
-		if (offsetDays !== 0)
-			adjusted.setUTCDate(adjusted.getUTCDate() + offsetDays);
-		return adjusted.toISOString().slice(0, 10);
-	}
-}
+// -----------------------
+// Date helpers
+// -----------------------
+const formatDate = (d: Date) => d.toISOString().slice(0, 10);
 
 function resolveEndDate(start: Date, rawEnd: Date | null): Date {
-	if (!rawEnd || Number.isNaN(rawEnd.getTime())) {
+	if (!rawEnd || Number.isNaN(rawEnd.getTime()))
 		return new Date(start.getTime() + DEFAULT_MEETING_LENGTH_MS);
-	}
-	if (rawEnd.getTime() <= start.getTime()) {
+	if (rawEnd.getTime() <= start.getTime())
 		return new Date(start.getTime() + DEFAULT_MEETING_LENGTH_MS);
-	}
 	return rawEnd;
 }
 
@@ -320,11 +237,12 @@ function buildEventResource(
 	};
 
 	if (event.isAllDay) {
-		const startDate = formatDateOnly(event.startAt, timezone, 0);
-		const endSeed = event.endAt ?? event.startAt;
-		const exclusiveEnd = formatDateOnly(endSeed, timezone, 1);
+		const startDate = formatDate(event.startAt);
+		const endDate = formatDate(
+			event.endAt ?? new Date(event.startAt.getTime() + 24 * 60 * 60 * 1000),
+		);
 		resource.start = { date: startDate };
-		resource.end = { date: exclusiveEnd };
+		resource.end = { date: endDate };
 	} else {
 		const endAt = resolveEndDate(event.startAt, event.endAt);
 		resource.start = {
@@ -337,7 +255,9 @@ function buildEventResource(
 	return resource;
 }
 
-// ---------- Calendar operations (unchanged) ----------
+// -----------------------
+// CRUD operations
+// -----------------------
 export async function upsertGoogleCalendarEvent({
 	calendarId,
 	event,
@@ -350,34 +270,32 @@ export async function upsertGoogleCalendarEvent({
 	client?: calendar_v3.Calendar;
 }): Promise<string> {
 	const calendarClient = client ?? (await getCalendarClient());
-	const requestBody = buildEventResource(event);
+	const body = buildEventResource(event);
 
 	if (existingEventId) {
-		const response = await calendarClient.events.patch({
+		const res = await calendarClient.events.patch({
 			calendarId,
 			eventId: existingEventId,
-			requestBody,
+			requestBody: body,
 		});
-		return response.data.id ?? existingEventId;
+		return res.data.id ?? existingEventId;
 	}
 
-	const response = await calendarClient.events.insert({
+	const res = await calendarClient.events.insert({
 		calendarId,
-		requestBody,
+		requestBody: body,
 	});
-	const id = response.data.id;
-	if (!id)
-		throw new Error("Google Calendar did not return an event identifier");
-	return id;
+	if (!res.data.id)
+		throw new Error("Google Calendar did not return an event ID");
+	return res.data.id;
 }
 
 function isNotFoundError(error: unknown): boolean {
-	if (!error) return false;
-	const code = (error as { code?: number }).code;
-	const status = (error as { status?: number }).status;
-	const respStatus = (error as { response?: { status?: number } }).response
-		?.status;
-	return code === 404 || status === 404 || respStatus === 404;
+	const status =
+		(error as any)?.code ??
+		(error as any)?.status ??
+		(error as any)?.response?.status;
+	return status === 404;
 }
 
 export async function deleteGoogleCalendarEvent({
@@ -392,8 +310,8 @@ export async function deleteGoogleCalendarEvent({
 	const calendarClient = client ?? (await getCalendarClient());
 	try {
 		await calendarClient.events.delete({ calendarId, eventId });
-	} catch (error) {
-		if (isNotFoundError(error)) return;
-		throw error;
+	} catch (err) {
+		if (isNotFoundError(err)) return;
+		throw err;
 	}
 }

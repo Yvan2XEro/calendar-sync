@@ -41,7 +41,6 @@ CREATE TABLE "event_attendee_profile" (
 --> statement-breakpoint
 CREATE TABLE "calendar_connection" (
 	"id" text PRIMARY KEY NOT NULL,
-	"organization_id" text NOT NULL,
 	"member_id" text NOT NULL,
 	"provider_type" "calendar_provider_type" NOT NULL,
 	"external_account_id" text,
@@ -323,7 +322,6 @@ ALTER TABLE "event_attendee" ADD CONSTRAINT "event_attendee_ticket_type_id_event
 ALTER TABLE "event_attendee" ADD CONSTRAINT "event_attendee_profile_id_event_attendee_profile_id_fk" FOREIGN KEY ("profile_id") REFERENCES "public"."event_attendee_profile"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event_attendee" ADD CONSTRAINT "event_attendee_waitlist_entry_id_event_waitlist_entry_id_fk" FOREIGN KEY ("waitlist_entry_id") REFERENCES "public"."event_waitlist_entry"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event_attendee_profile" ADD CONSTRAINT "event_attendee_profile_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "calendar_connection" ADD CONSTRAINT "calendar_connection_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "calendar_connection" ADD CONSTRAINT "calendar_connection_member_id_member_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."member"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event" ADD CONSTRAINT "event_provider_id_provider_id_fk" FOREIGN KEY ("provider_id") REFERENCES "public"."provider"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "event" ADD CONSTRAINT "event_organization_id_organization_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organization"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -356,7 +354,7 @@ CREATE UNIQUE INDEX "event_attendee_confirmation_code_unique" ON "event_attendee
 CREATE INDEX "event_attendee_event_id_status_idx" ON "event_attendee" USING btree ("event_id","status");--> statement-breakpoint
 CREATE UNIQUE INDEX "event_attendee_profile_organization_id_email_unique" ON "event_attendee_profile" USING btree ("organization_id","email");--> statement-breakpoint
 CREATE INDEX "event_attendee_profile_email_idx" ON "event_attendee_profile" USING btree ("email");--> statement-breakpoint
-CREATE UNIQUE INDEX "calendar_connection_member_org_provider_unique" ON "calendar_connection" USING btree ("member_id","organization_id","provider_type");--> statement-breakpoint
+CREATE UNIQUE INDEX "calendar_connection_member_provider_unique" ON "calendar_connection" USING btree ("member_id","provider_type");--> statement-breakpoint
 CREATE UNIQUE INDEX "digest_schedule_segment_unique" ON "digest_schedule" USING btree ("segment");--> statement-breakpoint
 CREATE UNIQUE INDEX "event_slug_unique" ON "event" USING btree ("slug");--> statement-breakpoint
 CREATE UNIQUE INDEX "event_provider_id_external_id_unique" ON "event" USING btree ("provider_id","external_id");--> statement-breakpoint
