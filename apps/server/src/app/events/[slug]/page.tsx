@@ -81,12 +81,10 @@ type EventRouteParams = { slug: string };
 
 type Awaitable<T> = T | Promise<T>;
 
-export async function generateMetadata(
-        props: { params: Awaitable<EventRouteParams> },
-): Promise<Metadata> {
-        try {
-                const params = await props.params;
-                const record = await fetchPublishedEvent(params.slug);
+export async function generateMetadata(props: any): Promise<Metadata> {
+	try {
+		const params = await props.params;
+		const record = await fetchPublishedEvent(params.slug);
 		if (!record) {
 			return {
 				title: "Event not found",
@@ -149,8 +147,8 @@ export async function generateMetadata(
 	}
 }
 
-export default async function EventLandingPage(props: { params: Awaitable<EventRouteParams> }) {
-        const params = await props.params;
+export default async function EventLandingPage(props: { params: any }) {
+	const params = await props.params;
 	const record = await fetchPublishedEvent(params.slug);
 	if (!record) notFound();
 

@@ -2,7 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import type { Metadata, Viewport } from "next";
 // import { Geist, Geist_Mono } from "next/font/google"
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 
 import { getSiteBaseUrl } from "@/lib/site-metadata";
 import { Providers } from "./providers";
@@ -45,11 +45,13 @@ export default function RootLayout({
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} flex min-h-svh flex-col antialiased`}
 			>
-				<Providers>
-					{/* <Header /> */}
+				<Suspense fallback={null}>
+					<Providers>
+						{/* <Header /> */}
 
-					{children}
-				</Providers>
+						{children}
+					</Providers>
+				</Suspense>
 			</body>
 		</html>
 	);

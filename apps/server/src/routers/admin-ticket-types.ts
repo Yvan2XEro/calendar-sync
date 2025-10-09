@@ -60,56 +60,56 @@ export const adminTicketTypesRouter = router({
 			whereClauses.push(eq(ticketType.eventId, eventId));
 		}
 
-                if (q) {
-                        const searchTerm = `%${q}%`;
-                        const searchClause = or(
-                                ilike(ticketType.name, searchTerm),
-                                ilike(event.title, searchTerm),
-                                eq(ticketType.id, q),
-                        );
-                        if (searchClause) {
-                                whereClauses.push(searchClause);
-                        }
-                }
+		if (q) {
+			const searchTerm = `%${q}%`;
+			const searchClause = or(
+				ilike(ticketType.name, searchTerm),
+				ilike(event.title, searchTerm),
+				eq(ticketType.id, q),
+			);
+			if (searchClause) {
+				whereClauses.push(searchClause);
+			}
+		}
 
 		const where = whereClauses.length ? and(...whereClauses) : undefined;
 
-                const baseRowsQuery = db
-                        .select({
-                                id: ticketType.id,
-                                name: ticketType.name,
-                                description: ticketType.description,
-                                priceCents: ticketType.priceCents,
-                                currency: ticketType.currency,
-                                capacity: ticketType.capacity,
-                                maxPerOrder: ticketType.maxPerOrder,
-                                status: ticketType.status,
-                                isWaitlistEnabled: ticketType.isWaitlistEnabled,
-                                salesStartAt: ticketType.salesStartAt,
-                                salesEndAt: ticketType.salesEndAt,
-                                createdAt: ticketType.createdAt,
-                                updatedAt: ticketType.updatedAt,
-                                eventId: event.id,
-                                eventTitle: event.title,
-                                eventSlug: event.slug,
-                                eventStatus: event.status,
-                        })
-                        .from(ticketType)
-                        .innerJoin(event, eq(event.id, ticketType.eventId));
+		const baseRowsQuery = db
+			.select({
+				id: ticketType.id,
+				name: ticketType.name,
+				description: ticketType.description,
+				priceCents: ticketType.priceCents,
+				currency: ticketType.currency,
+				capacity: ticketType.capacity,
+				maxPerOrder: ticketType.maxPerOrder,
+				status: ticketType.status,
+				isWaitlistEnabled: ticketType.isWaitlistEnabled,
+				salesStartAt: ticketType.salesStartAt,
+				salesEndAt: ticketType.salesEndAt,
+				createdAt: ticketType.createdAt,
+				updatedAt: ticketType.updatedAt,
+				eventId: event.id,
+				eventTitle: event.title,
+				eventSlug: event.slug,
+				eventStatus: event.status,
+			})
+			.from(ticketType)
+			.innerJoin(event, eq(event.id, ticketType.eventId));
 
-                const rowsPromise = (where ? baseRowsQuery.where(where) : baseRowsQuery)
-                        .orderBy(desc(ticketType.createdAt))
-                        .limit(pageSize)
-                        .offset(offset);
+		const rowsPromise = (where ? baseRowsQuery.where(where) : baseRowsQuery)
+			.orderBy(desc(ticketType.createdAt))
+			.limit(pageSize)
+			.offset(offset);
 
-                const baseCountQuery = db
-                        .select({ value: count() })
-                        .from(ticketType)
-                        .innerJoin(event, eq(event.id, ticketType.eventId));
+		const baseCountQuery = db
+			.select({ value: count() })
+			.from(ticketType)
+			.innerJoin(event, eq(event.id, ticketType.eventId));
 
-                const countPromise = where ? baseCountQuery.where(where) : baseCountQuery;
+		const countPromise = where ? baseCountQuery.where(where) : baseCountQuery;
 
-                const [rows, totalResult] = await Promise.all([rowsPromise, countPromise]);
+		const [rows, totalResult] = await Promise.all([rowsPromise, countPromise]);
 
 		const items: TicketTypeListItem[] = rows.map((row) => ({
 			id: row.id,

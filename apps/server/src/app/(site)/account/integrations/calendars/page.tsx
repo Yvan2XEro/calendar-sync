@@ -33,13 +33,13 @@ import { calendarConnectionKeys } from "@/lib/query-keys/calendar-connections";
 import { trpcClient } from "@/lib/trpc-client";
 
 type ConnectionsOutput = Awaited<
-        ReturnType<typeof trpcClient.calendarConnections.list.query>
+	ReturnType<typeof trpcClient.calendarConnections.list.query>
 >;
 
 type ConnectionRecord = ConnectionsOutput[number];
 
 type OrganizationsOutput = Awaited<
-        ReturnType<typeof trpcClient.orgs.listForUser.query>
+	ReturnType<typeof trpcClient.orgs.listForUser.query>
 >;
 
 type JoinedOrganization = OrganizationsOutput["items"][number];
@@ -62,9 +62,9 @@ function StatusBadge({ status }: { status: ConnectionRecord["status"] }) {
 }
 
 export default function AccountCalendarConnectionsPage() {
-        const router = useRouter();
-        const searchParams = useSearchParams();
-        const queryClient = useQueryClient();
+	const router = useRouter();
+	const searchParams = useSearchParams();
+	const queryClient = useQueryClient();
 	const initialSlug = searchParams.get("organization");
 	const statusParam = searchParams.get("status");
 	const messageParam = searchParams.get("message");
@@ -75,20 +75,20 @@ export default function AccountCalendarConnectionsPage() {
 	const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 	const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-        const toRoute = (url: URL): Route => `${url.pathname}${url.search}` as Route;
+	const toRoute = (url: URL): Route => `${url.pathname}${url.search}` as Route;
 
-        const replaceUrl = useCallback(
-                (url: URL) => {
-                        router.replace(toRoute(url), { scroll: false });
-                },
-                [router],
-        );
+	const replaceUrl = useCallback(
+		(url: URL) => {
+			router.replace(toRoute(url), { scroll: false });
+		},
+		[router],
+	);
 
-        useEffect(() => {
-                if (initialSlug) {
-                        setSelectedSlug(initialSlug);
-                }
-        }, [initialSlug]);
+	useEffect(() => {
+		if (initialSlug) {
+			setSelectedSlug(initialSlug);
+		}
+	}, [initialSlug]);
 
 	useEffect(() => {
 		if (!statusParam) return;
@@ -98,14 +98,14 @@ export default function AccountCalendarConnectionsPage() {
 			toast.error(messageParam ?? "Unable to connect calendar");
 		}
 
-                const next = new URL(window.location.href);
-                next.searchParams.delete("status");
-                next.searchParams.delete("message");
-                replaceUrl(next);
-        }, [statusParam, messageParam, replaceUrl]);
+		const next = new URL(window.location.href);
+		next.searchParams.delete("status");
+		next.searchParams.delete("message");
+		replaceUrl(next);
+	}, [statusParam, messageParam, replaceUrl]);
 
-        const orgsQuery = useQuery({
-                queryKey: ["userOrganizations", "joined"],
+	const orgsQuery = useQuery({
+		queryKey: ["userOrganizations", "joined"],
 		queryFn: () =>
 			trpcClient.orgs.listForUser.query({
 				segment: "joined",
@@ -113,21 +113,21 @@ export default function AccountCalendarConnectionsPage() {
 			}),
 	});
 
-        const joinedOrganizations = useMemo<JoinedOrganization[]>(() => {
-                return (orgsQuery.data?.items ?? []) as JoinedOrganization[];
-        }, [orgsQuery.data]);
+	const joinedOrganizations = useMemo<JoinedOrganization[]>(() => {
+		return (orgsQuery.data?.items ?? []) as JoinedOrganization[];
+	}, [orgsQuery.data]);
 
 	useEffect(() => {
 		if (selectedSlug) return;
 		const first = joinedOrganizations.at(0);
 		if (!first) return;
-                setSelectedSlug(first.slug);
-                const next = new URL(window.location.href);
-                next.searchParams.set("organization", first.slug);
-                next.searchParams.delete("status");
-                next.searchParams.delete("message");
-                replaceUrl(next);
-        }, [selectedSlug, joinedOrganizations, replaceUrl]);
+		setSelectedSlug(first.slug);
+		const next = new URL(window.location.href);
+		next.searchParams.set("organization", first.slug);
+		next.searchParams.delete("status");
+		next.searchParams.delete("message");
+		replaceUrl(next);
+	}, [selectedSlug, joinedOrganizations, replaceUrl]);
 
 	const connectionsQuery = useQuery({
 		queryKey: calendarConnectionKeys.list(selectedSlug ?? undefined),
@@ -247,16 +247,16 @@ export default function AccountCalendarConnectionsPage() {
 		} else {
 			next.searchParams.delete("organization");
 		}
-                next.searchParams.delete("status");
-                next.searchParams.delete("message");
-                replaceUrl(next);
-        };
+		next.searchParams.delete("status");
+		next.searchParams.delete("message");
+		replaceUrl(next);
+	};
 
 	const handleConnect = () => {
 		startGoogleOAuthMutation.mutate();
 	};
 
-        const connections: ConnectionRecord[] = connectionsQuery.data ?? [];
+	const connections: ConnectionRecord[] = connectionsQuery.data ?? [];
 	const isLoadingConnections = connectionsQuery.isLoading;
 	const organizationSelected = Boolean(selectedSlug);
 

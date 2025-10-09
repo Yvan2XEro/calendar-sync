@@ -182,8 +182,8 @@ export default function AdminTicketTypesPage() {
 	>({
 		queryKey,
 		queryFn: () => trpcClient.adminTicketTypes.list.query(listParams),
-                placeholderData: (previous: TicketTypeListOutput | undefined) => previous,
-        });
+		placeholderData: (previous: TicketTypeListOutput | undefined) => previous,
+	});
 
 	const listData = listQuery.data;
 	const rows = listData?.items ?? [];

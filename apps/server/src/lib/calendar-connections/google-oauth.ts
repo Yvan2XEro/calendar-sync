@@ -60,15 +60,15 @@ export async function createGoogleOAuthAuthorizationUrl({
 		});
 	} else {
 		connectionId = existing.id;
-                await db
-                        .update(calendarConnection)
-                        .set({
-                                status: "pending",
-                                stateToken,
-                                failureReason: null,
-                                metadata,
-                        })
-                        .where(eq(calendarConnection.id, existing.id));
+		await db
+			.update(calendarConnection)
+			.set({
+				status: "pending",
+				stateToken,
+				failureReason: null,
+				metadata,
+			})
+			.where(eq(calendarConnection.id, existing.id));
 	}
 
 	const redirectUri = buildAbsoluteUrl(
@@ -83,9 +83,9 @@ export async function createGoogleOAuthAuthorizationUrl({
 		token: stateToken,
 		returnTo: sanitizedReturnTo,
 	});
-        const authorizationUrl = client.generateAuthUrl({
-                access_type: "offline",
-                scope: [...GOOGLE_OAUTH_SCOPES],
+	const authorizationUrl = client.generateAuthUrl({
+		access_type: "offline",
+		scope: [...GOOGLE_OAUTH_SCOPES],
 		include_granted_scopes: true,
 		prompt: "consent",
 		state,
