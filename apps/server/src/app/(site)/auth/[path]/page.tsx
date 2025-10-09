@@ -3,6 +3,7 @@ import { authViewPaths } from "@daveyplate/better-auth-ui/server";
 import Link from "next/link";
 
 import { SSOAuth } from "@/components/SSOAuth";
+import { GoogleAuthButton } from "@/components/GoogleAuthButton";
 
 export const dynamicParams = false;
 
@@ -85,9 +86,10 @@ export default async function AuthPage({
 						CalendarSync
 					</Link>
 					<div className="space-y-3">
-						<h1 className="font-semibold text-xl">{copy.title}</h1>
-						<p className="text-muted-foreground text-sm">{copy.description}</p>
+						{/* <h1 className="font-semibold text-xl">{copy.title}</h1> */}
+						{/* <p className="text-muted-foreground text-sm">{copy.description}</p> */}
 						<SSOAuth />
+						<GoogleAuthButton />
 					</div>
 				</div>
 			</main>

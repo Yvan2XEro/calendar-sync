@@ -2,6 +2,9 @@ import {
 	AccountSettingsCards,
 	RedirectToSignIn,
 	SecuritySettingsCards,
+	ProvidersCard,
+	socialProviders,
+	AccountsCard,
 } from "@daveyplate/better-auth-ui";
 import { accountViewPaths } from "@daveyplate/better-auth-ui/server";
 import AppShell from "@/components/layout/AppShell";
@@ -22,6 +25,7 @@ export default async function AccountPage() {
 			<RedirectToSignIn />
 			<AccountSettingsCards className="grid grid-cols-1 gap-6 md:grid-cols-2" />
 			<SecuritySettingsCards />
+			<AccountsCard />
 		</AppShell>
 	);
 }

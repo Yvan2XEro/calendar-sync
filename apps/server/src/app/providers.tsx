@@ -30,6 +30,7 @@ export function Providers({ children }: { children: ReactNode }) {
 			>
 				<AuthUIProvider
 					authClient={authClient}
+					social={{ providers: ["google"] }}
 					organization={{
 						pathMode: "slug",
 						basePath: "/admin/orgs",
@@ -41,7 +42,7 @@ export function Providers({ children }: { children: ReactNode }) {
 								});
 								return blob.url;
 							},
-							delete: async (_url) => {},
+							delete: async (_url) => { },
 							size: 256,
 							extension: "png",
 						},

@@ -36,6 +36,13 @@ export const auth = betterAuth<BetterAuthOptions>({
 	emailAndPassword: {
 		enabled: false,
 	},
+	socialProviders: {
+		google: {
+			clientId: process.env.GOOGLE_CLIENT_ID!,
+			clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+			scope: ["https://www.googleapis.com/auth/calendar", "openid", "email"],
+		},
+	},
 	advanced: {
 		defaultCookieAttributes: {
 			sameSite: "none",
@@ -61,17 +68,17 @@ export const auth = betterAuth<BetterAuthOptions>({
 
 					getUserInfo: process.env.OIDC_USER_INFO_URL
 						? async (t) => {
-								const response = await fetch(process.env.OIDC_USER_INFO_URL!, {
-									headers: {
-										Authorization: `Bearer ${t.accessToken}`,
-									},
-								});
-								const json = await response.json();
-								return {
-									...json,
-									emailVerified: true,
-								};
-							}
+							const response = await fetch(process.env.OIDC_USER_INFO_URL!, {
+								headers: {
+									Authorization: `Bearer ${t.accessToken}`,
+								},
+							});
+							const json = await response.json();
+							return {
+								...json,
+								emailVerified: true,
+							};
+						}
 						: undefined,
 				},
 			],
