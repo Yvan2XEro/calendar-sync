@@ -97,7 +97,7 @@ function mergeNavigation(
 
 export default function AppShell({
 	appName = "calendar sync",
-	consoleName = "Admin Console",
+	consoleName = "",
 	navigation = defaultNavigation,
 	breadcrumbs = [
 		{ label: "Admin", href: "/admin/overview" },

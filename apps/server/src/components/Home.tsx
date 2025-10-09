@@ -139,7 +139,7 @@ export default function Home() {
 								calendar sync
 							</p>
 							<p className="font-semibold text-lg text-sidebar-foreground">
-								Admin Console
+								{/* Admin Console */}
 							</p>
 						</div>
 					</SidebarHeader>
