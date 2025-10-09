@@ -120,8 +120,8 @@ export const provider = pgTable("provider", {
 		.default(sql`'{}'::jsonb`),
 	status: providerStatus("status").notNull().default("draft"),
 	trusted: boolean("trusted").notNull().default(false),
-	lastTestedAt: timestamp("last_tested_at", { withTimezone: true }),
-	...timestamps,
+	lastTestedAt: text("last_tested_at", {}),
+	// ...timestamps,
 });
 
 export const organizationProvider = pgTable(

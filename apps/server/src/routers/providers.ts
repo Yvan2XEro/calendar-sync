@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { ImapFlow } from "imapflow";
 import nodemailer from "nodemailer";
 import { z } from "zod";
@@ -183,6 +183,7 @@ async function testImapConnection(config: ProviderConfig) {
 
 	try {
 		await client.connect();
+		console.log("Connected to IMAP server");
 		await client.logout();
 	} catch (error) {
 		console.error(error);
@@ -209,7 +210,8 @@ async function testSmtpConnection(config: ProviderConfig) {
 	});
 
 	try {
-		await transporter.verify();
+		const test = await transporter.verify();
+		console.log(test);
 	} catch (error) {
 		throw new TRPCError({
 			code: "BAD_REQUEST",
@@ -361,7 +363,7 @@ export const providersRouter = router({
 				if (input.providerId) {
 					await db
 						.update(provider)
-						.set({ lastTestedAt: new Date() })
+						.set({ lastTestedAt: new Date().toISOString() })
 						.where(eq(provider.id, input.providerId));
 				}
 
@@ -389,7 +391,7 @@ export const providersRouter = router({
 				if (input.providerId) {
 					await db
 						.update(provider)
-						.set({ lastTestedAt: new Date() })
+						.set({ lastTestedAt: new Date().toISOString() })
 						.where(eq(provider.id, input.providerId));
 				}
 
