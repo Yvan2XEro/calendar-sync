@@ -255,18 +255,16 @@ export const providersRouter = router({
 
 			const record = await fetchProviderOrThrow(input.providerId);
 
-			return {
-				id: record.id,
-				category: record.category,
-				name: record.name,
-				description: record.description ?? null,
-				status: record.status,
-				trusted: record.trusted,
-				lastTestedAt: record.lastTestedAt ?? null,
-				createdAt: record.createdAt,
-				updatedAt: record.updatedAt,
-				config: redactConfig(record.config),
-			};
+                        return {
+                                id: record.id,
+                                category: record.category,
+                                name: record.name,
+                                description: record.description ?? null,
+                                status: record.status,
+                                trusted: record.trusted,
+                                lastTestedAt: record.lastTestedAt ?? null,
+                                config: redactConfig(record.config),
+                        };
 		}),
 		upsert: adminProcedure
 			.input(
@@ -292,39 +290,34 @@ export const providersRouter = router({
 
 				const providerId = input.id ?? randomUUID();
 				const config = providerConfigSchema.parse(input.config);
-				const now = new Date();
+                                const existing = await db.query.provider.findFirst({
+                                        where: eq(provider.id, providerId),
+                                });
 
-				const existing = await db.query.provider.findFirst({
-					where: eq(provider.id, providerId),
-				});
-
-				if (existing) {
-					await db
-						.update(provider)
-						.set({
-							category: input.category,
-							name: input.name,
-							description: input.description ?? null,
-							status: input.status ?? existing.status,
-							trusted: input.trusted ?? existing.trusted ?? false,
-							config,
-							updatedAt: now,
-						})
-						.where(eq(provider.id, providerId));
-				} else {
-					await db.insert(provider).values({
-						id: providerId,
-						category: input.category,
-						name: input.name,
-						description: input.description ?? null,
-						status: input.status ?? "draft",
-						trusted: input.trusted ?? false,
-						config,
-						lastTestedAt: null,
-						createdAt: now,
-						updatedAt: now,
-					});
-				}
+                                if (existing) {
+                                        await db
+                                                .update(provider)
+                                                .set({
+                                                        category: input.category,
+                                                        name: input.name,
+                                                        description: input.description ?? null,
+                                                        status: input.status ?? existing.status,
+                                                        trusted: input.trusted ?? existing.trusted ?? false,
+                                                        config,
+                                                })
+                                                .where(eq(provider.id, providerId));
+                                } else {
+                                        await db.insert(provider).values({
+                                                id: providerId,
+                                                category: input.category,
+                                                name: input.name,
+                                                description: input.description ?? null,
+                                                status: input.status ?? "draft",
+                                                trusted: input.trusted ?? false,
+                                                config,
+                                                lastTestedAt: null,
+                                        });
+                                }
 
 				return { id: providerId };
 			}),

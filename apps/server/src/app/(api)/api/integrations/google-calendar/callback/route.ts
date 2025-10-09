@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 import { db } from "@/db";
@@ -158,15 +159,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 	if (error) {
 		metadata.lastErrorAt = new Date().toISOString();
 		metadata.lastError = errorDescription ?? error;
-		await db
-			.update(calendarConnection)
-			.set({
-				status: "error",
-				failureReason: errorDescription ?? error,
-				stateToken: null,
-				metadata,
-			})
-			.where((table, { eq }) => eq(table.id, connection.id));
+                await db
+                        .update(calendarConnection)
+                        .set({
+                                status: "error",
+                                failureReason: errorDescription ?? error,
+                                stateToken: null,
+                                metadata,
+                        })
+                        .where(eq(calendarConnection.id, connection.id));
 
 		const redirectUrl = buildRedirectUrl(
 			state.slug,
@@ -180,15 +181,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 	if (!code) {
 		metadata.lastErrorAt = new Date().toISOString();
 		metadata.lastError = "Missing authorization code";
-		await db
-			.update(calendarConnection)
-			.set({
-				status: "error",
-				failureReason: "Missing authorization code",
-				stateToken: null,
-				metadata,
-			})
-			.where((table, { eq }) => eq(table.id, connection.id));
+                await db
+                        .update(calendarConnection)
+                        .set({
+                                status: "error",
+                                failureReason: "Missing authorization code",
+                                stateToken: null,
+                                metadata,
+                        })
+                        .where(eq(calendarConnection.id, connection.id));
 
 		const redirectUrl = buildRedirectUrl(
 			state.slug,
@@ -235,24 +236,24 @@ export async function GET(request: Request): Promise<NextResponse> {
 			? connection.calendarId
 			: "primary";
 
-		await db
-			.update(calendarConnection)
-			.set({
-				accessToken: credentials.accessToken,
-				refreshToken: credentials.refreshToken ?? null,
-				tokenExpiresAt: credentials.tokenExpiresAt ?? null,
-				scope: credentials.scope ?? null,
-				status: "connected",
-				calendarId,
-				externalAccountId:
-					idTokenInfo.email ??
-					idTokenInfo.subject ??
-					connection.externalAccountId,
-				failureReason: null,
-				stateToken: null,
-				metadata: updatedMetadata,
-			})
-			.where((table, { eq }) => eq(table.id, connection.id));
+                await db
+                        .update(calendarConnection)
+                        .set({
+                                accessToken: credentials.accessToken,
+                                refreshToken: credentials.refreshToken ?? null,
+                                tokenExpiresAt: credentials.tokenExpiresAt ?? null,
+                                scope: credentials.scope ?? null,
+                                status: "connected",
+                                calendarId,
+                                externalAccountId:
+                                        idTokenInfo.email ??
+                                        idTokenInfo.subject ??
+                                        connection.externalAccountId,
+                                failureReason: null,
+                                stateToken: null,
+                                metadata: updatedMetadata,
+                        })
+                        .where(eq(calendarConnection.id, connection.id));
 
 		const redirectUrl = buildRedirectUrl(
 			state.slug,
@@ -274,15 +275,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 		metadata.lastErrorAt = new Date().toISOString();
 		metadata.lastError = message;
 
-		await db
-			.update(calendarConnection)
-			.set({
-				status: "error",
-				failureReason: message,
-				stateToken: null,
-				metadata,
-			})
-			.where((table, { eq }) => eq(table.id, connection.id));
+                await db
+                        .update(calendarConnection)
+                        .set({
+                                status: "error",
+                                failureReason: message,
+                                stateToken: null,
+                                metadata,
+                        })
+                        .where(eq(calendarConnection.id, connection.id));
 
 		const redirectUrl = buildRedirectUrl(
 			state.slug,
