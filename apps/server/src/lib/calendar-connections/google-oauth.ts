@@ -21,13 +21,11 @@ function buildState(payload: Record<string, unknown>): string {
 }
 
 export async function createGoogleOAuthAuthorizationUrl({
-	organizationId,
 	memberId,
 	slug,
 	userId,
 	returnTo,
 }: {
-	organizationId: string;
 	memberId: string;
 	slug: string;
 	userId: string;
@@ -38,11 +36,7 @@ export async function createGoogleOAuthAuthorizationUrl({
 }> {
 	const existing = await db.query.calendarConnection.findFirst({
 		where: (table, { and, eq }) =>
-			and(
-				eq(table.organizationId, organizationId),
-				eq(table.memberId, memberId),
-				eq(table.providerType, "google"),
-			),
+			and(eq(table.memberId, memberId), eq(table.providerType, "google")),
 	});
 
 	const stateToken = randomUUID();
@@ -56,7 +50,6 @@ export async function createGoogleOAuthAuthorizationUrl({
 		connectionId = randomUUID();
 		await db.insert(calendarConnection).values({
 			id: connectionId,
-			organizationId,
 			memberId,
 			providerType: "google",
 			status: "pending",

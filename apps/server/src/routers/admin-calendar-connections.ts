@@ -6,7 +6,7 @@ import { db } from "@/db";
 import { calendarConnection } from "@/db/schema/app";
 import {
 	clearConnectionCredentials,
-	listConnectionsForOrganization,
+	listConnectionsForMember,
 	type SanitizedCalendarConnection,
 } from "@/lib/calendar-connections";
 import {
@@ -97,20 +97,14 @@ export const adminCalendarConnectionsRouter = router({
 			});
 		}
 
-		const { organization, membership } = await ensureOrgAdmin(
-			input.slug,
-			sessionUser,
-		);
-		const connections = await listConnectionsForOrganization(
-			organization.id,
-			membership.id,
-		);
+		const { membership } = await ensureOrgAdmin(input.slug, sessionUser);
+		const connections = await listConnectionsForMember(membership.id);
 		return connections.map(serializeConnection);
 	}),
 	disconnect: adminProcedure
 		.input(connectionIdInput)
 		.mutation(async ({ ctx, input }) => {
-			const { organization, membership } = await ensureOrgAdmin(
+			const { membership } = await ensureOrgAdmin(
 				input.slug,
 				ctx.session?.user as SessionUser,
 			);
@@ -125,11 +119,7 @@ export const adminCalendarConnectionsRouter = router({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
 
-			if (
-				!existing ||
-				existing.organizationId !== organization.id ||
-				existing.memberId !== membership.id
-			) {
+			if (!existing || existing.memberId !== membership.id) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Calendar connection not found",
@@ -152,7 +142,7 @@ export const adminCalendarConnectionsRouter = router({
 	updateCalendar: adminProcedure
 		.input(updateCalendarInput)
 		.mutation(async ({ ctx, input }) => {
-			const { organization, membership } = await ensureOrgAdmin(
+			const { membership } = await ensureOrgAdmin(
 				input.slug,
 				ctx.session?.user as SessionUser,
 			);
@@ -167,11 +157,7 @@ export const adminCalendarConnectionsRouter = router({
 				where: eq(calendarConnection.id, input.connectionId),
 			});
 
-			if (
-				!existing ||
-				existing.organizationId !== organization.id ||
-				existing.memberId !== membership.id
-			) {
+			if (!existing || existing.memberId !== membership.id) {
 				throw new TRPCError({
 					code: "NOT_FOUND",
 					message: "Calendar connection not found",

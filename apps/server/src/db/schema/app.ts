@@ -241,9 +241,6 @@ export const calendarConnection = pgTable(
 	"calendar_connection",
 	{
 		id: text("id").primaryKey(),
-		organizationId: text("organization_id")
-			.notNull()
-			.references(() => organization.id, { onDelete: "cascade" }),
 		memberId: text("member_id")
 			.notNull()
 			.references(() => member.id, { onDelete: "cascade" }),
@@ -265,9 +262,9 @@ export const calendarConnection = pgTable(
 		...timestamps,
 	},
 	(table) => ({
-		organizationProviderUnique: uniqueIndex(
-			"calendar_connection_member_org_provider_unique",
-		).on(table.memberId, table.organizationId, table.providerType),
+		memberProviderUnique: uniqueIndex(
+			"calendar_connection_member_provider_unique",
+		).on(table.memberId, table.providerType),
 	}),
 );
 
