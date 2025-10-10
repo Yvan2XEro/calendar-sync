@@ -1,6 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, gte, ilike, isNull, type SQL, sql } from "drizzle-orm";
+import {
+	and,
+	asc,
+	desc,
+	eq,
+	gte,
+	ilike,
+	isNull,
+	type SQL,
+	sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
@@ -25,19 +35,19 @@ type SessionUser = {
 };
 
 const listForUserInput = z.object({
-        segment: z.enum(["joined", "discover"]).default("joined"),
-        search: z.string().trim().min(1).max(120).optional(),
-        page: z.number().int().min(1).optional(),
-        limit: z.number().int().min(1).max(24).optional(),
-        sort: z.string().optional(),
+	segment: z.enum(["joined", "discover"]).default("joined"),
+	search: z.string().trim().min(1).max(120).optional(),
+	page: z.number().int().min(1).optional(),
+	limit: z.number().int().min(1).max(24).optional(),
+	sort: z.string().optional(),
 });
 
 const joinInput = z.object({
-        organizationId: z.string().min(1),
+	organizationId: z.string().min(1),
 });
 
 const getForUserInput = z.object({
-        slug: z.string().trim().min(1),
+	slug: z.string().trim().min(1),
 });
 
 function parseMetadata(value: string | null) {
@@ -117,122 +127,122 @@ function applySearchFilter(filters: SQL[], search?: string) {
 }
 
 export const orgsRouter = router({
-        getForUser: protectedProcedure
-                .input(getForUserInput)
-                .query(async ({ ctx, input }) => {
-                        const sessionUser = ctx.session.user;
-                        const userId =
-                                typeof (sessionUser as { id?: unknown })?.id === "string"
-                                        ? (sessionUser as { id: string }).id
-                                        : null;
-                        if (!userId) {
-                                throw new TRPCError({
-                                        code: "UNAUTHORIZED",
-                                        message: "Session user missing",
-                                });
-                        }
+	getForUser: protectedProcedure
+		.input(getForUserInput)
+		.query(async ({ ctx, input }) => {
+			const sessionUser = ctx.session.user;
+			const userId =
+				typeof (sessionUser as { id?: unknown })?.id === "string"
+					? (sessionUser as { id: string }).id
+					: null;
+			if (!userId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "Session user missing",
+				});
+			}
 
-                        const rows = await db
-                                .select({
-                                        id: organization.id,
-                                        name: organization.name,
-                                        slug: organization.slug,
-                                        logo: organization.logo,
-                                        metadata: organization.metadata,
-                                        role: member.role,
-                                        joinedAt: member.createdAt,
-                                })
-                                .from(organization)
-                                .innerJoin(
-                                        member,
-                                        and(
-                                                eq(member.organizationId, organization.id),
-                                                eq(member.userId, userId),
-                                        ),
-                                )
-                                .where(eq(organization.slug, input.slug))
-                                .limit(1);
+			const rows = await db
+				.select({
+					id: organization.id,
+					name: organization.name,
+					slug: organization.slug,
+					logo: organization.logo,
+					metadata: organization.metadata,
+					role: member.role,
+					joinedAt: member.createdAt,
+				})
+				.from(organization)
+				.innerJoin(
+					member,
+					and(
+						eq(member.organizationId, organization.id),
+						eq(member.userId, userId),
+					),
+				)
+				.where(eq(organization.slug, input.slug))
+				.limit(1);
 
-                        const organizationRow = rows.at(0);
+			const organizationRow = rows.at(0);
 
-                        if (!organizationRow) {
-                                throw new TRPCError({
-                                        code: "NOT_FOUND",
-                                        message: "Organization not found",
-                                });
-                        }
+			if (!organizationRow) {
+				throw new TRPCError({
+					code: "NOT_FOUND",
+					message: "Organization not found",
+				});
+			}
 
-                        const now = new Date();
+			const now = new Date();
 
-                        const eventRows = await db
-                                .select({
-                                        id: event.id,
-                                        slug: event.slug,
-                                        title: event.title,
-                                        description: event.description,
-                                        location: event.location,
-                                        url: event.url,
-                                        heroMedia: event.heroMedia,
-                                        landingPage: event.landingPage,
-                                        startAt: event.startAt,
-                                        endAt: event.endAt,
-                                        metadata: event.metadata,
-                                        providerName: provider.name,
-                                })
-                                .from(event)
-                                .innerJoin(provider, eq(provider.id, event.provider))
-                                .where(
-                                        and(
-                                                eq(event.organizationId, organizationRow.id),
-                                                eq(event.status, "approved"),
-                                                eq(event.isPublished, true),
-                                                gte(event.startAt, now),
-                                        ),
-                                )
-                                .orderBy(asc(event.startAt), asc(event.id));
+			const eventRows = await db
+				.select({
+					id: event.id,
+					slug: event.slug,
+					title: event.title,
+					description: event.description,
+					location: event.location,
+					url: event.url,
+					heroMedia: event.heroMedia,
+					landingPage: event.landingPage,
+					startAt: event.startAt,
+					endAt: event.endAt,
+					metadata: event.metadata,
+					providerName: provider.name,
+				})
+				.from(event)
+				.innerJoin(provider, eq(provider.id, event.provider))
+				.where(
+					and(
+						eq(event.organizationId, organizationRow.id),
+						eq(event.status, "approved"),
+						eq(event.isPublished, true),
+						gte(event.startAt, now),
+					),
+				)
+				.orderBy(asc(event.startAt), asc(event.id));
 
-                        const upcomingEvents = eventRows.map((row) => {
-                                const metadata = row.metadata ?? null;
-                                return {
-                                        id: row.id,
-                                        slug: row.slug,
-                                        title: row.title,
-                                        description: row.description,
-                                        location: row.location,
-                                        url: row.url,
-                                        heroMedia: parseHeroMedia(row.heroMedia),
-                                        landingPage: parseLandingPage(row.landingPage),
-                                        startAt: row.startAt,
-                                        endAt: row.endAt,
-                                        organization: {
-                                                id: organizationRow.id,
-                                                name: organizationRow.name,
-                                                slug: organizationRow.slug,
-                                        },
-                                        providerName: row.providerName,
-                                        imageUrl:
-                                                typeof metadata?.imageUrl === "string"
-                                                        ? (metadata.imageUrl as string)
-                                                        : null,
-                                } as const;
-                        });
+			const upcomingEvents = eventRows.map((row) => {
+				const metadata = row.metadata ?? null;
+				return {
+					id: row.id,
+					slug: row.slug,
+					title: row.title,
+					description: row.description,
+					location: row.location,
+					url: row.url,
+					heroMedia: parseHeroMedia(row.heroMedia),
+					landingPage: parseLandingPage(row.landingPage),
+					startAt: row.startAt,
+					endAt: row.endAt,
+					organization: {
+						id: organizationRow.id,
+						name: organizationRow.name,
+						slug: organizationRow.slug,
+					},
+					providerName: row.providerName,
+					imageUrl:
+						typeof metadata?.imageUrl === "string"
+							? (metadata.imageUrl as string)
+							: null,
+				} as const;
+			});
 
-                        return {
-                                organization: {
-                                        id: organizationRow.id,
-                                        name: organizationRow.name,
-                                        slug: organizationRow.slug,
-                                        logo: organizationRow.logo,
-                                        metadata: parseMetadata(organizationRow.metadata),
-                                        role: organizationRow.role,
-                                        joinedAt: organizationRow.joinedAt.toISOString(),
-                                },
-                                events: upcomingEvents,
-                        } as const;
-                }),
-        listForUser: protectedProcedure
-                .input(listForUserInput)
-                .query(async ({ ctx, input }) => {
+			return {
+				organization: {
+					id: organizationRow.id,
+					name: organizationRow.name,
+					slug: organizationRow.slug,
+					logo: organizationRow.logo,
+					metadata: parseMetadata(organizationRow.metadata),
+					role: organizationRow.role,
+					joinedAt: organizationRow.joinedAt.toISOString(),
+				},
+				events: upcomingEvents,
+			} as const;
+		}),
+	listForUser: protectedProcedure
+		.input(listForUserInput)
+		.query(async ({ ctx, input }) => {
 			const sessionUser = ctx.session.user;
 			const userId =
 				typeof (sessionUser as { id?: unknown })?.id === "string"

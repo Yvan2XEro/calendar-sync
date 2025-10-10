@@ -60,15 +60,15 @@ export const googleCalendarApi = {
 };
 
 export const orgsApi = {
-        listForUser: async <TSegment extends ListForUserInput["segment"]>(
-                input: ListForUserInput & { segment: TSegment },
-        ) =>
-                (await trpcClient.orgs.listForUser.query(input)) as Extract<
-                        ListForUserOutput,
-                        { segment: TSegment }
-                >,
-        join: (input: RouterInputs["orgs"]["join"]) =>
-                trpcClient.orgs.join.mutate(input),
-        getForUser: (input: GetForUserInput) =>
-                trpcClient.orgs.getForUser.query(input) as Promise<GetForUserOutput>,
+	listForUser: async <TSegment extends ListForUserInput["segment"]>(
+		input: ListForUserInput & { segment: TSegment },
+	) =>
+		(await trpcClient.orgs.listForUser.query(input)) as Extract<
+			ListForUserOutput,
+			{ segment: TSegment }
+		>,
+	join: (input: RouterInputs["orgs"]["join"]) =>
+		trpcClient.orgs.join.mutate(input),
+	getForUser: (input: GetForUserInput) =>
+		trpcClient.orgs.getForUser.query(input) as Promise<GetForUserOutput>,
 };
