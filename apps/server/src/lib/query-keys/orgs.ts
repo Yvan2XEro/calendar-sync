@@ -6,14 +6,15 @@ export type OrgListKeyParams = {
 };
 
 export const orgsKeys = {
-	all: ["orgs"] as const,
-	list: (params: OrgListKeyParams) =>
-		[
-			...orgsKeys.all,
-			"listForUser",
-			params.segment,
-			params.search ?? null,
-			params.limit ?? null,
-			params.sort ?? null,
-		] as const,
+        all: ["orgs"] as const,
+        list: (params: OrgListKeyParams) =>
+                [
+                        ...orgsKeys.all,
+                        "listForUser",
+                        params.segment,
+                        params.search ?? null,
+                        params.limit ?? null,
+                        params.sort ?? null,
+                ] as const,
+        detail: (slug: string) => [...orgsKeys.all, "getForUser", slug] as const,
 };
