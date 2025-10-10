@@ -4,6 +4,24 @@ import { sql } from "bun";
 
 import type { EventSqlInsert } from "../utils/mailparser";
 
+type OrganizationLinkRow = {
+	organization_id: string | null;
+};
+
+async function resolveOrganizationId(
+	providerId: string,
+): Promise<string | null> {
+	const [link] = await sql<OrganizationLinkRow[]>`
+    SELECT organization_id
+    FROM organization_provider
+    WHERE provider_id = ${providerId}
+    ORDER BY organization_id ASC
+    LIMIT 1
+  `;
+
+	return link?.organization_id ?? null;
+}
+
 type EventRow = {
 	id: string;
 };
@@ -43,16 +61,25 @@ function generateSlug({
 }
 
 export async function insertEvent(
-	values: EventSqlInsert & { id?: string; slug?: string },
+	values: EventSqlInsert & {
+		id?: string;
+		slug?: string;
+		organization_id?: string | null;
+	},
 ): Promise<EventRow | null> {
 	const id = values.id ?? randomUUID();
 	const slug = generateSlug({ title: values.title, id, slug: values.slug });
+	const organizationId =
+		typeof values.organization_id !== "undefined"
+			? (values.organization_id ?? null)
+			: await resolveOrganizationId(values.provider_id);
 
 	const [row] = await sql<EventRow[]>`
     INSERT INTO event (
       id,
       slug,
       provider_id,
+      organization_id,
       flag_id,
       external_id,
       title,
@@ -70,6 +97,7 @@ export async function insertEvent(
       ${id},
       ${slug},
       ${values.provider_id},
+      ${organizationId},
       ${values.flag_id ?? null},
       ${values.external_id ?? null},
       ${values.title},
