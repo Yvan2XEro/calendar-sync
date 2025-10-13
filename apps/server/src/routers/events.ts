@@ -42,6 +42,7 @@ import {
 	type EventAutomationType,
 	enqueueEventAutomations,
 } from "@/lib/events/automation";
+import { syncEventWithGoogleCalendar } from "@/lib/events/calendar-sync";
 import { parseEventMessagingSettings } from "@/lib/events/messaging";
 import {
 	createRegistrationDraft,
@@ -687,6 +688,12 @@ const recentEventsInput = z
 	})
 	.optional();
 
+const syncCalendarInput = z
+	.object({
+		limit: z.number().int().min(1).max(RECENT_EVENTS_MAX_LIMIT).optional(),
+	})
+	.optional();
+
 const createEventInput = z
 	.object({
 		title: z.string().trim().min(1),
@@ -1082,6 +1089,97 @@ export const eventsRouter = router({
 						? (row.metadata.imageUrl as string)
 						: null,
 			}));
+		}),
+	syncCalendarForUser: protectedProcedure
+		.input(syncCalendarInput)
+		.mutation(async ({ ctx, input }) => {
+			const sessionUser = ctx.session.user;
+			const userId =
+				typeof (sessionUser as { id?: unknown })?.id === "string"
+					? (sessionUser as { id: string }).id
+					: null;
+			if (!userId) {
+				throw new TRPCError({
+					code: "UNAUTHORIZED",
+					message: "Session user missing",
+				});
+			}
+
+			const limit = input?.limit ?? RECENT_EVENTS_MAX_LIMIT;
+			const now = new Date();
+
+			const rows = await db
+				.select({ id: event.id })
+				.from(event)
+				.innerJoin(provider, eq(provider.id, event.provider))
+				.innerJoin(
+					organizationProvider,
+					eq(organizationProvider.providerId, provider.id),
+				)
+				.innerJoin(
+					organization,
+					eq(organization.id, organizationProvider.organizationId),
+				)
+				.innerJoin(
+					member,
+					and(
+						eq(member.organizationId, organization.id),
+						eq(member.userId, userId),
+					),
+				)
+				.where(
+					and(
+						eq(event.status, "approved"),
+						eq(event.isPublished, true),
+						eq(event.organizationId, organization.id),
+						gte(event.startAt, now),
+					),
+				)
+				.orderBy(event.startAt, event.id)
+				.limit(limit);
+
+			const eventIds = Array.from(new Set(rows.map((row) => row.id)));
+
+			const summary = {
+				total: eventIds.length,
+				processed: 0,
+				created: 0,
+				updated: 0,
+				deleted: 0,
+				skipped: 0,
+				failed: 0,
+				errors: [] as Array<{ eventId: string; message: string }>,
+			};
+
+			for (const eventId of eventIds) {
+				summary.processed += 1;
+				try {
+					const action = await syncEventWithGoogleCalendar(eventId);
+					switch (action) {
+						case "created":
+							summary.created += 1;
+							break;
+						case "updated":
+							summary.updated += 1;
+							break;
+						case "deleted":
+							summary.deleted += 1;
+							break;
+						case "skipped":
+							summary.skipped += 1;
+							break;
+					}
+				} catch (error) {
+					summary.failed += 1;
+					const message =
+						error instanceof Error
+							? error.message
+							: "Unknown calendar sync error";
+					summary.errors.push({ eventId, message });
+				}
+			}
+
+			return summary;
 		}),
 	list: adminProcedure
 		.input(listInputSchema.optional())
