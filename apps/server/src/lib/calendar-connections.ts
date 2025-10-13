@@ -42,20 +42,28 @@ export async function listConnectionsForMember(memberId: string) {
 	return rows.map(sanitizeConnection);
 }
 
-export async function resolveGoogleCalendarConnection(organizationId: string) {
+export async function resolveGoogleCalendarConnection(
+	organizationId: string,
+	memberId?: string,
+) {
+	const conditions = [
+		eq(member.organizationId, organizationId),
+		eq(calendarConnection.providerType, "google"),
+		eq(calendarConnection.status, CONNECTED_STATUS),
+	];
+
+	if (memberId) {
+		conditions.push(eq(calendarConnection.memberId, memberId));
+	}
+
 	const rows = await db
 		.select({ connection: calendarConnection })
 		.from(calendarConnection)
 		.innerJoin(member, eq(member.id, calendarConnection.memberId))
-		.where(
-			and(
-				eq(member.organizationId, organizationId),
-				eq(calendarConnection.providerType, "google"),
-				eq(calendarConnection.status, CONNECTED_STATUS),
-			),
-		)
+		.where(and(...conditions))
 		.orderBy(desc(calendarConnection.updatedAt))
 		.limit(1);
+
 	const row = rows.at(0);
 	return row ? sanitizeConnection(row.connection) : null;
 }

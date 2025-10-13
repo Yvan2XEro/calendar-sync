@@ -84,8 +84,12 @@ function parseCalendarId(config: Record<string, unknown>): string | null {
 
 async function resolveOrganizationCalendar(
 	organizationId: string,
+	memberId?: string,
 ): Promise<OrganizationCalendarConfig | null> {
-	const oauthConnection = await resolveGoogleCalendarConnection(organizationId);
+	const oauthConnection = await resolveGoogleCalendarConnection(
+		organizationId,
+		memberId,
+	);
 	if (oauthConnection) {
 		if (!oauthConnection.calendarId) {
 			await markConnectionStatus(
@@ -165,8 +169,13 @@ function toGoogleCalendarInput(row: EventRow): GoogleCalendarEventInput {
 	} satisfies GoogleCalendarEventInput;
 }
 
+type SyncEventOptions = {
+	memberId?: string;
+};
+
 export async function syncEventWithGoogleCalendar(
 	eventId: string,
+	options: SyncEventOptions = {},
 ): Promise<SyncAction> {
 	const rows = await db
 		.select({
@@ -202,6 +211,7 @@ export async function syncEventWithGoogleCalendar(
 
 	const calendarConfig = await resolveOrganizationCalendar(
 		current.organizationId,
+		options.memberId,
 	);
 	if (!calendarConfig) {
 		throw new Error("Organization is not linked to a Google Calendar");
