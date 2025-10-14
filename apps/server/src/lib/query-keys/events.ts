@@ -28,4 +28,8 @@ export const eventKeys = {
 				serialize(params),
 			] as const,
 	},
+	participation: {
+		summary: (eventId: string) =>
+			[...eventKeys.all, "participation", eventId, "summary"] as const,
+	},
 };

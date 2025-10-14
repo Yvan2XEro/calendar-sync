@@ -44,6 +44,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
 	Tooltip,
 	TooltipContent,
@@ -69,6 +70,7 @@ type EventsCalendarProps = {
 	isFetching: boolean;
 	isError: boolean;
 	onRetry: () => void;
+	showParticipationFilter?: boolean;
 };
 
 type CalendarEvent = UpcomingEvent & {
@@ -82,6 +84,7 @@ export function EventsCalendar({
 	isFetching,
 	isError,
 	onRetry,
+	showParticipationFilter = false,
 }: EventsCalendarProps) {
 	const [search, setSearch] = React.useState("");
 	const [location, setLocation] = React.useState("all");
@@ -91,6 +94,7 @@ export function EventsCalendar({
 	const [selectedEventId, setSelectedEventId] = React.useState<string | null>(
 		null,
 	);
+	const [onlyParticipating, setOnlyParticipating] = React.useState(false);
 
 	const normalizedSearch = search.trim().toLowerCase();
 
@@ -132,9 +136,21 @@ export function EventsCalendar({
 					.toLowerCase()
 					.includes(normalizedSearch);
 
-			return matchesLocation && matchesDate && matchesSearch;
+			const matchesParticipation =
+				!showParticipationFilter || !onlyParticipating || event.isParticipant;
+
+			return (
+				matchesLocation && matchesDate && matchesSearch && matchesParticipation
+			);
 		});
-	}, [events, location, date, normalizedSearch]);
+	}, [
+		events,
+		location,
+		date,
+		normalizedSearch,
+		showParticipationFilter,
+		onlyParticipating,
+	]);
 
 	const calendarEvents = React.useMemo<CalendarEvent[]>(() => {
 		return filteredEvents.map((event) => {
@@ -151,7 +167,10 @@ export function EventsCalendar({
 	}, [filteredEvents]);
 
 	const isFiltering =
-		normalizedSearch.length > 0 || location !== "all" || date.length > 0;
+		normalizedSearch.length > 0 ||
+		location !== "all" ||
+		date.length > 0 ||
+		(showParticipationFilter && onlyParticipating);
 
 	const selectedEvent = React.useMemo(() => {
 		if (!selectedEventId) return null;
@@ -162,6 +181,7 @@ export function EventsCalendar({
 		setSearch("");
 		setLocation("all");
 		setDate("");
+		setOnlyParticipating(false);
 	}, []);
 
 	const handleNavigate = React.useCallback((newDate: Date) => {
@@ -232,6 +252,9 @@ export function EventsCalendar({
 					onDateChange={setDate}
 					onReset={handleResetFilters}
 					isFiltering={isFiltering}
+					onlyParticipating={onlyParticipating}
+					onOnlyParticipatingChange={setOnlyParticipating}
+					enableParticipationFilter={showParticipationFilter}
 				/>
 
 				{isLoading ? (
@@ -437,6 +460,9 @@ function FiltersPanel({
 	onDateChange,
 	onReset,
 	isFiltering,
+	onlyParticipating,
+	onOnlyParticipatingChange,
+	enableParticipationFilter,
 }: {
 	search: string;
 	onSearchChange: (value: string) => void;
@@ -447,14 +473,20 @@ function FiltersPanel({
 	onDateChange: (value: string) => void;
 	onReset: () => void;
 	isFiltering: boolean;
+	onlyParticipating: boolean;
+	onOnlyParticipatingChange: (value: boolean) => void;
+	enableParticipationFilter: boolean;
 }) {
+	const gridColumns = enableParticipationFilter
+		? "md:grid-cols-4"
+		: "md:grid-cols-3";
 	return (
 		<Card className="space-y-4 rounded-2xl border border-border/60 bg-card/80 p-5 shadow-sm">
 			<div className="flex items-center gap-2 text-muted-foreground text-sm">
 				<Filter className="size-4" aria-hidden />
 				<span>Refine what you see</span>
 			</div>
-			<div className="grid gap-4 md:grid-cols-3">
+			<div className={`grid gap-4 ${gridColumns}`}>
 				<div className="flex flex-col gap-2">
 					<Label htmlFor="events-search">Search</Label>
 					<Input
@@ -489,6 +521,21 @@ function FiltersPanel({
 						onChange={(event) => onDateChange(event.target.value)}
 					/>
 				</div>
+				{enableParticipationFilter ? (
+					<div className="flex flex-col gap-2">
+						<Label htmlFor="events-only-participating">Participation</Label>
+						<div className="flex items-center gap-3 rounded-lg border border-border/60 bg-background/80 px-3 py-2">
+							<Switch
+								id="events-only-participating"
+								checked={onlyParticipating}
+								onCheckedChange={onOnlyParticipatingChange}
+							/>
+							<span className="text-muted-foreground text-sm">
+								Only show events I'm registered for
+							</span>
+						</div>
+					</div>
+				) : null}
 			</div>
 			<div className="flex flex-wrap items-center gap-3">
 				<Button

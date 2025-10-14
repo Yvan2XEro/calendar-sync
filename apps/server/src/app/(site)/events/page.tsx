@@ -130,6 +130,7 @@ export default function EventsPage() {
 				isFetching={eventsQuery.isFetching}
 				isError={eventsQuery.isError}
 				onRetry={eventsQuery.refetch}
+				showParticipationFilter
 			/>
 		</AppShell>
 	);

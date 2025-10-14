@@ -21,4 +21,6 @@ export type UpcomingEvent = {
 	};
 	providerName: string;
 	imageUrl: string | null;
+	participantCount: number | null;
+	isParticipant: boolean;
 };

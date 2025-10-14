@@ -6,6 +6,7 @@ import {
 	CalendarRange,
 	MailOpen,
 	MapPin,
+	Users,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -83,6 +84,8 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 		[calendarEvent],
 	);
 	const description = calendarEvent.description?.trim();
+	const participantCount = event.participantCount ?? 0;
+	const showParticipants = participantCount > 0;
 
 	return (
 		<Card className="flex h-full min-w-[280px] flex-1 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm transition-shadow hover:shadow-md md:min-w-[320px]">
@@ -126,6 +129,15 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 						<p className="flex items-start gap-2 text-muted-foreground text-sm">
 							<MapPin className="mt-0.5 size-4" aria-hidden />
 							<span className="line-clamp-2">{event.location}</span>
+						</p>
+					) : null}
+					{showParticipants ? (
+						<p className="flex items-center gap-2 text-muted-foreground text-sm">
+							<Users className="size-4" aria-hidden />
+							<span>
+								{participantCount.toLocaleString()} participant
+								{participantCount === 1 ? "" : "s"}
+							</span>
 						</p>
 					) : null}
 				</div>

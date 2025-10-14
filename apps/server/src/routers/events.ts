@@ -49,6 +49,7 @@ import {
 import { parseEventMessagingSettings } from "@/lib/events/messaging";
 import { fetchUpcomingPublicEvents } from "@/lib/events/public-upcoming-events";
 import {
+	ACTIVE_ATTENDEE_STATUSES,
 	createRegistrationDraft,
 	enqueueWaitlist,
 	getEventTicketInventory,
@@ -790,6 +791,10 @@ const ticketInventoryInput = z.object({
 	eventId: z.string().min(1),
 });
 
+const participationInput = z.object({
+	eventId: z.string().min(1),
+});
+
 const eventSelection = {
 	id: event.id,
 	slug: event.slug,
@@ -1000,6 +1005,49 @@ function throwRegistrationError(error: RegistrationError): never {
 	}
 }
 
+const PARTICIPATION_STATUSES = ACTIVE_ATTENDEE_STATUSES;
+
+function normalizeEmail(value: unknown): string | null {
+	if (typeof value !== "string") return null;
+	const normalized = value.trim().toLowerCase();
+	return normalized.length > 0 ? normalized : null;
+}
+
+function toBoolean(value: unknown): boolean {
+	if (typeof value === "boolean") return value;
+	if (typeof value === "string") {
+		const normalized = value.trim().toLowerCase();
+		return normalized === "true" || normalized === "t" || normalized === "1";
+	}
+	if (typeof value === "number") {
+		return value !== 0;
+	}
+	return false;
+}
+
+async function getParticipationSummary(eventId: string, email: string | null) {
+	const [row] = await db
+		.select({
+			totalParticipants: sql<number>`count(*)`,
+			isParticipant: email
+				? sql<boolean>`coalesce(bool_or(lower(${attendeeProfile.email}) = ${email}), false)`
+				: sql<boolean>`false`,
+		})
+		.from(attendee)
+		.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
+		.where(
+			and(
+				eq(attendee.eventId, eventId),
+				inArray(attendee.status, PARTICIPATION_STATUSES),
+			),
+		);
+
+	const totalParticipants = Number(row?.totalParticipants ?? 0);
+	const isParticipant = email ? toBoolean(row?.isParticipant) : false;
+
+	return { totalParticipants, isParticipant } as const;
+}
+
 export const eventsRouter = router({
 	listRecentForUser: protectedProcedure
 		.input(recentEventsInput)
@@ -1009,6 +1057,9 @@ export const eventsRouter = router({
 				typeof (sessionUser as { id?: unknown })?.id === "string"
 					? (sessionUser as { id: string }).id
 					: null;
+			const normalizedEmail = normalizeEmail(
+				(sessionUser as { email?: unknown })?.email,
+			);
 			if (!userId) {
 				throw new TRPCError({
 					code: "UNAUTHORIZED",
@@ -1039,6 +1090,10 @@ export const eventsRouter = router({
 					organizationName: organization.name,
 					organizationSlug: organization.slug,
 					providerName: provider.name,
+					participantCount: sql<number>`count(*) FILTER (WHERE ${attendee.status} IN ('registered','checked_in','reserved'))`,
+					isParticipant: normalizedEmail
+						? sql<boolean>`coalesce(bool_or(lower(${attendeeProfile.email}) = ${normalizedEmail} AND ${attendee.status} IN ('registered','checked_in','reserved')), false)`
+						: sql<boolean>`false`,
 				})
 				.from(event)
 				.innerJoin(provider, eq(provider.id, event.provider))
@@ -1057,6 +1112,8 @@ export const eventsRouter = router({
 						eq(member.userId, userId),
 					),
 				)
+				.leftJoin(attendee, eq(attendee.eventId, event.id))
+				.leftJoin(attendeeProfile, eq(attendeeProfile.id, attendee.profileId))
 				.where(
 					and(
 						eq(event.status, "approved"),
@@ -1064,6 +1121,23 @@ export const eventsRouter = router({
 						gte(event.startAt, now),
 						lte(event.startAt, windowEnd),
 					),
+				)
+				.groupBy(
+					event.id,
+					event.slug,
+					event.title,
+					event.description,
+					event.location,
+					event.url,
+					event.heroMedia,
+					event.landingPage,
+					event.startAt,
+					event.endAt,
+					event.metadata,
+					organization.id,
+					organization.name,
+					organization.slug,
+					provider.name,
 				)
 				.orderBy(event.startAt, event.id)
 				.limit(limit);
@@ -1097,6 +1171,8 @@ export const eventsRouter = router({
 					typeof row.metadata?.imageUrl === "string"
 						? (row.metadata.imageUrl as string)
 						: null,
+				participantCount: Number(row.participantCount ?? 0),
+				isParticipant: toBoolean(row.isParticipant),
 			}));
 		}),
 	listUpcomingPublic: publicProcedure
@@ -1959,6 +2035,229 @@ export const eventsRouter = router({
 				);
 
 				return { queued: recipients.length, total: items.length } as const;
+			}),
+	}),
+	participation: router({
+		summary: publicProcedure
+			.input(participationInput)
+			.query(async ({ ctx, input }) => {
+				const sessionUser = ctx.session?.user ?? null;
+				const normalizedEmail = normalizeEmail(
+					(sessionUser as { email?: unknown })?.email,
+				);
+				const summary = await getParticipationSummary(
+					input.eventId,
+					normalizedEmail,
+				);
+				return summary;
+			}),
+		join: protectedProcedure
+			.input(participationInput)
+			.mutation(async ({ ctx, input }) => {
+				const sessionUser = ctx.session.user;
+				const email = normalizeEmail(
+					(sessionUser as { email?: unknown })?.email,
+				);
+				if (!email) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "A verified email is required to join this event",
+					});
+				}
+
+				const rawName =
+					typeof (sessionUser as { name?: unknown })?.name === "string"
+						? (sessionUser as { name: string }).name
+						: null;
+				const displayName = rawName?.trim().length ? rawName.trim() : null;
+
+				const eventRows = await db
+					.select({
+						id: event.id,
+						isPublished: event.isPublished,
+						status: event.status,
+					})
+					.from(event)
+					.where(eq(event.id, input.eventId))
+					.limit(1);
+
+				const eventRecord = eventRows.at(0);
+				if (!eventRecord) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Event not found",
+					});
+				}
+
+				if (!eventRecord.isPublished || eventRecord.status !== "approved") {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "Event is not open for participation",
+					});
+				}
+
+				const participation = await db.transaction(async (tx) => {
+					const [existingProfile] = await tx
+						.select()
+						.from(attendeeProfile)
+						.where(
+							and(
+								eq(attendeeProfile.email, email),
+								isNull(attendeeProfile.organizationId),
+							),
+						)
+						.limit(1);
+
+					let profileRecord = existingProfile ?? null;
+					if (!profileRecord) {
+						const [createdProfile] = await tx
+							.insert(attendeeProfile)
+							.values({
+								id: randomUUID(),
+								email,
+								displayName,
+								organizationId: null,
+							})
+							.returning();
+						profileRecord = createdProfile ?? null;
+					} else if (
+						displayName &&
+						displayName.length > 0 &&
+						displayName !== profileRecord.displayName
+					) {
+						const [updatedProfile] = await tx
+							.update(attendeeProfile)
+							.set({ displayName })
+							.where(eq(attendeeProfile.id, profileRecord.id))
+							.returning();
+						profileRecord = updatedProfile ?? profileRecord;
+					}
+
+					if (!profileRecord) {
+						throw new TRPCError({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Unable to prepare attendee profile",
+						});
+					}
+
+					const [existingAttendee] = await tx
+						.select({ id: attendee.id, status: attendee.status })
+						.from(attendee)
+						.where(
+							and(
+								eq(attendee.eventId, input.eventId),
+								eq(attendee.profileId, profileRecord.id),
+							),
+						)
+						.limit(1);
+
+					if (existingAttendee) {
+						if (PARTICIPATION_STATUSES.includes(existingAttendee.status)) {
+							return {
+								attendeeId: existingAttendee.id,
+								status: existingAttendee.status,
+								action: "already_joined" as const,
+							};
+						}
+
+						const [reactivated] = await tx
+							.update(attendee)
+							.set({ status: "registered" })
+							.where(eq(attendee.id, existingAttendee.id))
+							.returning({ id: attendee.id, status: attendee.status });
+
+						const record = reactivated ?? existingAttendee;
+						return {
+							attendeeId: record.id,
+							status: record.status,
+							action: "rejoined" as const,
+						};
+					}
+
+					const [createdAttendee] = await tx
+						.insert(attendee)
+						.values({
+							id: randomUUID(),
+							eventId: input.eventId,
+							profileId: profileRecord.id,
+							status: "registered",
+							confirmationCode: randomUUID(),
+						})
+						.returning({ id: attendee.id, status: attendee.status });
+
+					if (!createdAttendee) {
+						throw new TRPCError({
+							code: "INTERNAL_SERVER_ERROR",
+							message: "Unable to save participation",
+						});
+					}
+
+					return {
+						attendeeId: createdAttendee.id,
+						status: createdAttendee.status,
+						action: "joined" as const,
+					};
+				});
+
+				const summary = await getParticipationSummary(input.eventId, email);
+
+				return { ...participation, summary } as const;
+			}),
+		leave: protectedProcedure
+			.input(participationInput)
+			.mutation(async ({ ctx, input }) => {
+				const sessionUser = ctx.session.user;
+				const email = normalizeEmail(
+					(sessionUser as { email?: unknown })?.email,
+				);
+				if (!email) {
+					throw new TRPCError({
+						code: "BAD_REQUEST",
+						message: "A verified email is required to update participation",
+					});
+				}
+
+				const result = await db.transaction(async (tx) => {
+					const [profile] = await tx
+						.select({ id: attendeeProfile.id })
+						.from(attendeeProfile)
+						.where(
+							and(
+								eq(attendeeProfile.email, email),
+								isNull(attendeeProfile.organizationId),
+							),
+						)
+						.limit(1);
+
+					if (!profile) {
+						return { action: "not_participant" as const };
+					}
+
+					const removed = await tx
+						.update(attendee)
+						.set({ status: "cancelled" })
+						.where(
+							and(
+								eq(attendee.eventId, input.eventId),
+								eq(attendee.profileId, profile.id),
+								inArray(attendee.status, PARTICIPATION_STATUSES),
+							),
+						)
+						.returning({ id: attendee.id });
+
+					if (removed.length === 0) {
+						return { action: "not_participant" as const };
+					}
+
+					return {
+						action: "left" as const,
+						attendeeIds: removed.map((record) => record.id),
+					};
+				});
+
+				const summary = await getParticipationSummary(input.eventId, email);
+
+				return { ...result, summary } as const;
 			}),
 	}),
 	analytics: router({
