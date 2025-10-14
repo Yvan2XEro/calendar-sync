@@ -47,6 +47,7 @@ type Props = {
 	eventId: string;
 	eventTitle: string;
 	tickets: RegistrationTicket[];
+	totalRegistered: number;
 };
 
 type AttendeeState = {
@@ -149,6 +150,7 @@ export function EventRegistrationSection({
 	eventId,
 	eventTitle,
 	tickets,
+	totalRegistered,
 }: Props) {
 	const [selectedTicketId, setSelectedTicketId] = useState<string | null>(
 		() => {
@@ -214,6 +216,19 @@ export function EventRegistrationSection({
 			setQuantity(maxQuantity);
 		}
 	}, [maxQuantity, quantity]);
+
+        const totalRemaining = useMemo(() => {
+                if (tickets.length === 0) {
+                        return null;
+                }
+                if (tickets.some((ticket) => ticket.remaining === null)) {
+                        return Number.POSITIVE_INFINITY;
+                }
+                return tickets.reduce(
+                        (sum, ticket) => sum + Math.max(ticket.remaining ?? 0, 0),
+                        0,
+                );
+	}, [tickets]);
 
 	const registerMutation = useMutation({
 		mutationFn: (
@@ -332,6 +347,29 @@ export function EventRegistrationSection({
 						Reserve your spot by choosing a ticket, adding attendee details, and
 						confirming your registration.
 					</CardDescription>
+                                        <div className="text-muted-foreground text-sm space-y-1">
+                                                {totalRegistered > 0 ? (
+                                                        <p>
+                                                                {totalRegistered.toLocaleString()} participant
+                                                                {totalRegistered === 1 ? " has" : "s have"} already registered.
+                                                        </p>
+                                                ) : (
+                                                        <p>Be the first to register for this event.</p>
+                                                )}
+                                                {totalRemaining === null ? (
+                                                        <p>Ticket availability details will appear once registration opens.</p>
+                                                ) : Number.isFinite(totalRemaining) ? (
+                                                        <p>
+                                                                {totalRemaining > 0
+                                                                        ? `${totalRemaining.toLocaleString()} spot${
+                                                                                        totalRemaining === 1 ? " remains" : "s remain"
+                                                                                } across all tickets.`
+                                                                        : "No spots remaining across the available tickets."}
+                                                        </p>
+                                                ) : (
+                                                        <p>Additional spots are currently available.</p>
+                                                )}
+                                        </div>
 				</CardHeader>
 				<CardContent>
 					{tickets.length === 0 && (
