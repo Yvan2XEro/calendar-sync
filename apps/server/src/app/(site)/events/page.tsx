@@ -51,6 +51,10 @@ export default function EventsPage() {
 			if (breakdownParts.length > 0) {
 				descriptionParts.push(breakdownParts.join(" • "));
 			}
+			const handledInfo = result.errors.find((error) => error.handled)?.message;
+			if (handledInfo) {
+				descriptionParts.push(handledInfo);
+			}
 			if (result.failed > 0) {
 				descriptionParts.push(`${result.failed} failed`);
 			}

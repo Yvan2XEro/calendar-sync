@@ -8,6 +8,13 @@
 			"when": 1760016146506,
 			"tag": "0000_steep_veda",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "7",
+			"when": 1760452660212,
+			"tag": "0001_military_madame_web",
+			"breakpoints": true
 		}
 	]
 }

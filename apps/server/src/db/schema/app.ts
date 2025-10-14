@@ -107,6 +107,12 @@ export const eventAutomationStatus = pgEnum("event_automation_status", [
 	"failed",
 ]);
 
+export const eventCalendarSyncStatus = pgEnum("event_calendar_sync_status", [
+	"pending",
+	"synced",
+	"failed",
+]);
+
 export const digestSegment = pgEnum("digest_segment", ["joined", "discover"]);
 
 export const provider = pgTable("provider", {
@@ -190,7 +196,6 @@ export const event = pgTable(
 		isAllDay: boolean("is_all_day").default(false).notNull(),
 		isPublished: boolean("is_published").default(false).notNull(),
 		externalId: text("external_id"),
-		googleCalendarEventId: text("google_calendar_event_id"),
 		metadata: jsonb("metadata")
 			.$type<Record<string, unknown>>()
 			.default(sql`'{}'::jsonb`)
@@ -298,6 +303,31 @@ export const eventAutomationJob = pgTable(
 			table.createdAt,
 		),
 	}),
+);
+
+export const eventCalendarSync = pgTable(
+	"event_calendar_sync",
+	{
+		id: bigserial("id", { mode: "number" }).primaryKey(),
+		eventId: text("event_id")
+			.notNull()
+			.references(() => event.id, { onDelete: "cascade" }),
+		memberId: text("member_id").references(() => member.id, {
+			onDelete: "cascade",
+		}),
+		googleEventId: text("google_event_id"),
+		status: eventCalendarSyncStatus("status").notNull().default("pending"),
+		lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+		failureReason: text("failure_reason"),
+		...timestamps,
+	},
+	(table) => [
+		uniqueIndex("event_calendar_sync_event_member_unique").on(
+			table.eventId,
+			table.memberId,
+		),
+		index("event_calendar_sync_member_idx").on(table.memberId),
+	],
 );
 
 export type Provider = typeof provider.$inferSelect;

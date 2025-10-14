@@ -42,7 +42,10 @@ import {
 	type EventAutomationType,
 	enqueueEventAutomations,
 } from "@/lib/events/automation";
-import { syncEventWithGoogleCalendar } from "@/lib/events/calendar-sync";
+import {
+	CalendarSyncUnavailableError,
+	syncEventWithGoogleCalendar,
+} from "@/lib/events/calendar-sync";
 import { parseEventMessagingSettings } from "@/lib/events/messaging";
 import { fetchUpcomingPublicEvents } from "@/lib/events/public-upcoming-events";
 import {
@@ -441,7 +444,6 @@ type EventSelection = {
 	isAllDay: boolean;
 	isPublished: boolean;
 	externalId: string | null;
-	googleCalendarEventId: string | null;
 	metadata: Record<string, unknown> | null;
 	status: (typeof event.status.enumValues)[number];
 	priority: number;
@@ -804,7 +806,6 @@ const eventSelection = {
 	isAllDay: event.isAllDay,
 	isPublished: event.isPublished,
 	externalId: event.externalId,
-	googleCalendarEventId: event.googleCalendarEventId,
 	metadata: event.metadata,
 	status: event.status,
 	priority: event.priority,
@@ -941,7 +942,6 @@ function mapEvent(row: EventSelection) {
 		isAllDay: row.isAllDay,
 		isPublished: row.isPublished,
 		externalId: row.externalId,
-		googleCalendarEventId: row.googleCalendarEventId,
 		metadata,
 		autoApproval,
 		status: row.status,
@@ -1165,7 +1165,11 @@ export const eventsRouter = router({
 				deleted: 0,
 				skipped: 0,
 				failed: 0,
-				errors: [] as Array<{ eventId: string; message: string }>,
+				errors: [] as Array<{
+					eventId: string;
+					message: string;
+					handled?: boolean;
+				}>,
 			};
 
 			for (const [eventId, { memberId }] of eventsById.entries()) {
@@ -1173,6 +1177,7 @@ export const eventsRouter = router({
 				try {
 					const action = await syncEventWithGoogleCalendar(eventId, {
 						memberId,
+						userId,
 					});
 					switch (action) {
 						case "created":
@@ -1189,6 +1194,19 @@ export const eventsRouter = router({
 							break;
 					}
 				} catch (error) {
+					if (
+						error instanceof CalendarSyncUnavailableError &&
+						error.scope === "user"
+					) {
+						summary.skipped += 1;
+						summary.errors.push({
+							eventId,
+							message: error.message,
+							handled: true,
+						});
+						continue;
+					}
+
 					summary.failed += 1;
 					const message =
 						error instanceof Error
