@@ -15,6 +15,7 @@ import {
 } from "@/db/schema/app";
 import { member, organization, user } from "@/db/schema/auth";
 import { formatDisplayDate } from "@/lib/datetime";
+import { buildAbsoluteUrl } from "@/lib/site-metadata";
 
 import { queueEmailDelivery } from "./deliveries";
 
@@ -43,6 +44,8 @@ export type DigestMetadata = {
 				endAt: string | null;
 				location: string | null;
 				url: string | null;
+				slug: string | null;
+				canonicalUrl: string | null;
 			}>;
 		}>;
 	}>;
@@ -139,6 +142,8 @@ type SegmentGroup = {
 			endAt: Date | null;
 			location: string | null;
 			url: string | null;
+			slug: string | null;
+			canonicalUrl: string | null;
 		}>;
 	}>;
 };
@@ -216,6 +221,7 @@ type SegmentQueryRow = {
 	endAt: Date | null;
 	location: string | null;
 	url: string | null;
+	slug: string | null;
 	organizationId: string;
 	organizationName: string;
 	organizationSlug: string | null;
@@ -244,6 +250,7 @@ async function fetchSegmentRows(
 				endAt: event.endAt,
 				location: event.location,
 				url: event.url,
+				slug: event.slug,
 				organizationId: organization.id,
 				organizationName: organization.name,
 				organizationSlug: organization.slug,
@@ -279,6 +286,7 @@ async function fetchSegmentRows(
 			endAt: event.endAt,
 			location: event.location,
 			url: event.url,
+			slug: event.slug,
 			organizationId: organization.id,
 			organizationName: organization.name,
 			organizationSlug: organization.slug,
@@ -338,6 +346,7 @@ function mapRowsToGroups(
 		const entry = organizationMap.get(orgId);
 		if (!entry) continue;
 		if (entry.events.length >= maxPerOrganization) continue;
+		const slug = row.slug?.trim() ?? null;
 		entry.events.push({
 			id: row.eventId,
 			title: row.title,
@@ -345,6 +354,8 @@ function mapRowsToGroups(
 			endAt: row.endAt,
 			location: row.location,
 			url: row.url,
+			slug,
+			canonicalUrl: slug ? buildAbsoluteUrl(`/events/${slug}`) : null,
 		});
 	}
 
@@ -481,7 +492,7 @@ type RenderInput = {
 	previewText: string | null;
 };
 
-function renderDigestHtml({ user, segments, rangeLabel }: RenderInput) {
+export function renderDigestHtml({ user, segments, rangeLabel }: RenderInput) {
 	const htmlParts: string[] = [];
 	htmlParts.push(
 		"<div style=\"font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; color: #1f2933;\">",
@@ -508,7 +519,8 @@ function renderDigestHtml({ user, segments, rangeLabel }: RenderInput) {
 			);
 			htmlParts.push('<ul style="margin: 0; padding-left: 16px;">');
 			for (const eventItem of org.events) {
-				const eventUrl = safeUrl(eventItem.url);
+				const eventUrl =
+					safeUrl(eventItem.canonicalUrl) ?? safeUrl(eventItem.url);
 				const location = eventItem.location?.trim();
 				htmlParts.push('<li style="margin-bottom: 12px;">');
 				htmlParts.push(
@@ -540,7 +552,7 @@ function renderDigestHtml({ user, segments, rangeLabel }: RenderInput) {
 	return htmlParts.join("");
 }
 
-function renderDigestText({ user, segments, rangeLabel }: RenderInput) {
+export function renderDigestText({ user, segments, rangeLabel }: RenderInput) {
 	const textParts: string[] = [];
 	const greetingName = user.name?.trim() ?? GREETING_FALLBACK;
 	textParts.push(`Hi ${greetingName},`);
@@ -560,8 +572,10 @@ function renderDigestText({ user, segments, rangeLabel }: RenderInput) {
 				if (eventItem.location?.trim()) {
 					textParts.push(`    Location: ${eventItem.location.trim()}`);
 				}
-				if (eventItem.url?.trim()) {
-					textParts.push(`    Details: ${eventItem.url.trim()}`);
+				const detailUrl =
+					eventItem.canonicalUrl?.trim() ?? eventItem.url?.trim();
+				if (detailUrl) {
+					textParts.push(`    Details: ${detailUrl}`);
 				}
 			}
 		}
@@ -723,6 +737,8 @@ export async function scheduleDigestDeliveries({
 						endAt: eventItem.endAt?.toISOString() ?? null,
 						location: eventItem.location,
 						url: eventItem.url,
+						slug: eventItem.slug,
+						canonicalUrl: eventItem.canonicalUrl,
 					})),
 				})),
 			})),
