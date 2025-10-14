@@ -6,6 +6,7 @@ import { authClient } from "@/lib/auth-client";
 
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
+import { useCallbackSP } from "@/hooks/use-callback-sp";
 
 const providerId = process.env.NEXT_PUBLIC_OIDC_PROVIDER_ID?.trim();
 
@@ -13,6 +14,7 @@ export const SSOAuth = () => {
 	const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 	const [isLoading, setIsLoading] = React.useState(false);
 	const isConfigured = Boolean(providerId);
+	const { callbackURL } = useCallbackSP();
 
 	const handleSignIn = React.useCallback(async () => {
 		if (!isConfigured || !providerId) {
@@ -27,7 +29,7 @@ export const SSOAuth = () => {
 		try {
 			const { error } = await authClient.signIn.oauth2({
 				providerId,
-				callbackURL: "/dashboard",
+				callbackURL,
 			});
 			if (error) {
 				setErrorMessage(
