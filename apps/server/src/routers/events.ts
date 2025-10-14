@@ -2152,7 +2152,9 @@ export const eventsRouter = router({
 						.limit(1);
 
 					if (existingAttendee) {
-						if (PARTICIPATION_STATUSES.includes(existingAttendee.status)) {
+						if (
+							PARTICIPATION_STATUSES.includes(existingAttendee.status as any)
+						) {
 							return {
 								attendeeId: existingAttendee.id,
 								status: existingAttendee.status,
