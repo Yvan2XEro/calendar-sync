@@ -1,12 +1,16 @@
-import { and, eq, lte } from "drizzle-orm";
-
+import { and, eq, isNull, lte } from "drizzle-orm";
+import type { calendar_v3 } from "googleapis";
 import { db } from "@/db";
 import {
+	calendarConnection,
 	event,
 	eventAutomationJob,
+	eventCalendarSync,
+	eventCalendarSyncStatus,
 	organizationProvider,
 	provider,
 } from "@/db/schema/app";
+import { member } from "@/db/schema/auth";
 import {
 	clearConnectionCredentials,
 	markConnectionStatus,
@@ -15,6 +19,7 @@ import {
 	touchConnectionSynced,
 	updateConnectionCredentials,
 } from "@/lib/calendar-connections";
+import { getCalendarClientForUser } from "@/lib/google-calendar";
 import {
 	deleteGoogleCalendarEvent,
 	type GoogleCalendarEventInput,
@@ -28,6 +33,16 @@ import { buildAbsoluteUrl } from "@/lib/site-metadata";
 const DEFAULT_BATCH_SIZE = 10;
 
 type SyncAction = "created" | "updated" | "deleted" | "skipped";
+
+export class CalendarSyncUnavailableError extends Error {
+	constructor(
+		readonly scope: "organization" | "user",
+		message: string,
+	) {
+		super(message);
+		this.name = "CalendarSyncUnavailableError";
+	}
+}
 
 type OAuthCalendarConfig = {
 	type: "oauth";
@@ -58,8 +73,9 @@ type EventRow = {
 	status: (typeof event.status.enumValues)[number];
 	metadata: Record<string, unknown> | null;
 	organizationId: string | null;
-	googleCalendarEventId: string | null;
 };
+
+type EventCalendarSyncRow = typeof eventCalendarSync.$inferSelect;
 
 type CalendarSyncSummary = {
 	total: number;
@@ -171,7 +187,90 @@ function toGoogleCalendarInput(row: EventRow): GoogleCalendarEventInput {
 
 type SyncEventOptions = {
 	memberId?: string;
+	userId?: string;
 };
+
+function buildSyncConditions(eventId: string, memberId: string | null) {
+	const conditions = [eq(eventCalendarSync.eventId, eventId)];
+
+	if (memberId) {
+		conditions.push(eq(eventCalendarSync.memberId, memberId));
+	} else {
+		conditions.push(isNull(eventCalendarSync.memberId));
+	}
+
+	return and(...conditions);
+}
+
+async function fetchSyncRecord(eventId: string, memberId: string | null) {
+	const rows = await db
+		.select({
+			id: eventCalendarSync.id,
+			eventId: eventCalendarSync.eventId,
+			memberId: eventCalendarSync.memberId,
+			googleEventId: eventCalendarSync.googleEventId,
+			status: eventCalendarSync.status,
+			lastSyncedAt: eventCalendarSync.lastSyncedAt,
+			failureReason: eventCalendarSync.failureReason,
+		})
+		.from(eventCalendarSync)
+		.where(buildSyncConditions(eventId, memberId))
+		.limit(1);
+
+	return rows.at(0) ?? null;
+}
+
+async function ensureSyncRecord(eventId: string, memberId: string | null) {
+	const existing = await fetchSyncRecord(eventId, memberId);
+	if (existing) return existing;
+
+	await db
+		.insert(eventCalendarSync)
+		.values({
+			eventId,
+			memberId,
+			status: "pending",
+		})
+		.onConflictDoNothing({
+			target: [eventCalendarSync.eventId, eventCalendarSync.memberId],
+		});
+
+	return (await fetchSyncRecord(
+		eventId,
+		memberId,
+	)) as EventCalendarSyncRow | null;
+}
+
+async function updateSyncRecord(
+	eventId: string,
+	memberId: string | null,
+	updates: Partial<
+		Pick<
+			EventCalendarSyncRow,
+			"googleEventId" | "status" | "lastSyncedAt" | "failureReason"
+		>
+	>,
+) {
+	const payload: Record<string, unknown> = {};
+
+	if (Object.hasOwn(updates, "googleEventId")) {
+		payload.googleEventId = updates.googleEventId ?? null;
+	}
+	if (Object.hasOwn(updates, "status")) {
+		payload.status = updates.status ?? eventCalendarSyncStatus.enumValues[0];
+	}
+	if (Object.hasOwn(updates, "lastSyncedAt")) {
+		payload.lastSyncedAt = updates.lastSyncedAt ?? null;
+	}
+	if (Object.hasOwn(updates, "failureReason")) {
+		payload.failureReason = updates.failureReason ?? null;
+	}
+
+	await db
+		.update(eventCalendarSync)
+		.set(payload)
+		.where(buildSyncConditions(eventId, memberId));
+}
 
 export async function syncEventWithGoogleCalendar(
 	eventId: string,
@@ -191,7 +290,6 @@ export async function syncEventWithGoogleCalendar(
 			status: event.status,
 			metadata: event.metadata,
 			organizationId: event.organizationId,
-			googleCalendarEventId: event.googleCalendarEventId,
 		})
 		.from(event)
 		.where(eq(event.id, eventId))
@@ -203,8 +301,11 @@ export async function syncEventWithGoogleCalendar(
 	}
 
 	if (!current.organizationId) {
-		if (current.googleCalendarEventId) {
-			throw new Error("Cannot sync event without an owning organization");
+		if (options.memberId) {
+			await updateSyncRecord(current.id, options.memberId, {
+				status: "pending",
+				failureReason: "Event is not associated with an organization",
+			});
 		}
 		return "skipped";
 	}
@@ -213,87 +314,182 @@ export async function syncEventWithGoogleCalendar(
 		current.organizationId,
 		options.memberId,
 	);
-	if (!calendarConfig) {
-		throw new Error("Organization is not linked to a Google Calendar");
-	}
 
-	if (
-		calendarConfig.type === "service-account" &&
-		!isGoogleCalendarConfigured()
-	) {
-		throw new Error("Google Calendar integration is not configured");
-	}
-
-	const oauthContext =
-		calendarConfig.type === "oauth"
-			? await (async () => {
-					try {
-						return await getOAuthCalendarClient({
-							redirectUri: buildAbsoluteUrl(
-								"/api/integrations/google-calendar/callback",
-							),
-							stored: calendarConfig.credentials,
-						});
-					} catch (error) {
-						const message =
-							error instanceof Error
-								? error.message
-								: "Unable to refresh Google Calendar credentials";
-						await markConnectionStatus(
-							calendarConfig.connection.id,
-							"error",
-							message,
-						);
-						throw error;
-					}
-				})()
-			: null;
-
-	const oauthClient = oauthContext?.client;
-
-	const handleSuccess = async () => {
-		if (calendarConfig.type !== "oauth") return;
-		if (oauthContext?.refreshedCredentials) {
-			await updateConnectionCredentials(
-				calendarConfig.connection,
-				oauthContext.refreshedCredentials,
-			);
-		}
-		await touchConnectionSynced(calendarConfig.connection.id);
+	type CalendarContext = {
+		type: "service-account" | "organization-oauth" | "user";
+		calendarId: string;
+		client: calendar_v3.Calendar | null;
+		syncMemberId: string | null;
+		handleSuccess?: () => Promise<void>;
+		handleError?: (error: unknown) => Promise<void>;
 	};
 
-	const handleError = async (error: unknown) => {
-		if (calendarConfig.type !== "oauth") return;
-		const message =
-			(error as { response?: { data?: { error?: string } } })?.response?.data
-				?.error || (error instanceof Error ? error.message : "Unknown error");
-		await markConnectionStatus(calendarConfig.connection.id, "error", message);
-		if (message && /invalid_grant/i.test(message)) {
-			await clearConnectionCredentials(calendarConfig.connection.id);
+	let context: CalendarContext | null = null;
+
+	if (calendarConfig) {
+		if (
+			calendarConfig.type === "service-account" &&
+			!isGoogleCalendarConfigured()
+		) {
+			throw new Error("Google Calendar integration is not configured");
 		}
+
+		if (calendarConfig.type === "oauth") {
+			const syncMemberId =
+				options.memberId ?? calendarConfig.connection.memberId;
+
+			const oauthContext = await (async () => {
+				try {
+					return await getOAuthCalendarClient({
+						redirectUri: buildAbsoluteUrl(
+							"/api/integrations/google-calendar/callback",
+						),
+						stored: calendarConfig.credentials,
+					});
+				} catch (error) {
+					const message =
+						error instanceof Error
+							? error.message
+							: "Unable to refresh Google Calendar credentials";
+					await markConnectionStatus(
+						calendarConfig.connection.id,
+						"error",
+						message,
+					);
+					throw error;
+				}
+			})();
+
+			const handleSuccess = async () => {
+				if (oauthContext?.refreshedCredentials) {
+					await updateConnectionCredentials(
+						calendarConfig.connection,
+						oauthContext.refreshedCredentials,
+					);
+				}
+				await touchConnectionSynced(calendarConfig.connection.id);
+			};
+
+			const handleError = async (error: unknown) => {
+				const message =
+					(error as { response?: { data?: { error?: string } } })?.response
+						?.data?.error ||
+					(error instanceof Error ? error.message : "Unknown error");
+				await markConnectionStatus(
+					calendarConfig.connection.id,
+					"error",
+					message,
+				);
+				if (message && /invalid_grant/i.test(message)) {
+					await clearConnectionCredentials(calendarConfig.connection.id);
+				}
+			};
+
+			context = {
+				type: "organization-oauth",
+				calendarId: calendarConfig.calendarId,
+				client: oauthContext.client,
+				syncMemberId,
+				handleSuccess,
+				handleError,
+			} satisfies CalendarContext;
+		} else {
+			context = {
+				type: "service-account",
+				calendarId: calendarConfig.calendarId,
+				client: null,
+				syncMemberId: options.memberId ?? null,
+			} satisfies CalendarContext;
+		}
+	} else {
+		if (!options.userId) {
+			throw new CalendarSyncUnavailableError(
+				"organization",
+				"Organization is not linked to a Google Calendar",
+			);
+		}
+
+		if (!options.memberId) {
+			throw new CalendarSyncUnavailableError(
+				"user",
+				"Member identifier is required to sync a personal calendar",
+			);
+		}
+
+		try {
+			const { calendar } = await getCalendarClientForUser(options.userId);
+			context = {
+				type: "user",
+				calendarId: "primary",
+				client: calendar,
+				syncMemberId: options.memberId,
+			} satisfies CalendarContext;
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : String(error ?? "");
+			if (message.toLowerCase().includes("no linked google account")) {
+				throw new CalendarSyncUnavailableError(
+					"user",
+					"Personal Google calendar is not connected",
+				);
+			}
+			throw error;
+		}
+	}
+
+	if (!context) {
+		throw new CalendarSyncUnavailableError(
+			"organization",
+			"Organization is not linked to a Google Calendar",
+		);
+	}
+
+	const syncMemberId = context.syncMemberId ?? null;
+	const syncRecord = await ensureSyncRecord(current.id, syncMemberId);
+	const existingEventId = syncRecord?.googleEventId ?? null;
+
+	const markFailure = async (error: unknown) => {
+		const message =
+			error instanceof Error ? error.message : "Unknown calendar sync error";
+		await updateSyncRecord(current.id, syncMemberId, {
+			status: "failed",
+			failureReason: message,
+		});
+		await context.handleError?.(error);
+	};
+
+	const markSuccess = async (
+		updates: Partial<Pick<EventCalendarSyncRow, "googleEventId">>,
+	) => {
+		await updateSyncRecord(current.id, syncMemberId, {
+			...updates,
+			status: "synced",
+			lastSyncedAt: new Date(),
+			failureReason: null,
+		});
+		await context.handleSuccess?.();
 	};
 
 	if (current.status !== "approved" || !current.isPublished) {
-		if (!current.googleCalendarEventId) {
+		if (!existingEventId) {
+			await updateSyncRecord(current.id, syncMemberId, {
+				status: "pending",
+				failureReason: null,
+			});
 			return "skipped";
 		}
 
 		try {
 			await deleteGoogleCalendarEvent({
-				calendarId: calendarConfig.calendarId,
-				eventId: current.googleCalendarEventId,
-				client: oauthClient,
+				calendarId: context.calendarId,
+				eventId: existingEventId,
+				client: context.client ?? undefined,
 			});
-			await handleSuccess();
+			await markSuccess({ googleEventId: null });
 		} catch (error) {
-			await handleError(error);
+			await markFailure(error);
 			throw error;
 		}
-
-		await db
-			.update(event)
-			.set({ googleCalendarEventId: null })
-			.where(eq(event.id, current.id));
 
 		return "deleted";
 	}
@@ -302,25 +498,18 @@ export async function syncEventWithGoogleCalendar(
 
 	try {
 		googleEventId = await upsertGoogleCalendarEvent({
-			calendarId: calendarConfig.calendarId,
-			existingEventId: current.googleCalendarEventId,
+			calendarId: context.calendarId,
+			existingEventId,
 			event: toGoogleCalendarInput(current),
-			client: oauthClient,
+			client: context.client ?? undefined,
 		});
-		await handleSuccess();
+		await markSuccess({ googleEventId });
 	} catch (error) {
-		await handleError(error);
+		await markFailure(error);
 		throw error;
 	}
 
-	if (googleEventId !== current.googleCalendarEventId) {
-		await db
-			.update(event)
-			.set({ googleCalendarEventId: googleEventId })
-			.where(eq(event.id, current.id));
-	}
-
-	return current.googleCalendarEventId ? "updated" : "created";
+	return existingEventId ? "updated" : "created";
 }
 
 export async function processPendingCalendarSyncJobs(
@@ -379,27 +568,81 @@ export async function processPendingCalendarSyncJobs(
 		summary.processed += 1;
 
 		try {
-			const action = await syncEventWithGoogleCalendar(claimed.eventId);
+			const [eventRow] = await db
+				.select({ organizationId: event.organizationId })
+				.from(event)
+				.where(eq(event.id, claimed.eventId))
+				.limit(1);
 
-			switch (action) {
-				case "created":
-					summary.created += 1;
-					break;
-				case "updated":
-					summary.updated += 1;
-					break;
-				case "deleted":
-					summary.deleted += 1;
-					break;
-				case "skipped":
-					summary.skipped += 1;
-					break;
+			const organizationId = eventRow?.organizationId ?? null;
+
+			let targets: Array<string | null> = [null];
+
+			if (organizationId) {
+				const connections = await db
+					.select({ memberId: calendarConnection.memberId })
+					.from(calendarConnection)
+					.innerJoin(member, eq(member.id, calendarConnection.memberId))
+					.where(
+						and(
+							eq(member.organizationId, organizationId),
+							eq(calendarConnection.providerType, "google"),
+							eq(calendarConnection.status, "connected"),
+						),
+					);
+
+				if (connections.length > 0) {
+					targets = Array.from(new Set(connections.map((row) => row.memberId)));
+				}
 			}
 
-			await db
-				.update(eventAutomationJob)
-				.set({ status: "completed", lastError: null })
-				.where(eq(eventAutomationJob.id, job.id));
+			let hadError = false;
+			const errorMessages: string[] = [];
+
+			for (const memberId of targets) {
+				try {
+					const action = await syncEventWithGoogleCalendar(
+						claimed.eventId,
+						memberId ? { memberId } : {},
+					);
+
+					switch (action) {
+						case "created":
+							summary.created += 1;
+							break;
+						case "updated":
+							summary.updated += 1;
+							break;
+						case "deleted":
+							summary.deleted += 1;
+							break;
+						case "skipped":
+							summary.skipped += 1;
+							break;
+					}
+				} catch (error) {
+					hadError = true;
+					const message =
+						error instanceof Error
+							? error.message
+							: "Unknown calendar sync error";
+					errorMessages.push(message);
+				}
+			}
+
+			if (hadError) {
+				summary.failed += 1;
+				const message = errorMessages.at(0) ?? "Unknown calendar sync error";
+				await db
+					.update(eventAutomationJob)
+					.set({ status: "failed", lastError: message })
+					.where(eq(eventAutomationJob.id, job.id));
+			} else {
+				await db
+					.update(eventAutomationJob)
+					.set({ status: "completed", lastError: null })
+					.where(eq(eventAutomationJob.id, job.id));
+			}
 		} catch (error) {
 			summary.failed += 1;
 			const message =
