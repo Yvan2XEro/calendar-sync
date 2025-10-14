@@ -51,6 +51,8 @@ type GetForUserOutput = RouterOutputs["orgs"]["getForUser"];
 export const eventsApi = {
 	listRecentForUser: (input?: RouterInputs["events"]["listRecentForUser"]) =>
 		trpcClient.events.listRecentForUser.query(input),
+	listUpcomingPublic: (input?: RouterInputs["events"]["listUpcomingPublic"]) =>
+		trpcClient.events.listUpcomingPublic.query(input),
 };
 
 export const googleCalendarApi = {
