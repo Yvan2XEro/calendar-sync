@@ -21,14 +21,12 @@ export default async function HomePage() {
 		redirect("/dashboard");
 	}
 
-        let initialEvents: Awaited<ReturnType<typeof fetchUpcomingPublicEvents>> = [];
-        try {
-                initialEvents = await fetchUpcomingPublicEvents(
-                        PUBLIC_EVENTS_FETCH_LIMIT,
-                );
-        } catch (error) {
-                console.warn("Unable to load public events", error);
-        }
+	let initialEvents: Awaited<ReturnType<typeof fetchUpcomingPublicEvents>> = [];
+	try {
+		initialEvents = await fetchUpcomingPublicEvents(PUBLIC_EVENTS_FETCH_LIMIT);
+	} catch (error) {
+		console.warn("Unable to load public events", error);
+	}
 
 	return (
 		<div className="flex min-h-screen flex-col bg-background text-foreground">

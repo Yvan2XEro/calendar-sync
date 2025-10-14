@@ -40,6 +40,17 @@ type Draft = {
 	lookaheadDays: string;
 };
 
+type UpdateScheduleInput = {
+	segment: Schedule["segment"];
+	enabled: boolean;
+	cadenceHours: number;
+	lookaheadDays: number;
+};
+
+type UpdateScheduleOutput = Awaited<
+	ReturnType<typeof trpcClient.adminDigests.updateSchedule.mutate>
+>;
+
 function formatTimestamp(value: string | null) {
 	if (!value) return null;
 	const date = new Date(value);
@@ -79,20 +90,19 @@ export default function AdminDigestsPage() {
 		setDrafts(mapped);
 	}, [scheduleQuery.data]);
 
-	const mutation = useMutation({
-		mutationFn: (input: {
-			segment: Schedule["segment"];
-			enabled: boolean;
-			cadenceHours: number;
-			lookaheadDays: number;
-		}) => trpcClient.adminDigests.updateSchedule.mutate(input),
+	const mutation = useMutation<
+		UpdateScheduleOutput,
+		Error,
+		UpdateScheduleInput
+	>({
+		mutationFn: (input) => trpcClient.adminDigests.updateSchedule.mutate(input),
 		onSuccess: (updated) => {
 			queryClient.invalidateQueries({ queryKey: digestKeys.schedules() });
 			toast.success("Digest schedule updated", {
 				description: `${updated.segment} cadence saved.`,
 			});
 		},
-		onError: (error) => {
+		onError: (error: Error) => {
 			toast.error(
 				error instanceof Error
 					? error.message

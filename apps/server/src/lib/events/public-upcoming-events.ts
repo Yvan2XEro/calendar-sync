@@ -55,7 +55,7 @@ export async function fetchUpcomingPublicEvents(
 		.orderBy(event.startAt, event.id)
 		.limit(limit);
 
-	return rows.map((row) => ({
+	return rows.map<UpcomingEvent>((row) => ({
 		id: row.id,
 		slug: row.slug,
 		title: row.title,
@@ -64,8 +64,16 @@ export async function fetchUpcomingPublicEvents(
 		url: row.url,
 		heroMedia: parseHeroMedia(row.heroMedia),
 		landingPage: parseLandingPage(row.landingPage),
-		startAt: row.startAt,
-		endAt: row.endAt,
+		startAt:
+			row.startAt instanceof Date
+				? row.startAt.toISOString()
+				: new Date(row.startAt).toISOString(),
+		endAt:
+			row.endAt instanceof Date
+				? row.endAt.toISOString()
+				: row.endAt
+					? new Date(row.endAt).toISOString()
+					: null,
 		organization: {
 			id: row.organizationId,
 			name: row.organizationName,
@@ -76,5 +84,5 @@ export async function fetchUpcomingPublicEvents(
 			typeof row.metadata?.imageUrl === "string"
 				? (row.metadata.imageUrl as string)
 				: null,
-	})) as UpcomingEvent[];
+	}));
 }

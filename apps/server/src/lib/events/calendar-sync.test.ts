@@ -7,6 +7,7 @@ import {
 	organizationProvider,
 	provider,
 } from "@/db/schema/app";
+import type { GoogleCalendarEventInput } from "@/lib/integrations/google-calendar";
 
 type EventRow = {
 	id: string;
@@ -31,6 +32,17 @@ type SyncRecord = {
 	status: (typeof eventCalendarSync.status.enumValues)[number];
 	lastSyncedAt: Date | null;
 	failureReason: string | null;
+};
+
+type MockCalendarConnection = {
+	id: string;
+	memberId: string | null;
+	calendarId: string | null;
+	accessToken: string | null;
+	refreshToken: string | null;
+	scope: string | null;
+	tokenExpiresAt: Date | null;
+	metadata: Record<string, unknown>;
 };
 
 type MockFunction<T extends (...args: any[]) => any> = ((
@@ -219,23 +231,26 @@ class FakeDb {
 
 let currentDb: FakeDb;
 
-const dbProxy = new Proxy(
-	{},
-	{
-		get(_target, key) {
-			const value = (currentDb as never)[key as keyof FakeDb];
-			if (typeof value === "function") {
-				return value.bind(currentDb);
-			}
-			return value;
-		},
+const dbProxy = new Proxy({} as FakeDb, {
+	get(_target, key) {
+		if (!currentDb) {
+			throw new Error("FakeDb has not been initialized");
+		}
+		const value = Reflect.get(currentDb, key) as FakeDb[keyof FakeDb];
+		if (typeof value === "function") {
+			return value.bind(currentDb);
+		}
+		return value;
 	},
-);
+});
 
 const calendarConnectionsMock = {
-	resolveGoogleCalendarConnection: createMockFn(
-		async (_organizationId: string, _memberId?: string) => null,
-	),
+	resolveGoogleCalendarConnection: createMockFn<
+		(
+			organizationId: string,
+			memberId?: string,
+		) => Promise<MockCalendarConnection | null>
+	>(async () => null),
 	markConnectionStatus: createMockFn(async () => {}),
 	updateConnectionCredentials: createMockFn(async () => {}),
 	touchConnectionSynced: createMockFn(async () => {}),
@@ -244,10 +259,13 @@ const calendarConnectionsMock = {
 
 const integrationsMock = {
 	deleteGoogleCalendarEvent: createMockFn(async () => {}),
-	upsertGoogleCalendarEvent: createMockFn(
-		async (_input: { calendarId: string; existingEventId?: string | null }) =>
-			"mock-event",
-	),
+	upsertGoogleCalendarEvent: createMockFn<
+		(input: {
+			calendarId: string;
+			event: GoogleCalendarEventInput;
+			existingEventId?: string | null;
+		}) => Promise<string>
+	>(async () => "mock-event"),
 	getOAuthCalendarClient: createMockFn(async () => ({
 		client: {} as unknown,
 		refreshedCredentials: null,
@@ -256,7 +274,9 @@ const integrationsMock = {
 };
 
 const googleClientMock = {
-	getCalendarClientForUser: createMockFn(async () => ({ calendar: {} })),
+	getCalendarClientForUser: createMockFn(async (_userId: string) => ({
+		calendar: {},
+	})),
 };
 
 mock.module("@/db", () => ({ db: dbProxy }));
@@ -356,6 +376,7 @@ describe("syncEventWithGoogleCalendar", () => {
 					refreshToken: null,
 					scope: null,
 					tokenExpiresAt: null,
+					metadata: {},
 				} as const,
 			]),
 		);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import type { inferRouterOutputs } from "@trpc/server";
 import { useMemo } from "react";
 
 import {
@@ -13,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { eventKeys } from "@/lib/query-keys/events";
 import { trpcClient } from "@/lib/trpc-client";
+import type { AppRouter } from "@/routers";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 
@@ -95,13 +97,18 @@ type EventAnalyticsSummaryProps = {
 	eventId: string;
 };
 
+type RouterOutputs = inferRouterOutputs<AppRouter>;
+type AnalyticsOverviewOutput = RouterOutputs["events"]["analytics"]["overview"];
+type AnalyticsTimeseriesOutput =
+	RouterOutputs["events"]["analytics"]["timeseries"];
+
 export function EventAnalyticsSummary({ eventId }: EventAnalyticsSummaryProps) {
-	const overviewQuery = useQuery({
+	const overviewQuery = useQuery<AnalyticsOverviewOutput>({
 		queryKey: eventKeys.analytics.overview(eventId),
 		queryFn: () => trpcClient.events.analytics.overview.query({ eventId }),
 		enabled: Boolean(eventId),
 	});
-	const timeseriesQuery = useQuery({
+	const timeseriesQuery = useQuery<AnalyticsTimeseriesOutput>({
 		queryKey: eventKeys.analytics.timeseries(eventId, { interval: "day" }),
 		queryFn: () =>
 			trpcClient.events.analytics.timeseries.query({

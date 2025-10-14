@@ -3,6 +3,7 @@
 import { RedirectToSignIn } from "@daveyplate/better-auth-ui";
 import {
 	type QueryClient,
+	type UseMutationOptions,
 	useMutation,
 	useQuery,
 	useQueryClient,
@@ -81,6 +82,15 @@ type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
 type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
 type UpdateEventInput = RouterInputs["events"]["update"];
 type ProvidersCatalogListOutput = RouterOutputs["providers"]["catalog"]["list"];
+type UpdateStatusOutput = RouterOutputs["events"]["updateStatus"];
+type BulkUpdateStatusOutput = RouterOutputs["events"]["bulkUpdateStatus"];
+type UpdateEventOutput = RouterOutputs["events"]["update"];
+type CreateEventOutput = RouterOutputs["events"]["create"];
+type DeleteEventOutput = RouterOutputs["events"]["delete"];
+type UpdateStatusContext = { previous?: EventsListOutput };
+type BulkUpdateStatusContext = { previous?: EventsListOutput; ids: string[] };
+type UpdateEventContext = { previous?: EventsListOutput };
+type DeleteEventContext = { previous?: EventsListOutput };
 
 type Mutable<T> = { -readonly [K in keyof T]: T[K] };
 
@@ -342,7 +352,12 @@ export default function AdminEventsPage() {
 		setComposerState(null);
 	}, []);
 
-	const updateStatusMutation = useMutation({
+	const updateStatusMutation = useMutation<
+		UpdateStatusOutput,
+		Error,
+		UpdateStatusInput,
+		UpdateStatusContext
+	>({
 		mutationFn: (variables: UpdateStatusInput) =>
 			trpcClient.events.updateStatus.mutate(variables),
 		onMutate: async (variables) => {
@@ -363,7 +378,7 @@ export default function AdminEventsPage() {
 			});
 			return { previous };
 		},
-		onError: (error, _variables, context) => {
+		onError: (error: Error, _variables, context) => {
 			if (context?.previous) {
 				queryClient.setQueryData<EventsListOutput>(
 					listQueryKey,
@@ -383,9 +398,19 @@ export default function AdminEventsPage() {
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
 		},
-	});
+	} satisfies UseMutationOptions<
+		UpdateStatusOutput,
+		Error,
+		UpdateStatusInput,
+		UpdateStatusContext
+	>);
 
-	const bulkStatusMutation = useMutation({
+	const bulkStatusMutation = useMutation<
+		BulkUpdateStatusOutput,
+		Error,
+		BulkUpdateStatusInput,
+		BulkUpdateStatusContext
+	>({
 		mutationFn: (variables: BulkUpdateStatusInput) =>
 			trpcClient.events.bulkUpdateStatus.mutate(variables),
 		onMutate: async (variables) => {
@@ -406,7 +431,7 @@ export default function AdminEventsPage() {
 			});
 			return { previous, ids: variables.ids };
 		},
-		onError: (error, _variables, context) => {
+		onError: (error: Error, _variables, context) => {
 			if (context?.previous) {
 				queryClient.setQueryData<EventsListOutput>(
 					listQueryKey,
@@ -434,9 +459,19 @@ export default function AdminEventsPage() {
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
 		},
-	});
+	} satisfies UseMutationOptions<
+		BulkUpdateStatusOutput,
+		Error,
+		BulkUpdateStatusInput,
+		BulkUpdateStatusContext
+	>);
 
-	const updateEventMutation = useMutation({
+	const updateEventMutation = useMutation<
+		UpdateEventOutput,
+		Error,
+		UpdateEventInput,
+		UpdateEventContext
+	>({
 		mutationFn: (variables: UpdateEventInput) =>
 			trpcClient.events.update.mutate(variables),
 		onMutate: async (variables) => {
@@ -496,7 +531,7 @@ export default function AdminEventsPage() {
 			patchEventsInCache(queryClient, listQueryKey, [variables.id], patch);
 			return { previous };
 		},
-		onError: (error, _variables, context) => {
+		onError: (error: Error, _variables, context) => {
 			if (context?.previous) {
 				queryClient.setQueryData<EventsListOutput>(
 					listQueryKey,
@@ -515,12 +550,21 @@ export default function AdminEventsPage() {
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
 		},
-	});
+	} satisfies UseMutationOptions<
+		UpdateEventOutput,
+		Error,
+		UpdateEventInput,
+		UpdateEventContext
+	>);
 
-	const createEventMutation = useMutation({
+	const createEventMutation = useMutation<
+		CreateEventOutput,
+		Error,
+		RouterInputs["events"]["create"]
+	>({
 		mutationFn: (variables: RouterInputs["events"]["create"]) =>
 			trpcClient.events.create.mutate(variables),
-		onError: (error) => {
+		onError: (error: Error) => {
 			toast.error(
 				error instanceof Error ? error.message : "Unable to create event",
 			);
@@ -538,7 +582,12 @@ export default function AdminEventsPage() {
 		},
 	});
 
-	const deleteEventMutation = useMutation({
+	const deleteEventMutation = useMutation<
+		DeleteEventOutput,
+		Error,
+		RouterInputs["events"]["delete"],
+		DeleteEventContext
+	>({
 		mutationFn: (variables: RouterInputs["events"]["delete"]) =>
 			trpcClient.events.delete.mutate(variables),
 		onMutate: async (variables) => {
@@ -547,7 +596,7 @@ export default function AdminEventsPage() {
 			removeEventsFromCache(queryClient, listQueryKey, [variables.id]);
 			return { previous };
 		},
-		onError: (error, _variables, context) => {
+		onError: (error: Error, _variables, context) => {
 			if (context?.previous) {
 				queryClient.setQueryData(listQueryKey, context.previous);
 			}
@@ -565,7 +614,12 @@ export default function AdminEventsPage() {
 		onSettled: () => {
 			queryClient.invalidateQueries({ queryKey: listQueryKey });
 		},
-	});
+	} satisfies UseMutationOptions<
+		DeleteEventOutput,
+		Error,
+		RouterInputs["events"]["delete"],
+		DeleteEventContext
+	>);
 
 	const handleStatusAction = useCallback(
 		(eventId: string, action: StatusAction) => {

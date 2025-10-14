@@ -85,6 +85,8 @@ type BulkAnnouncementInput = RouterInputs["events"]["attendees"]["announce"];
 
 type AttendeeListOutput = RouterOutputs["events"]["attendees"]["list"];
 type AttendeeListItem = AttendeeListOutput["items"][number];
+type AttendeeExportOutput = RouterOutputs["events"]["attendees"]["export"];
+type BulkAnnouncementOutput = RouterOutputs["events"]["attendees"]["announce"];
 
 type EventDetailOutput = RouterOutputs["events"]["get"];
 
@@ -263,7 +265,11 @@ export default function EventAttendeesPage() {
 		},
 	});
 
-	const exportMutation = useMutation({
+	const exportMutation = useMutation<
+		AttendeeExportOutput,
+		Error,
+		AttendeeExportInput
+	>({
 		mutationFn: (variables: AttendeeExportInput) =>
 			trpcClient.events.attendees.export.mutate(variables),
 		onSuccess: (data) => {
@@ -283,7 +289,11 @@ export default function EventAttendeesPage() {
 		},
 	});
 
-	const announcementMutation = useMutation({
+	const announcementMutation = useMutation<
+		BulkAnnouncementOutput,
+		Error,
+		BulkAnnouncementInput
+	>({
 		mutationFn: (variables: BulkAnnouncementInput) =>
 			trpcClient.events.attendees.announce.mutate(variables),
 		onSuccess: (result) => {

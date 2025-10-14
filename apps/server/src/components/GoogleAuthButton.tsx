@@ -1,10 +1,10 @@
 "use client";
 import { GoogleIcon } from "@daveyplate/better-auth-ui";
 import React, { useEffect } from "react";
+import { useCallbackSP } from "@/hooks/use-callback-sp";
 import { authClient } from "@/lib/auth-client";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
-import { useCallbackSP } from "@/hooks/use-callback-sp";
 
 const providerId = "google";
 

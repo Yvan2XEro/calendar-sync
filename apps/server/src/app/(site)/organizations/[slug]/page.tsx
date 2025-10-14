@@ -35,6 +35,8 @@ type OrganizationEventsProps = {
 	events: OrganizationDetail["events"];
 };
 
+type OrganizationEvent = OrganizationEventsProps["events"][number];
+
 function useSlug(): string | null {
 	const params = useParams<{ slug?: string | string[] }>();
 	const rawSlug = React.useMemo(() => {
@@ -56,7 +58,7 @@ export default function OrganizationDetailPage() {
 		}
 	}, [slug]);
 
-	const query = useQuery({
+	const query = useQuery<OrganizationDetail>({
 		queryKey: slug ? orgsKeys.detail(slug) : orgsKeys.all,
 		queryFn: () => orgsApi.getForUser({ slug: slug ?? "" }),
 		enabled: Boolean(slug),
@@ -163,8 +165,8 @@ function OrganizationEvents({
 				<EmptyEventsState organizationName={organizationName} />
 			) : (
 				<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-					{events.map((event) => (
-						<EventCard key={event.id} event={event} />
+					{events.map((eventItem: OrganizationEvent) => (
+						<EventCard key={eventItem.id} event={eventItem} />
 					))}
 				</div>
 			)}

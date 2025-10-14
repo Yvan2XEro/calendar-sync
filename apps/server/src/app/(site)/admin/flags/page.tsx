@@ -95,6 +95,7 @@ type FlagFormValues = z.input<typeof flagFormSchema>;
 type FlagFormOutput = z.output<typeof flagFormSchema>;
 type AdminFlagOutputs = inferRouterOutputs<AppRouter>["adminFlags"];
 type Flag = AdminFlagOutputs["listFlags"][number];
+type FlagListOutput = AdminFlagOutputs["listFlags"];
 
 const defaultValues: FlagFormValues = {
 	label: "",
@@ -132,7 +133,7 @@ export default function AdminFlagsPage() {
 		defaultValues,
 	});
 
-	const flagsQuery = useQuery({
+	const flagsQuery = useQuery<FlagListOutput>({
 		queryKey: listQueryKey,
 		queryFn: () => trpcClient.adminFlags.listFlags.query(),
 	});

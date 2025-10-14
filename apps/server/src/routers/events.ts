@@ -1077,8 +1077,16 @@ export const eventsRouter = router({
 				url: row.url,
 				heroMedia: parseHeroMedia(row.heroMedia),
 				landingPage: parseLandingPage(row.landingPage),
-				startAt: row.startAt,
-				endAt: row.endAt,
+				startAt:
+					row.startAt instanceof Date
+						? row.startAt.toISOString()
+						: new Date(row.startAt).toISOString(),
+				endAt:
+					row.endAt instanceof Date
+						? row.endAt.toISOString()
+						: row.endAt
+							? new Date(row.endAt).toISOString()
+							: null,
 				organization: {
 					id: row.organizationId,
 					name: row.organizationName,

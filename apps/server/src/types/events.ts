@@ -1,9 +1,24 @@
-import type { inferRouterOutputs } from "@trpc/server";
+import type {
+	EventHeroMedia,
+	EventLandingPageContent,
+} from "@/lib/event-content";
 
-import type { AppRouter } from "@/routers";
-
-type RouterOutputs = inferRouterOutputs<AppRouter>;
-
-export type UpcomingEvent =
-	| RouterOutputs["events"]["listRecentForUser"][number]
-	| RouterOutputs["events"]["listUpcomingPublic"][number];
+export type UpcomingEvent = {
+	id: string;
+	slug: string;
+	title: string;
+	description: string | null;
+	location: string | null;
+	url: string | null;
+	heroMedia: EventHeroMedia;
+	landingPage: EventLandingPageContent;
+	startAt: string;
+	endAt: string | null;
+	organization: {
+		id: string;
+		name: string;
+		slug: string;
+	};
+	providerName: string;
+	imageUrl: string | null;
+};

@@ -1,12 +1,10 @@
 "use client";
 
 import React from "react";
-
+import { useCallbackSP } from "@/hooks/use-callback-sp";
 import { authClient } from "@/lib/auth-client";
-
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 import { Button } from "./ui/button";
-import { useCallbackSP } from "@/hooks/use-callback-sp";
 
 const providerId = process.env.NEXT_PUBLIC_OIDC_PROVIDER_ID?.trim();
 

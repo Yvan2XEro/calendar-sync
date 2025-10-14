@@ -446,6 +446,8 @@ export async function syncEventWithGoogleCalendar(
 		);
 	}
 
+	const activeContext = context;
+
 	const syncMemberId = context.syncMemberId ?? null;
 	const syncRecord = await ensureSyncRecord(current.id, syncMemberId);
 	const existingEventId = syncRecord?.googleEventId ?? null;
@@ -457,7 +459,7 @@ export async function syncEventWithGoogleCalendar(
 			status: "failed",
 			failureReason: message,
 		});
-		await context.handleError?.(error);
+		await activeContext.handleError?.(error);
 	};
 
 	const markSuccess = async (
@@ -469,7 +471,7 @@ export async function syncEventWithGoogleCalendar(
 			lastSyncedAt: new Date(),
 			failureReason: null,
 		});
-		await context.handleSuccess?.();
+		await activeContext.handleSuccess?.();
 	};
 
 	if (current.status !== "approved" || !current.isPublished) {

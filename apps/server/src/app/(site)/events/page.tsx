@@ -17,13 +17,20 @@ import { eventsApi, trpcClient } from "@/lib/trpc-client";
 
 const EVENTS_FETCH_LIMIT = 500;
 
+type ListRecentForUserOutput = Awaited<
+	ReturnType<typeof eventsApi.listRecentForUser>
+>;
+type SyncCalendarForUserOutput = Awaited<
+	ReturnType<typeof trpcClient.events.syncCalendarForUser.mutate>
+>;
+
 export default function EventsPage() {
-	const eventsQuery = useQuery({
+	const eventsQuery = useQuery<ListRecentForUserOutput>({
 		queryKey: eventKeys.recentForUser({ limit: EVENTS_FETCH_LIMIT }),
 		queryFn: () => eventsApi.listRecentForUser({ limit: EVENTS_FETCH_LIMIT }),
 	});
 
-	const syncMutation = useMutation({
+	const syncMutation = useMutation<SyncCalendarForUserOutput, Error, void>({
 		mutationFn: () =>
 			trpcClient.events.syncCalendarForUser.mutate({
 				limit: EVENTS_FETCH_LIMIT,
