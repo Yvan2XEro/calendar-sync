@@ -169,6 +169,10 @@ export default async function EventLandingPage(props: { params: any }) {
 			isWaitlistEnabled: ticket.isWaitlistEnabled,
 		}),
 	);
+	const totalRegistered = tickets.reduce(
+		(sum, ticket) => sum + (ticket.used ?? 0),
+		0,
+	);
 	const hasRegistration = tickets.length > 0;
 	const hasOnSaleTicket = tickets.some(
 		(ticket) => ticket.saleOpen && !ticket.soldOut,
@@ -248,6 +252,7 @@ export default async function EventLandingPage(props: { params: any }) {
 						eventId={record.id}
 						eventTitle={record.title}
 						tickets={tickets}
+						totalRegistered={totalRegistered}
 					/>
 				</section>
 			) : null}
