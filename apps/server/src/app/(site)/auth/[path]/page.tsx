@@ -76,30 +76,31 @@ export default async function AuthPage({
 }) {
 	const { path } = await params;
 
-	if (ssoCopy.has(path)) {
-		const copy = ssoCopy.get(path)!;
-		return (
-			<main className="hero-gradient container flex grow flex-col items-center justify-center self-center p-4 md:p-6">
-				<div className="w-full max-w-md space-y-6 rounded-xl border bg-background p-6 text-center shadow-lg">
-					<Link className="block font-bold text-2xl" href="/">
-						CalendarSync
-					</Link>
-					<div className="space-y-3">
-						{/* <h1 className="font-semibold text-xl">{copy.title}</h1> */}
-						{/* <p className="text-muted-foreground text-sm">{copy.description}</p> */}
-						<SSOAuth />
-						<GoogleAuthButton />
-					</div>
-				</div>
-			</main>
-		);
-	}
+	// if (ssoCopy.has(path)) {
+	// 	const copy = ssoCopy.get(path)!;
+	// 	return (
+	// 		<main className="hero-gradient container flex grow flex-col items-center justify-center self-center p-4 md:p-6">
+	// 			<div className="w-full max-w-md space-y-6 rounded-xl border bg-background p-6 text-center shadow-lg">
+	// 				<Link className="block font-bold text-2xl" href="/">
+	// 					CalendarSync
+	// 				</Link>
+	// 				<div className="space-y-3">
+	// 					{/* <h1 className="font-semibold text-xl">{copy.title}</h1> */}
+	// 					{/* <p className="text-muted-foreground text-sm">{copy.description}</p> */}
+	// 					<SSOAuth />
+	// 					<GoogleAuthButton />
+	// 				</div>
+	// 			</div>
+	// 		</main>
+	// 	);
+	// }
 
 	return (
 		<main className="hero-gradient container flex grow flex-col items-center justify-center self-center p-4 md:p-6">
 			<AuthView
 				path={path}
 				callbackURL="/dashboard"
+				className="[&_form]:hidden [&_[data-slot='card-footer']]:hidden"
 				cardHeader={
 					<>
 						<Link className="font-bold text-2xl" href="/">
