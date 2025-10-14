@@ -160,22 +160,16 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 					>
 						ICS
 					</Button>
-					{event.url ? (
-						<Button
-							asChild
-							size="sm"
-							variant="ghost"
-							className="ml-auto text-primary"
-						>
-							<Link
-								href={event.url as any}
-								target="_blank"
-								rel="noopener noreferrer"
-							>
-								View details
-							</Link>
-						</Button>
-					) : null}
+                                       <Button
+                                               asChild
+                                               size="sm"
+                                               variant="ghost"
+                                               className="ml-auto text-primary"
+                                       >
+                                               <Link href={`/events/${event.slug}`}>
+                                                       View details
+                                               </Link>
+                                       </Button>
 				</div>
 			</div>
 		</Card>
