@@ -311,6 +311,8 @@ export function buildEventResource(
 		metadata: event.metadata ?? undefined,
 	});
 
+	const detailsUrl = event.url?.trim();
+
 	const resource: calendar_v3.Schema$Event = {
 		id: randomUUID().replace(/-/g, "").toLowerCase(),
 		summary: event.title,
@@ -318,10 +320,7 @@ export function buildEventResource(
 		location: event.location ?? undefined,
 		status: "confirmed",
 		transparency: "opaque",
-		source:
-			event.url && event.url.trim().length > 0
-				? { title: event.title, url: event.url }
-				: undefined,
+		source: detailsUrl ? { title: event.title, url: detailsUrl } : undefined,
 		reminders: { useDefault: true },
 	};
 

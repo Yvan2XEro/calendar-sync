@@ -15,13 +15,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
-	downloadICS,
-	formatEventDateRange,
-	getEventTimezone,
-	getGoogleCalendarUrl,
-	getOutlookCalendarUrl,
-	getYahooCalendarUrl,
+        downloadICS,
+        formatEventDateRange,
+        getEventTimezone,
+        getGoogleCalendarUrl,
+        getOutlookCalendarUrl,
+        getYahooCalendarUrl,
 } from "@/lib/calendar-links";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 import type { UpcomingEvent } from "@/types/events";
 
 function buildDisplayRange(event: UpcomingEvent): string {
@@ -52,19 +53,30 @@ function buildDisplayRange(event: UpcomingEvent): string {
 }
 
 export function EventCard({ event }: { event: UpcomingEvent }) {
-	const imageUrl = event.imageUrl ?? null;
-	const calendarUrls = React.useMemo(
-		() => ({
-			google: getGoogleCalendarUrl(event),
-			outlook: getOutlookCalendarUrl(event),
-			yahoo: getYahooCalendarUrl(event),
-		}),
-		[event],
-	);
+        const imageUrl = event.imageUrl ?? null;
+        const canonicalUrl = React.useMemo(
+                () => buildEventDetailUrl(event.slug),
+                [event.slug],
+        );
+        const calendarEvent = React.useMemo(
+                () => ({
+                        ...event,
+                        url: canonicalUrl,
+                }),
+                [event, canonicalUrl],
+        );
+        const calendarUrls = React.useMemo(
+                () => ({
+                        google: getGoogleCalendarUrl(calendarEvent),
+                        outlook: getOutlookCalendarUrl(calendarEvent),
+                        yahoo: getYahooCalendarUrl(calendarEvent),
+                }),
+                [calendarEvent],
+        );
 
-	const timezone = React.useMemo(() => getEventTimezone(event), [event]);
-	const rangeLabel = React.useMemo(() => buildDisplayRange(event), [event]);
-	const description = event.description?.trim();
+        const timezone = React.useMemo(() => getEventTimezone(calendarEvent), [calendarEvent]);
+        const rangeLabel = React.useMemo(() => buildDisplayRange(calendarEvent), [calendarEvent]);
+        const description = calendarEvent.description?.trim();
 
 	return (
 		<Card className="flex h-full min-w-[280px] flex-1 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/90 shadow-sm transition-shadow hover:shadow-md md:min-w-[320px]">
@@ -119,12 +131,12 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 				) : null}
 
 				<div className="mt-auto flex flex-wrap items-center gap-2">
-					<Button asChild size="sm" variant="secondary">
-						<a
-							href={calendarUrls.google}
-							target="_blank"
-							rel="noopener noreferrer"
-							aria-label="Add to Google Calendar"
+                                        <Button asChild size="sm" variant="secondary">
+                                                <a
+                                                        href={calendarUrls.google}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        aria-label="Add to Google Calendar"
 						>
 							<Calendar />
 							Google
@@ -155,21 +167,21 @@ export function EventCard({ event }: { event: UpcomingEvent }) {
 						size="sm"
 						variant="ghost"
 						type="button"
-						onClick={() => downloadICS(event)}
-						aria-label="Download ICS file"
+                                                onClick={() => downloadICS(calendarEvent)}
+                                                aria-label="Download ICS file"
+                                        >
+                                                ICS
+                                        </Button>
+					<Button
+						asChild
+						size="sm"
+						variant="ghost"
+						className="ml-auto text-primary"
 					>
-						ICS
+						<Link href={`/events/${event.slug}`}>
+							View details
+						</Link>
 					</Button>
-                                       <Button
-                                               asChild
-                                               size="sm"
-                                               variant="ghost"
-                                               className="ml-auto text-primary"
-                                       >
-                                               <Link href={`/events/${event.slug}`}>
-                                                       View details
-                                               </Link>
-                                       </Button>
 				</div>
 			</div>
 		</Card>

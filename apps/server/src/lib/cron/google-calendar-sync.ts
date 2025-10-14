@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { event } from "@/db/schema/app";
 import { account } from "@/db/schema/auth";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 import { getCalendarClientForUser } from "@/lib/google-calendar";
 import {
 	buildEventResource,
@@ -34,7 +35,7 @@ type EventSelection = {
 	title: string;
 	description: string | null;
 	location: string | null;
-	url: string | null;
+	slug: string;
 	startAt: Date;
 	endAt: Date | null;
 	isAllDay: boolean;
@@ -75,6 +76,7 @@ function normalizeMetadata(
 }
 
 function toGoogleInput(row: EventSelection): GoogleCalendarEventInput {
+	const detailUrl = buildEventDetailUrl(row.slug);
 	return {
 		id: row.id,
 		title: row.title,
@@ -83,7 +85,7 @@ function toGoogleInput(row: EventSelection): GoogleCalendarEventInput {
 		isAllDay: row.isAllDay,
 		description: row.description ?? undefined,
 		location: row.location ?? undefined,
-		url: row.url ?? undefined,
+		url: detailUrl,
 		metadata: normalizeMetadata(row.metadata),
 	} satisfies GoogleCalendarEventInput;
 }
@@ -158,7 +160,7 @@ export async function syncGoogleCalendars(
 			title: event.title,
 			description: event.description,
 			location: event.location,
-			url: event.url,
+			slug: event.slug,
 			startAt: event.startAt,
 			endAt: event.endAt,
 			isAllDay: event.isAllDay,
