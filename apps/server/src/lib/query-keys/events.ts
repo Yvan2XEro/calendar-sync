@@ -4,6 +4,8 @@ export const eventKeys = {
 	all: ["events"] as const,
 	recentForUser: (params?: { limit?: number }) =>
 		[...eventKeys.all, "recentForUser", params?.limit ?? null] as const,
+	publicUpcoming: (params?: { limit?: number }) =>
+		[...eventKeys.all, "publicUpcoming", params?.limit ?? null] as const,
 	attendees: {
 		root: (eventId: string) =>
 			[...eventKeys.all, "attendees", eventId] as const,

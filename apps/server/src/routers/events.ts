@@ -44,6 +44,7 @@ import {
 } from "@/lib/events/automation";
 import { syncEventWithGoogleCalendar } from "@/lib/events/calendar-sync";
 import { parseEventMessagingSettings } from "@/lib/events/messaging";
+import { fetchUpcomingPublicEvents } from "@/lib/events/public-upcoming-events";
 import {
 	createRegistrationDraft,
 	enqueueWaitlist,
@@ -1089,6 +1090,13 @@ export const eventsRouter = router({
 						? (row.metadata.imageUrl as string)
 						: null,
 			}));
+		}),
+	listUpcomingPublic: publicProcedure
+		.input(recentEventsInput)
+		.query(async ({ input }) => {
+			const limit = input?.limit ?? RECENT_EVENTS_DEFAULT_LIMIT;
+
+			return fetchUpcomingPublicEvents(limit);
 		}),
 	syncCalendarForUser: protectedProcedure
 		.input(syncCalendarInput)

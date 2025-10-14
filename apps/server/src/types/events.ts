@@ -5,4 +5,5 @@ import type { AppRouter } from "@/routers";
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export type UpcomingEvent =
-	RouterOutputs["events"]["listRecentForUser"][number];
+	| RouterOutputs["events"]["listRecentForUser"][number]
+	| RouterOutputs["events"]["listUpcomingPublic"][number];

@@ -6,6 +6,10 @@
 - `apps/worker/`: Bun-powered IMAP ingestion worker. Entry points are under `src/`, with SQL helpers in `src/db` and mail parsing in `src/utils`.
 - Shared documentation sits in `docs/` (e.g., `docs/time-handling.md`). Docker assets and environment templates are at the repository root (`docker-compose.yml`, `.env.example`).
 
+## API Routing
+
+- Prefer TRPC routers for all interactive application endpoints. Reserve Next.js `app/api` routes for cron-style jobs or webhook entry points only.
+
 ## Build, Test, and Development Commands
 
 - `bun run dev`: Launch all workspace dev servers (Next.js UI, worker watchers, etc.).
