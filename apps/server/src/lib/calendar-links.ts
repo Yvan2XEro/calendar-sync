@@ -152,11 +152,11 @@ function safeLocation(event: CalendarEventInput): string {
 	return event.location ? event.location : "";
 }
 
-function appendLink(details: string, url?: string | null): string {
-	if (!url) return details;
+function appendLink(details: string, detailsUrl?: string | null): string {
+	if (!detailsUrl) return details;
 	const trimmed = details.trimEnd();
 	const separator = trimmed.length > 0 ? "\n\n" : "";
-	return `${trimmed}${separator}More info: ${url}`;
+	return `${trimmed}${separator}More info: ${detailsUrl}`;
 }
 
 export function getGoogleCalendarUrl(event: CalendarEventInput): string {
@@ -167,10 +167,8 @@ export function getGoogleCalendarUrl(event: CalendarEventInput): string {
 		event.endAt ? toDate(event.endAt) : undefined,
 	);
 	const timezone = getEventTimezone(event);
-	const description = appendLink(
-		event.description ?? "",
-		event.url ?? undefined,
-	);
+	const detailsUrl = event.url ?? undefined;
+	const description = appendLink(event.description ?? "", detailsUrl);
 	const truncated = truncateDescription(description);
 
 	let dateParam: string;
@@ -204,10 +202,8 @@ export function getOutlookCalendarUrl(event: CalendarEventInput): string {
 		event.endAt ? toDate(event.endAt) : undefined,
 	);
 	const timezone = getEventTimezone(event);
-	const description = appendLink(
-		event.description ?? "",
-		event.url ?? undefined,
-	);
+	const detailsUrl = event.url ?? undefined;
+	const description = appendLink(event.description ?? "", detailsUrl);
 	const truncated = truncateDescription(description);
 
 	const query = [
@@ -230,10 +226,8 @@ export function getYahooCalendarUrl(event: CalendarEventInput): string {
 		start,
 		event.endAt ? toDate(event.endAt) : undefined,
 	);
-	const description = appendLink(
-		event.description ?? "",
-		event.url ?? undefined,
-	);
+	const detailsUrl = event.url ?? undefined;
+	const description = appendLink(event.description ?? "", detailsUrl);
 	const truncated = truncateDescription(description);
 
 	const durationMs = Math.max(
@@ -264,10 +258,8 @@ export function buildICS(event: CalendarEventInput): string {
 		event.endAt ? toDate(event.endAt) : undefined,
 	);
 	const timezone = getEventTimezone(event);
-	const description = appendLink(
-		event.description ?? "",
-		event.url ?? undefined,
-	);
+	const detailsUrl = event.url ?? undefined;
+	const description = appendLink(event.description ?? "", detailsUrl);
 
 	const uid = `${event.id}@calendarsync.local`;
 	const dtstamp = formatUtcBasic(new Date());
@@ -305,8 +297,8 @@ export function buildICS(event: CalendarEventInput): string {
 		lines.push(`LOCATION:${escapeText(event.location)}`);
 	}
 
-	if (event.url) {
-		lines.push(`URL:${escapeText(event.url)}`);
+	if (detailsUrl) {
+		lines.push(`URL:${escapeText(detailsUrl)}`);
 	}
 
 	lines.push("END:VEVENT");

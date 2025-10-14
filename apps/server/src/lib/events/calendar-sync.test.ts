@@ -13,7 +13,7 @@ type EventRow = {
 	title: string;
 	description: string | null;
 	location: string | null;
-	url: string | null;
+	slug: string;
 	startAt: Date;
 	endAt: Date | null;
 	isAllDay: boolean;
@@ -274,7 +274,7 @@ const baseEvent: EventRow = {
 	title: "Board meeting",
 	description: null,
 	location: null,
-	url: null,
+	slug: "board-meeting",
 	startAt: new Date("2024-01-01T10:00:00Z"),
 	endAt: new Date("2024-01-01T11:00:00Z"),
 	isAllDay: false,
@@ -324,6 +324,22 @@ describe("syncEventWithGoogleCalendar", () => {
 		const syncRecord = currentDb.getSyncRecord("member-1");
 		expect(syncRecord?.googleEventId).toBe("personal-evt-1");
 		expect(syncRecord?.status).toBe("synced");
+	});
+
+	it("passes the canonical event detail URL to Google", async () => {
+		const { syncEventWithGoogleCalendar } = await loadModule();
+
+		currentDb.currentMemberId = "member-1";
+
+		await syncEventWithGoogleCalendar(baseEvent.id, {
+			memberId: "member-1",
+			userId: "user-1",
+		});
+
+		const call = integrationsMock.upsertGoogleCalendarEvent.calls.at(0);
+		expect(call?.[0].event.url).toBe(
+			"https://example.com/events/board-meeting",
+		);
 	});
 
 	it("stores distinct Google event identifiers per member when organization connections are present", async () => {

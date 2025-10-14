@@ -19,6 +19,7 @@ import {
 	touchConnectionSynced,
 	updateConnectionCredentials,
 } from "@/lib/calendar-connections";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 import { getCalendarClientForUser } from "@/lib/google-calendar";
 import {
 	deleteGoogleCalendarEvent,
@@ -65,7 +66,7 @@ type EventRow = {
 	title: string;
 	description: string | null;
 	location: string | null;
-	url: string | null;
+	slug: string;
 	startAt: Date;
 	endAt: Date | null;
 	isAllDay: boolean;
@@ -172,6 +173,7 @@ async function resolveOrganizationCalendar(
 }
 
 function toGoogleCalendarInput(row: EventRow): GoogleCalendarEventInput {
+	const detailUrl = buildEventDetailUrl(row.slug);
 	return {
 		id: row.id,
 		title: row.title,
@@ -180,7 +182,7 @@ function toGoogleCalendarInput(row: EventRow): GoogleCalendarEventInput {
 		isAllDay: row.isAllDay,
 		description: row.description ?? undefined,
 		location: row.location ?? undefined,
-		url: row.url ?? undefined,
+		url: detailUrl,
 		metadata: row.metadata ?? undefined,
 	} satisfies GoogleCalendarEventInput;
 }
@@ -282,7 +284,7 @@ export async function syncEventWithGoogleCalendar(
 			title: event.title,
 			description: event.description,
 			location: event.location,
-			url: event.url,
+			slug: event.slug,
 			startAt: event.startAt,
 			endAt: event.endAt,
 			isAllDay: event.isAllDay,

@@ -10,6 +10,7 @@ import {
 	DEFAULT_REMINDER_CADENCE_HOURS,
 	parseEventMessagingSettings,
 } from "@/lib/events/messaging";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 import { queueEmailDelivery } from "./deliveries";
 import { parseDigestMetadata } from "./digest";
 import { sendTransactionalEmail } from "./service";
@@ -36,6 +37,7 @@ type DeliveryContext = {
 		description: string | null;
 		location: string | null;
 		url: string | null;
+		slug: string;
 		startAt: Date;
 		endAt: Date | null;
 		metadata: Record<string, unknown> | null;
@@ -236,6 +238,7 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 				description: event.description,
 				location: event.location,
 				url: event.url,
+				slug: event.slug,
 				startAt: event.startAt,
 				endAt: event.endAt,
 				metadata: event.metadata,
@@ -264,6 +267,7 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 	let failed = 0;
 
 	for (const row of rows) {
+		const detailUrl = buildEventDetailUrl(row.event.slug);
 		const context: DeliveryContext = {
 			delivery: {
 				...row.delivery,
@@ -271,6 +275,7 @@ export async function processPendingEmailDeliveries({ limit = 20 } = {}) {
 			},
 			event: {
 				...row.event,
+				url: detailUrl,
 				metadata: (row.event.metadata ?? null) as Record<
 					string,
 					unknown

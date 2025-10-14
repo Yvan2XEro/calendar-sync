@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { event } from "@/db/schema/app";
 import { organization } from "@/db/schema/auth";
 import { buildICS } from "@/lib/calendar-links";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,7 @@ function buildCalendarFeed(
 		description: string | null;
 		location: string | null;
 		url: string | null;
+		slug: string;
 		startAt: Date;
 		endAt: Date | null;
 		metadata: Record<string, unknown> | null;
@@ -56,7 +58,7 @@ function buildCalendarFeed(
 			endAt: event.endAt ?? undefined,
 			description: event.description ?? undefined,
 			location: event.location ?? undefined,
-			url: event.url ?? undefined,
+			url: buildEventDetailUrl(event.slug),
 			metadata: event.metadata ?? undefined,
 		});
 
@@ -106,6 +108,7 @@ export async function GET(_req: NextRequest, context: any): Promise<Response> {
 			description: event.description,
 			location: event.location,
 			url: event.url,
+			slug: event.slug,
 			startAt: event.startAt,
 			endAt: event.endAt,
 			metadata: event.metadata,

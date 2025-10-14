@@ -51,14 +51,15 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-	downloadICS,
-	formatDateBadge,
-	formatEventDateRange,
-	getEventTimezone,
-	getGoogleCalendarUrl,
-	getOutlookCalendarUrl,
-	getYahooCalendarUrl,
+        downloadICS,
+        formatDateBadge,
+        formatEventDateRange,
+        getEventTimezone,
+        getGoogleCalendarUrl,
+        getOutlookCalendarUrl,
+        getYahooCalendarUrl,
 } from "@/lib/calendar-links";
+import { buildEventDetailUrl } from "@/lib/events/urls";
 import { cn } from "@/lib/utils";
 import type { UpcomingEvent } from "@/types/events";
 
@@ -135,18 +136,19 @@ export function EventsCalendar({
 		});
 	}, [events, location, date, normalizedSearch]);
 
-	const calendarEvents = React.useMemo<CalendarEvent[]>(() => {
-		return filteredEvents.map((event) => {
-			const start = new Date(event.startAt);
-			const end = event.endAt ? new Date(event.endAt) : addHours(start, 1);
+        const calendarEvents = React.useMemo<CalendarEvent[]>(() => {
+                return filteredEvents.map((event) => {
+                        const start = new Date(event.startAt);
+                        const end = event.endAt ? new Date(event.endAt) : addHours(start, 1);
 
-			return {
-				...event,
-				start,
-				end,
-			};
-		});
-	}, [filteredEvents]);
+                        return {
+                                ...event,
+                                url: buildEventDetailUrl(event.slug),
+                                start,
+                                end,
+                        };
+                });
+        }, [filteredEvents]);
 
 	const isFiltering =
 		normalizedSearch.length > 0 || location !== "all" || date.length > 0;
@@ -180,16 +182,16 @@ export function EventsCalendar({
 		}
 	}, []);
 	const calendarUrls = React.useMemo(
-		() =>
-			selectedEvent
-				? {
-						google: getGoogleCalendarUrl(selectedEvent),
-						outlook: getOutlookCalendarUrl(selectedEvent),
-						yahoo: getYahooCalendarUrl(selectedEvent),
-					}
-				: null,
-		[selectedEvent],
-	);
+                () =>
+                        selectedEvent
+                                ? {
+                                                google: getGoogleCalendarUrl(selectedEvent),
+                                                outlook: getOutlookCalendarUrl(selectedEvent),
+                                                yahoo: getYahooCalendarUrl(selectedEvent),
+                                        }
+                                : null,
+                [selectedEvent],
+        );
 
 	return (
 		<TooltipProvider delayDuration={200}>
