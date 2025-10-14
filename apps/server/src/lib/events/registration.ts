@@ -16,7 +16,7 @@ import { queueOrderConfirmationEmail } from "@/lib/mailer/triggers";
 
 type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-const ACTIVE_ATTENDEE_STATUSES = [
+export const ACTIVE_ATTENDEE_STATUSES = [
 	"reserved",
 	"registered",
 	"checked_in",

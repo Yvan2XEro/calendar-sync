@@ -5,6 +5,7 @@ import { cache } from "react";
 
 import { EventLandingDetails } from "@/components/events/EventLandingDetails";
 import { EventLandingHero } from "@/components/events/EventLandingHero";
+import { EventParticipationPanel } from "@/components/events/EventParticipationPanel";
 import { EventRegistrationSection } from "@/components/events/EventRegistrationSection";
 import { db } from "@/db";
 import { event } from "@/db/schema/app";
@@ -243,6 +244,7 @@ export default async function EventLandingPage(props: { params: any }) {
 				location={record.location}
 				fallbackUrl={record.url}
 			/>
+			<EventParticipationPanel eventId={record.id} eventTitle={record.title} />
 			{hasRegistration ? (
 				<section
 					id="register"

@@ -84,5 +84,7 @@ export async function fetchUpcomingPublicEvents(
 			typeof row.metadata?.imageUrl === "string"
 				? (row.metadata.imageUrl as string)
 				: null,
+		participantCount: null,
+		isParticipant: false,
 	}));
 }
