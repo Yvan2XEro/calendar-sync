@@ -4,6 +4,9 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { EventLandingDetails } from "@/components/events/EventLandingDetails";
 import { EventLandingHero } from "@/components/events/EventLandingHero";
 import { EventPageNavigation } from "@/components/events/EventPageNavigation";
