@@ -191,7 +191,7 @@ export function EventDetailSheet({
 									</code>
 									<Button asChild size="sm" variant="outline">
 										<Link
-											href={publicHref}
+											href={publicHref as any}
 											target="_blank"
 											rel="noopener noreferrer"
 										>
