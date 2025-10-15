@@ -1,5 +1,6 @@
 import { faker } from "@faker-js/faker";
 import type { WorkerLogger } from "../services/log";
+import type { FlagRecord } from "../db/flags";
 import {
 	type EventSqlInsert,
 	EventSqlInsertSchema,
@@ -24,7 +25,7 @@ function hashStringToInt(s: string): number {
 
 export async function extractEventFromEmailFake(
 	input: ExtractEventInput,
-	_options?: { logger?: WorkerLogger },
+	_options?: { logger?: WorkerLogger; flags?: FlagRecord[] },
 ): Promise<EventSqlInsert | null> {
 	const { provider_id, messageId } = input;
 
