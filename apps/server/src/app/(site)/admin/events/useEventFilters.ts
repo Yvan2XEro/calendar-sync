@@ -29,11 +29,12 @@ type UseEventFiltersResult = {
 	limit: number;
 	setLimit: Dispatch<SetStateAction<number>>;
 	handleSearchChange: (event: ChangeEvent<HTMLInputElement>) => void;
-	handleStatusChange: (value: string) => void;
-	handleProviderChange: (value: string) => void;
-	handleDateChange: (
-		key: "startFrom" | "startTo",
-	) => (event: ChangeEvent<HTMLInputElement>) => void;
+        handleStatusChange: (value: string) => void;
+        handleProviderChange: (value: string) => void;
+        handleFlagChange: (value: string) => void;
+        handleDateChange: (
+                key: "startFrom" | "startTo",
+        ) => (event: ChangeEvent<HTMLInputElement>) => void;
 	handleToggleChange: (
 		key: "publishedOnly" | "allDayOnly",
 	) => (checked: boolean) => void;
@@ -154,18 +155,30 @@ export function useEventFilters(
 		}));
 	}, []);
 
-	const handleProviderChange = useCallback((value: string) => {
-		setFilters((prev) => ({
-			...prev,
-			providerId: value === "all" ? "" : value,
-		}));
-	}, []);
+        const handleProviderChange = useCallback((value: string) => {
+                setFilters((prev) => ({
+                        ...prev,
+                        providerId: value === "all" ? "" : value,
+                }));
+        }, []);
 
-	const handleDateChange = useCallback(
-		(key: "startFrom" | "startTo") =>
-			(event: ChangeEvent<HTMLInputElement>) => {
-				const value = event.target.value;
-				setFilters((prev) => ({ ...prev, [key]: value }));
+        const handleFlagChange = useCallback((value: string) => {
+                setFilters((prev) => ({
+                        ...prev,
+                        flagId:
+                                value === "all"
+                                        ? ""
+                                        : value === "none"
+                                                ? null
+                                                : value,
+                }));
+        }, []);
+
+        const handleDateChange = useCallback(
+                (key: "startFrom" | "startTo") =>
+                        (event: ChangeEvent<HTMLInputElement>) => {
+                                const value = event.target.value;
+                                setFilters((prev) => ({ ...prev, [key]: value }));
 			},
 		[],
 	);
@@ -211,12 +224,13 @@ export function useEventFilters(
 		setPage,
 		limit,
 		setLimit,
-		handleSearchChange,
-		handleStatusChange,
-		handleProviderChange,
-		handleDateChange,
-		handleToggleChange,
-		handlePriorityChange,
-		handleViewChange,
-	};
+                handleSearchChange,
+                handleStatusChange,
+                handleProviderChange,
+                handleFlagChange,
+                handleDateChange,
+                handleToggleChange,
+                handlePriorityChange,
+                handleViewChange,
+        };
 }

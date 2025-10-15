@@ -29,27 +29,29 @@ export interface EventsListFilters {
 }
 
 export type Filters = {
-	q: string;
-	status: "all" | EventStatus;
-	providerId: string;
-	startFrom: string;
-	startTo: string;
-	publishedOnly: boolean;
-	allDayOnly: boolean;
-	priorityMin: number | null;
+        q: string;
+        status: "all" | EventStatus;
+        providerId: string;
+        flagId: string | null;
+        startFrom: string;
+        startTo: string;
+        publishedOnly: boolean;
+        allDayOnly: boolean;
+        priorityMin: number | null;
 	priorityMax: number | null;
 	view: "table" | "card";
 };
 
 export const defaultFilters: Filters = {
-	q: "",
-	status: "all",
-	providerId: "",
-	startFrom: "",
-	startTo: "",
-	publishedOnly: false,
-	allDayOnly: false,
-	priorityMin: null,
+        q: "",
+        status: "all",
+        providerId: "",
+        flagId: "",
+        startFrom: "",
+        startTo: "",
+        publishedOnly: false,
+        allDayOnly: false,
+        priorityMin: null,
 	priorityMax: null,
 	view: "table",
 };
@@ -74,14 +76,23 @@ export function parseFiltersFromSearchParams(
 		next.status = defaultFilters.status;
 	}
 
-	const providerParam = params.get("providerId");
-	next.providerId = providerParam ?? defaultFilters.providerId;
+        const providerParam = params.get("providerId");
+        next.providerId = providerParam ?? defaultFilters.providerId;
 
-	const startFromParam = params.get("startFrom");
-	next.startFrom = startFromParam ?? defaultFilters.startFrom;
+        const flagParam = params.get("flagId");
+        if (flagParam === "none" || flagParam === "null" || flagParam === "unflagged") {
+                next.flagId = null;
+        } else if (flagParam) {
+                next.flagId = flagParam;
+        } else {
+                next.flagId = defaultFilters.flagId;
+        }
 
-	const startToParam = params.get("startTo");
-	next.startTo = startToParam ?? defaultFilters.startTo;
+        const startFromParam = params.get("startFrom");
+        next.startFrom = startFromParam ?? defaultFilters.startFrom;
+
+        const startToParam = params.get("startTo");
+        next.startTo = startToParam ?? defaultFilters.startTo;
 
 	next.publishedOnly = params.get("publishedOnly") === "true";
 	next.allDayOnly = params.get("allDayOnly") === "true";
@@ -101,13 +112,18 @@ export function parseFiltersFromSearchParams(
 export function filtersToSearchParams(filters: Filters) {
 	const params = new URLSearchParams();
 	if (filters.q) params.set("q", filters.q);
-	if (filters.status !== "all") params.set("status", filters.status);
-	if (filters.providerId) params.set("providerId", filters.providerId);
-	if (filters.startFrom) params.set("startFrom", filters.startFrom);
-	if (filters.startTo) params.set("startTo", filters.startTo);
-	if (filters.publishedOnly) params.set("publishedOnly", "true");
-	if (filters.allDayOnly) params.set("allDayOnly", "true");
-	if (filters.priorityMin !== null)
+        if (filters.status !== "all") params.set("status", filters.status);
+        if (filters.providerId) params.set("providerId", filters.providerId);
+        if (filters.flagId === null) {
+                params.set("flagId", "none");
+        } else if (filters.flagId) {
+                params.set("flagId", filters.flagId);
+        }
+        if (filters.startFrom) params.set("startFrom", filters.startFrom);
+        if (filters.startTo) params.set("startTo", filters.startTo);
+        if (filters.publishedOnly) params.set("publishedOnly", "true");
+        if (filters.allDayOnly) params.set("allDayOnly", "true");
+        if (filters.priorityMin !== null)
 		params.set("priorityMin", String(filters.priorityMin));
 	if (filters.priorityMax !== null)
 		params.set("priorityMax", String(filters.priorityMax));
@@ -117,14 +133,15 @@ export function filtersToSearchParams(filters: Filters) {
 
 export function areFiltersEqual(a: Filters, b: Filters) {
 	return (
-		a.q === b.q &&
-		a.status === b.status &&
-		a.providerId === b.providerId &&
-		a.startFrom === b.startFrom &&
-		a.startTo === b.startTo &&
-		a.publishedOnly === b.publishedOnly &&
-		a.allDayOnly === b.allDayOnly &&
-		a.priorityMin === b.priorityMin &&
+                a.q === b.q &&
+                a.status === b.status &&
+                a.providerId === b.providerId &&
+                a.flagId === b.flagId &&
+                a.startFrom === b.startFrom &&
+                a.startTo === b.startTo &&
+                a.publishedOnly === b.publishedOnly &&
+                a.allDayOnly === b.allDayOnly &&
+                a.priorityMin === b.priorityMin &&
 		a.priorityMax === b.priorityMax &&
 		a.view === b.view
 	);
@@ -148,10 +165,15 @@ export function buildListInput(
 ): EventsListFilters | undefined {
 	const input: EventsListFilters = {};
 	if (filters.q.trim()) input.q = filters.q.trim();
-	if (filters.status !== "all") input.status = filters.status;
-	if (filters.providerId) input.providerId = filters.providerId;
-	if (filters.publishedOnly) input.isPublished = true;
-	if (filters.allDayOnly) input.isAllDay = true;
+        if (filters.status !== "all") input.status = filters.status;
+        if (filters.providerId) input.providerId = filters.providerId;
+        if (filters.flagId === null) {
+                input.flagId = null;
+        } else if (filters.flagId) {
+                input.flagId = filters.flagId;
+        }
+        if (filters.publishedOnly) input.isPublished = true;
+        if (filters.allDayOnly) input.isAllDay = true;
 	if (filters.startFrom) {
 		input.startFrom = new Date(`${filters.startFrom}T00:00:00Z`).toISOString();
 	}
