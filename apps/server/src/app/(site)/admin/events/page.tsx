@@ -216,6 +216,7 @@ export default function AdminEventsPage() {
                 handleSearchChange,
                 handleStatusChange,
                 handleProviderChange,
+                handleFlagChange,
                 handleDateChange,
                 handleToggleChange,
                 handlePriorityChange,
@@ -938,26 +939,49 @@ export default function AdminEventsPage() {
 										))}
 									</SelectContent>
 								</Select>
-								<Select
-									value={filters.providerId || "all"}
-									onValueChange={handleProviderChange}
-								>
-									<SelectTrigger className="w-[200px]">
-										<SelectValue placeholder="Provider" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="all">All providers</SelectItem>
-										{providersQuery.data?.map(
-											(provider: ProvidersCatalogListOutput[number]) => (
-												<SelectItem key={provider.id} value={provider.id}>
-													{provider.name}
-												</SelectItem>
-											),
-										)}
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
+                                                                <Select
+                                                                        value={filters.providerId || "all"}
+                                                                        onValueChange={handleProviderChange}
+                                                                >
+                                                                        <SelectTrigger className="w-[200px]">
+                                                                                <SelectValue placeholder="Provider" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                                <SelectItem value="all">All providers</SelectItem>
+                                                                                {providersQuery.data?.map(
+                                                                                        (provider: ProvidersCatalogListOutput[number]) => (
+                                                                                                <SelectItem key={provider.id} value={provider.id}>
+                                                                                                        {provider.name}
+                                                                                                </SelectItem>
+                                                                                        ),
+                                                                                )}
+                                                                        </SelectContent>
+                                                                </Select>
+                                                                <Select
+                                                                        value={
+                                                                                filters.flagId === null
+                                                                                        ? "none"
+                                                                                        : filters.flagId && filters.flagId.length > 0
+                                                                                                ? filters.flagId
+                                                                                                : "all"
+                                                                        }
+                                                                        onValueChange={handleFlagChange}
+                                                                >
+                                                                        <SelectTrigger className="w-[200px]">
+                                                                                <SelectValue placeholder="Flag" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                                <SelectItem value="all">All flags</SelectItem>
+                                                                                <SelectItem value="none">Unflagged</SelectItem>
+                                                                                {flagOptions.map((flag) => (
+                                                                                        <SelectItem key={flag.id} value={flag.id}>
+                                                                                                {flag.label}
+                                                                                        </SelectItem>
+                                                                                ))}
+                                                                        </SelectContent>
+                                                                </Select>
+                                                        </div>
+                                                </div>
 						<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 							<div className="flex flex-col gap-2">
 								<Label htmlFor="events-start">Start from</Label>
