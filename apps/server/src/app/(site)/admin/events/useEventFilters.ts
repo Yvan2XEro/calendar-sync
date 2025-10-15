@@ -16,7 +16,8 @@ import {
 } from "./event-filters";
 
 type UseEventFiltersOptions = {
-	defaultLimit?: number;
+        defaultLimit?: number;
+        preserveParams?: readonly string[];
 };
 
 type UseEventFiltersResult = {
@@ -44,13 +45,16 @@ type UseEventFiltersResult = {
 };
 
 export function useEventFilters(
-	options: UseEventFiltersOptions = {},
+        options: UseEventFiltersOptions = {},
 ): UseEventFiltersResult {
-	const router = useRouter();
-	const pathname = usePathname();
-	const searchParams = useSearchParams();
-	const searchParamsString = searchParams.toString();
-	const hasInitialQuery = searchParamsString.length > 0;
+        const router = useRouter();
+        const pathname = usePathname();
+        const searchParams = useSearchParams();
+        const searchParamsString = searchParams.toString();
+        const hasInitialQuery = searchParamsString.length > 0;
+
+        const preserveParamsList = options.preserveParams ?? [];
+        const preserveParamsKey = preserveParamsList.join("\0");
 
 	const skipSearchSyncRef = useRef(false);
 
@@ -78,7 +82,7 @@ export function useEventFilters(
 
 	const listFilters = useMemo(() => buildListInput(filters), [filters]);
 
-	const defaultLimit = options.defaultLimit ?? 25;
+        const defaultLimit = options.defaultLimit ?? 25;
 	const [page, setPage] = useState(1);
 	const [limit, setLimit] = useState(defaultLimit);
 
@@ -96,19 +100,27 @@ export function useEventFilters(
 			skipSearchSyncRef.current = false;
 			return;
 		}
-		const nextParams = filtersToSearchParams(filters);
-		const nextString = nextParams.toString();
-		if (nextString === searchParamsString) {
-			return;
-		}
-		skipSearchSyncRef.current = true;
+                const nextParams = filtersToSearchParams(filters);
+                if (preserveParamsList.length > 0) {
+                        for (const key of preserveParamsList) {
+                                const value = searchParams.get(key);
+                                if (value !== null) {
+                                        nextParams.set(key, value);
+                                }
+                        }
+                }
+                const nextString = nextParams.toString();
+                if (nextString === searchParamsString) {
+                        return;
+                }
+                skipSearchSyncRef.current = true;
 		const queryEntries = Array.from(nextParams.entries()).map<[string, string]>(
 			([key, value]) => [key, value],
 		);
 		const nextUrl =
 			queryEntries.length > 0 ? `${pathname}?${nextString}` : pathname;
 		router.replace(nextUrl as any, { scroll: false });
-	}, [filters, pathname, router, searchParamsString]);
+        }, [filters, pathname, router, searchParamsString, preserveParamsKey]);
 
 	useEffect(() => {
 		if (skipSearchSyncRef.current) {
