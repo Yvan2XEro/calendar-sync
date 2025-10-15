@@ -15,21 +15,19 @@ export const defaultNavigation: NavGroup[] = [
 	{
 		label: "Admin",
 		items: [
-			{ title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
+			// { title: "Dashboard", href: "/admin/overview", icon: LayoutDashboard },
 			{ title: "Organizations", href: "/admin/orgs", icon: Building2 },
 			{ title: "Users", href: "/admin/users", icon: Users },
 			{ title: "Providers", href: "/admin/providers", icon: Network },
 			{ title: "Flags", href: "/admin/flags", icon: FlagIcon },
 			{ title: "Email digests", href: "/admin/digests", icon: Mail },
 			{ title: "Ticket types", href: "/admin/ticket-types", icon: Ticket },
+			{ title: "Event moderation", href: "/admin/events", icon: ListTodo },
 		],
 	},
 	{
 		label: "Activities",
-		items: [
-			{ title: "Logs", href: "/admin/logs", icon: MessageSquare },
-			{ title: "Events queue", href: "/admin/events", icon: ListTodo },
-		],
+		items: [{ title: "Logs", href: "/admin/logs", icon: MessageSquare }],
 	},
 ];
 
