@@ -24,7 +24,13 @@ export function EventPageNavigation({
 					type="button"
 					variant="ghost"
 					size="sm"
-					onClick={() => router.back()}
+					onClick={() => {
+						if (window.history.length > 1) {
+							return router.back();
+						}
+
+						return router.push("/dashboard");
+					}}
 					className="text-foreground/80 hover:text-foreground"
 				>
 					<ArrowLeft className="size-4" />
