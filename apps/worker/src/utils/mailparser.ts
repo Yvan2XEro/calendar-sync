@@ -8,6 +8,7 @@ import {
 	metrics,
 	type WorkerLogger,
 } from "../services/log";
+import type { FlagRecord } from "../db/flags";
 
 export const eventStatuses = ["pending", "approved", "rejected"] as const;
 
@@ -49,7 +50,7 @@ If YES, output a single JSON object with fields STRICTLY matching this schema (s
   "is_published": boolean,    // default false if unsure
   "metadata": object,         // e.g. {"source":"email","organizer":"...","message_id":"..."}
   "priority": 1|2|3|4|5,      // default 3 if unknown
-  "flag_id": string | null,   // optional
+  "flag_id": string | null,   // choose from provided flags by id or slug; null if none fit
   "external_id": string | null// optional (e.g. email Message-ID)
 }
 
@@ -60,6 +61,7 @@ Rules:
 - Ensure start_at <= end_at when both present.
 - Do not invent URLs; set url to null if uncertain.
 - Keep description concise (<= 1000 chars).
+- When flag options are provided, pick the single best match and set flag_id to that flag's id or slug. If no flag applies, set flag_id to null.
 `;
 
 /** Utilitaires */
@@ -82,17 +84,28 @@ type ExtractEventInput = {
 
 export async function extractEventFromEmail(
 	input: ExtractEventInput,
-	options?: { logger?: WorkerLogger },
+	options?: { logger?: WorkerLogger; flags?: FlagRecord[] },
 ): Promise<EventSqlInsert | null> {
 	const { provider_id, text, html, messageId } = input;
 	const log =
 		options?.logger ?? baseLogger.withContext({ providerId: provider_id });
+	const availableFlags = options?.flags ?? [];
 
 	const plainFromHtml = stripHtml(html);
 	const combined = [text?.trim(), plainFromHtml && !text ? plainFromHtml : ""]
 		.filter(Boolean)
 		.join("\n\n");
 	if (!combined) return null;
+
+	const flagLines = availableFlags
+		.map(
+			(flag, index) =>
+				`${index + 1}. ${flag.label} (id: ${flag.id}, slug: ${flag.slug})`,
+		)
+		.join("\n");
+	const flagsSection = availableFlags.length
+		? `AVAILABLE FLAGS (choose one):\n${flagLines}\n- Respond with the chosen flag's id or slug in flag_id. If no flag applies, use null.\n`
+		: `AVAILABLE FLAGS:\n- None provided. Set flag_id to null.\n`;
 
 	const userPrompt = `
 EMAIL CONTENT (plain text approximation):
@@ -103,6 +116,8 @@ ${combined.slice(0, 20000)}
 KNOWN CONTEXT:
 - provider_id: ${provider_id}
 - message_id: ${messageId ?? "unknown"}
+
+${flagsSection}
 
 Follow the rules strictly and respond with either:
 - a single JSON object (matching the SCHEMA and snake_case keys), or

@@ -4,6 +4,7 @@ import type { ParsedMail } from "mailparser";
 import { simpleParser } from "mailparser";
 import type { WorkerConfig } from "../config/env";
 import { insertEvent } from "../db/events";
+import { getFlags, type FlagRecord } from "../db/flags";
 import { getProviderCursor, setProviderCursor } from "../db/providers";
 import { runIngestPipeline } from "../ingest";
 import { createBackoff } from "../services/backoff";
@@ -76,11 +77,27 @@ function synthesizeExternalId(params: {
 
 type ExtractEventFn = typeof extractEventFromEmail;
 
+function resolveFlagSelection(
+	value: string | null | undefined,
+	flags: FlagRecord[],
+): { id: string | null; matched: boolean } {
+	if (!value) return { id: null, matched: false };
+	const trimmed = value.trim();
+	if (!trimmed) return { id: null, matched: false };
+	const direct = flags.find((flag) => flag.id === trimmed);
+	if (direct) return { id: direct.id, matched: true };
+	const lowered = trimmed.toLowerCase();
+	const viaSlug = flags.find((flag) => flag.slug.toLowerCase() === lowered);
+	if (viaSlug) return { id: viaSlug.id, matched: true };
+	return { id: null, matched: false };
+}
+
 async function handleMessage(
 	provider: ProviderRecord,
 	mailbox: string,
 	message: FetchMessageObject,
 	log: WorkerLogger,
+	flags: FlagRecord[],
 	extractEvent: ExtractEventFn,
 ): Promise<boolean> {
 	const uid = message.uid;
@@ -118,12 +135,22 @@ async function handleMessage(
 			html,
 			messageId,
 		},
-		{ logger: log },
+		{ logger: log, flags },
 	);
 
 	if (!extraction) {
 		log.debug("Message did not produce event payload", { uid, mailbox });
 		return false;
+	}
+
+	const { id: normalizedFlagId, matched: matchedFlag } = resolveFlagSelection(
+		extraction.flag_id ?? null,
+		flags,
+	);
+	if (extraction.flag_id && !matchedFlag) {
+		log.warn("Extractor returned unknown flag", {
+			flag: extraction.flag_id,
+		});
 	}
 
 	const externalId =
@@ -181,6 +208,7 @@ async function handleMessage(
 	try {
 		inserted = await insertEvent({
 			...extraction,
+			flag_id: normalizedFlagId,
 			status: ingestDecision.status,
 			external_id: externalId,
 			metadata,
@@ -242,6 +270,14 @@ export async function runProviderSession(
 	const extractEvent: ExtractEventFn = workerConfig.useFakeExtractor
 		? extractEventFromEmailFake
 		: extractEventFromEmail;
+
+	let sessionFlags: FlagRecord[] = [];
+	try {
+		sessionFlags = await getFlags();
+		sessionLogger.debug("Loaded flag cache", { count: sessionFlags.length });
+	} catch (error) {
+		sessionLogger.error("Failed to load flags", { error });
+	}
 
 	let stopRequested = signal.aborted;
 	const onAbort = () => {
@@ -316,14 +352,15 @@ export async function runProviderSession(
 						if (stopRequested) break;
 						if (!message.uid) continue;
 
-						try {
-							const inserted = await handleMessage(
-								provider,
-								mailbox,
-								message,
-								sessionLogger,
-								extractEvent,
-							);
+							try {
+								const inserted = await handleMessage(
+									provider,
+									mailbox,
+									message,
+									sessionLogger,
+									sessionFlags,
+									extractEvent,
+								);
 							if (inserted) processed += 1;
 						} catch (error) {
 							fetchRequested = true;
