@@ -413,7 +413,10 @@ export default function EventAttendeesPage() {
 			breadcrumbs={[
 				{ label: "Admin", href: "/admin/overview" },
 				{ label: "Events", href: "/admin/events" },
-				{ label: eventTitle, href: `/admin/events?highlight=${eventId}` },
+				{
+					label: eventTitle,
+					href: `/admin/events?highlight=${eventId}&view=table`,
+				},
 				{ label: "Attendees", current: true },
 			]}
 			headerRight={<UserAvatar />}
