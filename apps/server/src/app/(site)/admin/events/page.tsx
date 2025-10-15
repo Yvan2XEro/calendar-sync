@@ -15,15 +15,15 @@ import {
 	Plus,
 	Table as TableIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
 import {
-        EventEditDialog,
-        type EventEditFormValues,
-        type FlagOption,
-        type ProviderOption,
+	EventEditDialog,
+	type EventEditFormValues,
+	type FlagOption,
+	type ProviderOption,
 } from "@/components/admin/events/EventEditDialog";
 import { EventListView } from "@/components/admin/events/EventListView";
 import type { StatusAction } from "@/components/admin/events/status-actions";
@@ -202,67 +202,70 @@ function replaceEventInCache(
 
 export default function AdminEventsPage() {
 	const queryClient = useQueryClient();
-        const searchParams = useSearchParams();
-        const highlightId = searchParams.get("highlight");
+	const searchParams = useSearchParams();
+	const highlightId = searchParams.get("highlight");
 
-        const {
-                filters,
-                listFilters,
-                listParams,
-                page,
-                setPage,
-                limit,
-                setLimit,
-                handleSearchChange,
-                handleStatusChange,
-                handleProviderChange,
-                handleFlagChange,
-                handleDateChange,
-                handleToggleChange,
-                handlePriorityChange,
-                handleViewChange,
-        } = useEventFilters({
-                defaultLimit: DEFAULT_PAGE_SIZE,
-                preserveParams: PRESERVED_EVENT_SEARCH_PARAMS,
-        });
+	const {
+		filters,
+		listFilters,
+		listParams,
+		page,
+		setPage,
+		limit,
+		setLimit,
+		handleSearchChange,
+		handleStatusChange,
+		handleProviderChange,
+		handleFlagChange,
+		handleDateChange,
+		handleToggleChange,
+		handlePriorityChange,
+		handleViewChange,
+	} = useEventFilters({
+		defaultLimit: DEFAULT_PAGE_SIZE,
+		preserveParams: PRESERVED_EVENT_SEARCH_PARAMS,
+	});
 
-        const providersQuery = useQuery<ProvidersCatalogListOutput>({
-                queryKey: providerKeys.catalog.list(),
-                queryFn: () => trpcClient.providers.catalog.list.query(),
-        });
+	const providersQuery = useQuery<ProvidersCatalogListOutput>({
+		queryKey: providerKeys.catalog.list(),
+		queryFn: () => trpcClient.providers.catalog.list.query(),
+	});
 
-        const providerOptions = useMemo<ProviderOption[]>(() => {
-                if (!providersQuery.data) return [];
-                return providersQuery.data.map(
-                        (provider: ProvidersCatalogListOutput[number]) =>
-                                ({
-                                        id: provider.id,
-                                        name: provider.name,
-                                }) satisfies ProviderOption,
-                );
-        }, [providersQuery.data]);
+	const providerOptions = useMemo<ProviderOption[]>(() => {
+		if (!providersQuery.data) return [];
+		return providersQuery.data.map(
+			(provider: ProvidersCatalogListOutput[number]) =>
+				({
+					id: provider.id,
+					name: provider.name,
+				}) satisfies ProviderOption,
+		);
+	}, [providersQuery.data]);
 
-        const flagsQuery = useQuery<AdminFlagListOutput>({
-                queryKey: ["adminFlags", "listFlags"],
-                queryFn: () => trpcClient.adminFlags.listFlags.query(),
-        });
+	const flagsQuery = useQuery<AdminFlagListOutput>({
+		queryKey: ["adminFlags", "listFlags"],
+		queryFn: () => trpcClient.adminFlags.listFlags.query(),
+	});
 
-        const flagOptions = useMemo<FlagOption[]>(() => {
-                if (!flagsQuery.data) return [];
-                return flagsQuery.data.map((flag) => ({
-                        id: flag.id,
-                        label: flag.label,
-                        priority: flag.priority,
-                } satisfies FlagOption));
-        }, [flagsQuery.data]);
+	const flagOptions = useMemo<FlagOption[]>(() => {
+		if (!flagsQuery.data) return [];
+		return flagsQuery.data.map(
+			(flag) =>
+				({
+					id: flag.id,
+					label: flag.label,
+					priority: flag.priority,
+				}) satisfies FlagOption,
+		);
+	}, [flagsQuery.data]);
 
-        const flagLookup = useMemo(() => {
-                const lookup = new Map<string, FlagOption>();
-                for (const flag of flagOptions) {
-                        lookup.set(flag.id, flag);
-                }
-                return lookup;
-        }, [flagOptions]);
+	const flagLookup = useMemo(() => {
+		const lookup = new Map<string, FlagOption>();
+		for (const flag of flagOptions) {
+			lookup.set(flag.id, flag);
+		}
+		return lookup;
+	}, [flagOptions]);
 
 	const listQueryKey = useMemo<ReturnType<typeof adminEventKeys.list>>(
 		() => adminEventKeys.list({ filters: listFilters ?? null, page, limit }),
@@ -451,10 +454,10 @@ export default function AdminEventsPage() {
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
 			const shouldPatchPublished =
 				variables.publish !== undefined || variables.status !== "approved";
-                        const patch: Partial<Mutable<EventListItem>> = {
-                                status: variables.status,
-                                updatedAt: new Date().toISOString(),
-                        };
+			const patch: Partial<Mutable<EventListItem>> = {
+				status: variables.status,
+				updatedAt: new Date().toISOString(),
+			};
 			if (shouldPatchPublished) {
 				patch.isPublished =
 					variables.status === "approved" ? Boolean(variables.publish) : false;
@@ -499,19 +502,19 @@ export default function AdminEventsPage() {
 		BulkUpdateStatusContext
 	>);
 
-        const updateEventMutation = useMutation<
-                UpdateEventOutput,
-                Error,
-                UpdateEventInput,
-                UpdateEventContext
-        >({
+	const updateEventMutation = useMutation<
+		UpdateEventOutput,
+		Error,
+		UpdateEventInput,
+		UpdateEventContext
+	>({
 		mutationFn: (variables: UpdateEventInput) =>
 			trpcClient.events.update.mutate(variables),
 		onMutate: async (variables) => {
 			await queryClient.cancelQueries({ queryKey: listQueryKey });
 			const previous = queryClient.getQueryData<EventsListOutput>(listQueryKey);
-                        const patch: Partial<Mutable<EventListItem>> = {
-                                updatedAt: new Date().toISOString(),
+			const patch: Partial<Mutable<EventListItem>> = {
+				updatedAt: new Date().toISOString(),
 				...(variables.slug !== undefined ? { slug: variables.slug } : {}),
 				...(variables.title !== undefined ? { title: variables.title } : {}),
 				...(variables.description !== undefined
@@ -551,31 +554,31 @@ export default function AdminEventsPage() {
 				...(variables.externalId !== undefined
 					? { externalId: variables.externalId ?? null }
 					: {}),
-                                ...(variables.priority !== undefined
-                                        ? { priority: variables.priority }
-                                        : {}),
-                                ...(variables.flagId !== undefined
-                                        ? (() => {
-                                                  const nextFlagId = variables.flagId ?? null;
-                                                  const flagRecord =
-                                                          nextFlagId !== null
-                                                                  ? flagLookup.get(nextFlagId) ?? null
-                                                                  : null;
-                                                  return {
-                                                          flagId: nextFlagId,
-                                                          flag: flagRecord
-                                                                  ? {
-                                                                                id: flagRecord.id,
-                                                                                label: flagRecord.label,
-                                                                                priority: flagRecord.priority,
-                                                                        }
-                                                                  : null,
-                                                  };
-                                          })()
-                                        : {}),
-                                ...(variables.heroMedia !== undefined
-                                        ? { heroMedia: variables.heroMedia ?? {} }
-                                        : {}),
+				...(variables.priority !== undefined
+					? { priority: variables.priority }
+					: {}),
+				...(variables.flagId !== undefined
+					? (() => {
+							const nextFlagId = variables.flagId ?? null;
+							const flagRecord =
+								nextFlagId !== null
+									? (flagLookup.get(nextFlagId) ?? null)
+									: null;
+							return {
+								flagId: nextFlagId,
+								flag: flagRecord
+									? {
+											id: flagRecord.id,
+											label: flagRecord.label,
+											priority: flagRecord.priority,
+										}
+									: null,
+							};
+						})()
+					: {}),
+				...(variables.heroMedia !== undefined
+					? { heroMedia: variables.heroMedia ?? {} }
+					: {}),
 				...(variables.landingPage !== undefined
 					? { landingPage: variables.landingPage ?? {} }
 					: {}),
@@ -731,25 +734,25 @@ export default function AdminEventsPage() {
 
 			const heroUrl = values.heroMediaUrl.trim();
 			const heroAlt = values.heroMediaAlt.trim();
-                        const heroPoster = values.heroMediaPosterUrl.trim();
-                        const heroMediaPayload =
-                                values.heroMediaType === "none"
-                                        ? {}
-                                        : heroUrl.length > 0
-                                                ? {
-                                                                type: values.heroMediaType,
-                                                                url: heroUrl,
-                                                                ...(heroAlt ? { alt: heroAlt } : {}),
-                                                                ...(values.heroMediaType === "video" && heroPoster
-                                                                        ? { posterUrl: heroPoster }
-                                                                        : {}),
-                                                        }
-                                                : {};
+			const heroPoster = values.heroMediaPosterUrl.trim();
+			const heroMediaPayload =
+				values.heroMediaType === "none"
+					? {}
+					: heroUrl.length > 0
+						? {
+								type: values.heroMediaType,
+								url: heroUrl,
+								...(heroAlt ? { alt: heroAlt } : {}),
+								...(values.heroMediaType === "video" && heroPoster
+									? { posterUrl: heroPoster }
+									: {}),
+							}
+						: {};
 
-                        const selectedFlagId = values.flagId.length > 0 ? values.flagId : null;
+			const selectedFlagId = values.flagId.length > 0 ? values.flagId : null;
 
-                        const landingPagePayload: RouterInputs["events"]["update"]["landingPage"] =
-                                {};
+			const landingPagePayload: RouterInputs["events"]["update"]["landingPage"] =
+				{};
 			const landingHeadline = values.landingHeadline.trim();
 			const landingSubheadline = values.landingSubheadline.trim();
 			const landingBody = values.landingBody.trim();
@@ -791,11 +794,11 @@ export default function AdminEventsPage() {
 					isAllDay: values.isAllDay,
 					isPublished: values.isPublished,
 					externalId: trimmedExternalId || null,
-                                        priority: values.priority,
-                                        providerId: values.providerId,
-                                        flagId: selectedFlagId,
-                                        heroMedia: heroMediaPayload,
-                                        landingPage: hasLandingPayload ? landingPagePayload : undefined,
+					priority: values.priority,
+					providerId: values.providerId,
+					flagId: selectedFlagId,
+					heroMedia: heroMediaPayload,
+					landingPage: hasLandingPayload ? landingPagePayload : undefined,
 					metadata:
 						Object.keys(messagingPayload).length > 0
 							? { messaging: messagingPayload }
@@ -823,10 +826,10 @@ export default function AdminEventsPage() {
 				isAllDay: values.isAllDay,
 				isPublished: values.isPublished,
 				externalId: trimmedExternalId,
-                                priority: values.priority,
-                                providerId: values.providerId || undefined,
-                                flagId: selectedFlagId,
-                                heroMedia: heroMediaPayload,
+				priority: values.priority,
+				providerId: values.providerId || undefined,
+				flagId: selectedFlagId,
+				heroMedia: heroMediaPayload,
 				landingPage: hasLandingPayload ? landingPagePayload : {},
 				metadata: (() => {
 					const next: Record<string, unknown> = {
@@ -939,49 +942,49 @@ export default function AdminEventsPage() {
 										))}
 									</SelectContent>
 								</Select>
-                                                                <Select
-                                                                        value={filters.providerId || "all"}
-                                                                        onValueChange={handleProviderChange}
-                                                                >
-                                                                        <SelectTrigger className="w-[200px]">
-                                                                                <SelectValue placeholder="Provider" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                                <SelectItem value="all">All providers</SelectItem>
-                                                                                {providersQuery.data?.map(
-                                                                                        (provider: ProvidersCatalogListOutput[number]) => (
-                                                                                                <SelectItem key={provider.id} value={provider.id}>
-                                                                                                        {provider.name}
-                                                                                                </SelectItem>
-                                                                                        ),
-                                                                                )}
-                                                                        </SelectContent>
-                                                                </Select>
-                                                                <Select
-                                                                        value={
-                                                                                filters.flagId === null
-                                                                                        ? "none"
-                                                                                        : filters.flagId && filters.flagId.length > 0
-                                                                                                ? filters.flagId
-                                                                                                : "all"
-                                                                        }
-                                                                        onValueChange={handleFlagChange}
-                                                                >
-                                                                        <SelectTrigger className="w-[200px]">
-                                                                                <SelectValue placeholder="Flag" />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                                <SelectItem value="all">All flags</SelectItem>
-                                                                                <SelectItem value="none">Unflagged</SelectItem>
-                                                                                {flagOptions.map((flag) => (
-                                                                                        <SelectItem key={flag.id} value={flag.id}>
-                                                                                                {flag.label}
-                                                                                        </SelectItem>
-                                                                                ))}
-                                                                        </SelectContent>
-                                                                </Select>
-                                                        </div>
-                                                </div>
+								<Select
+									value={filters.providerId || "all"}
+									onValueChange={handleProviderChange}
+								>
+									<SelectTrigger className="w-[200px]">
+										<SelectValue placeholder="Provider" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All providers</SelectItem>
+										{providersQuery.data?.map(
+											(provider: ProvidersCatalogListOutput[number]) => (
+												<SelectItem key={provider.id} value={provider.id}>
+													{provider.name}
+												</SelectItem>
+											),
+										)}
+									</SelectContent>
+								</Select>
+								<Select
+									value={
+										filters.flagId === null
+											? "none"
+											: filters.flagId && filters.flagId.length > 0
+												? filters.flagId
+												: "all"
+									}
+									onValueChange={handleFlagChange}
+								>
+									<SelectTrigger className="w-[200px]">
+										<SelectValue placeholder="Flag" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">All flags</SelectItem>
+										<SelectItem value="none">Unflagged</SelectItem>
+										{flagOptions.map((flag) => (
+											<SelectItem key={flag.id} value={flag.id}>
+												{flag.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
 						<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
 							<div className="flex flex-col gap-2">
 								<Label htmlFor="events-start">Start from</Label>
@@ -1157,19 +1160,19 @@ export default function AdminEventsPage() {
 						</CardContent>
 					</Card>
 				) : (
-                                        <EventListView
-                                                events={events}
-                                                view={filters.view}
-                                                selectedIds={selectedIds}
-                                                onSelect={handleSelect}
-                                                onSelectAll={handleSelectAll}
-                                                onEdit={handleEditOpen}
-                                                onViewDetail={handleOpenDetail}
-                                                onStatusAction={handleStatusAction}
-                                                onDelete={handleDelete}
-                                                isDeleting={deleteEventMutation.isPending}
-                                                highlightedId={highlightId}
-                                        />
+					<EventListView
+						events={events}
+						view={filters.view}
+						selectedIds={selectedIds}
+						onSelect={handleSelect}
+						onSelectAll={handleSelectAll}
+						onEdit={handleEditOpen}
+						onViewDetail={handleOpenDetail}
+						onStatusAction={handleStatusAction}
+						onDelete={handleDelete}
+						isDeleting={deleteEventMutation.isPending}
+						highlightedId={highlightId}
+					/>
 				)}
 
 				{eventsQuery.data && total > 0 ? (
@@ -1229,17 +1232,17 @@ export default function AdminEventsPage() {
 				isDeleting={deleteEventMutation.isPending}
 			/>
 
-                        <EventEditDialog
-                                open={composerState != null}
-                                mode={composerMode}
-                                event={editingEvent}
-                                providers={providerOptions}
-                                flags={flagOptions}
-                                onSubmit={handleComposerSubmit}
-                                onClose={handleComposerClose}
-                                isSaving={
-                                        composerMode === "edit"
-                                                ? updateEventMutation.isPending
+			<EventEditDialog
+				open={composerState != null}
+				mode={composerMode}
+				event={editingEvent}
+				providers={providerOptions}
+				flags={flagOptions}
+				onSubmit={handleComposerSubmit}
+				onClose={handleComposerClose}
+				isSaving={
+					composerMode === "edit"
+						? updateEventMutation.isPending
 						: createEventMutation.isPending
 				}
 			/>

@@ -2,13 +2,12 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
-
+import type { FlagRecord } from "../db/flags";
 import {
 	logger as baseLogger,
 	metrics,
 	type WorkerLogger,
 } from "../services/log";
-import type { FlagRecord } from "../db/flags";
 
 export const eventStatuses = ["pending", "approved", "rejected"] as const;
 
@@ -105,7 +104,7 @@ export async function extractEventFromEmail(
 		.join("\n");
 	const flagsSection = availableFlags.length
 		? `AVAILABLE FLAGS (choose one):\n${flagLines}\n- Respond with the chosen flag's id or slug in flag_id. If no flag applies, use null.\n`
-		: `AVAILABLE FLAGS:\n- None provided. Set flag_id to null.\n`;
+		: "AVAILABLE FLAGS:\n- None provided. Set flag_id to null.\n";
 
 	const userPrompt = `
 EMAIL CONTENT (plain text approximation):

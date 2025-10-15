@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
-import type { WorkerLogger } from "../services/log";
 import type { FlagRecord } from "../db/flags";
+import type { WorkerLogger } from "../services/log";
 import {
 	type EventSqlInsert,
 	EventSqlInsertSchema,

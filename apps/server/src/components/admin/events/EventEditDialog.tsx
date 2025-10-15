@@ -30,23 +30,23 @@ import {
 import type { EventListItem } from "./types";
 
 export type EventEditFormValues = {
-        title: string;
-        slug: string;
-        description: string;
-        location: string;
-        url: string;
-        startAt: string;
-        endAt: string;
-        isAllDay: boolean;
-        isPublished: boolean;
-        externalId: string;
-        priority: number;
-        providerId: string;
-        flagId: string;
-        heroMediaType: EventHeroMediaType | "none";
-        heroMediaUrl: string;
-        heroMediaAlt: string;
-        heroMediaPosterUrl: string;
+	title: string;
+	slug: string;
+	description: string;
+	location: string;
+	url: string;
+	startAt: string;
+	endAt: string;
+	isAllDay: boolean;
+	isPublished: boolean;
+	externalId: string;
+	priority: number;
+	providerId: string;
+	flagId: string;
+	heroMediaType: EventHeroMediaType | "none";
+	heroMediaUrl: string;
+	heroMediaAlt: string;
+	heroMediaPosterUrl: string;
 	landingHeadline: string;
 	landingSubheadline: string;
 	landingBody: string;
@@ -63,45 +63,45 @@ export type EventEditFormValues = {
 };
 
 export type ProviderOption = {
-        id: string;
-        name: string;
+	id: string;
+	name: string;
 };
 
 export type FlagOption = {
-        id: string;
-        label: string;
-        priority: number;
+	id: string;
+	label: string;
+	priority: number;
 };
 
 type EventEditDialogProps = {
-        open: boolean;
-        mode: "create" | "edit";
-        event: EventListItem | null;
-        providers: ProviderOption[];
-        flags: FlagOption[];
-        onSubmit: (values: EventEditFormValues) => void;
-        onClose: () => void;
-        isSaving: boolean;
+	open: boolean;
+	mode: "create" | "edit";
+	event: EventListItem | null;
+	providers: ProviderOption[];
+	flags: FlagOption[];
+	onSubmit: (values: EventEditFormValues) => void;
+	onClose: () => void;
+	isSaving: boolean;
 };
 
 const defaultValues: EventEditFormValues = {
-        title: "",
-        slug: "",
-        description: "",
-        location: "",
-        url: "",
-        startAt: "",
-        endAt: "",
-        isAllDay: false,
-        isPublished: false,
-        externalId: "",
-        priority: 3,
-        providerId: "",
-        flagId: "",
-        heroMediaType: "none",
-        heroMediaUrl: "",
-        heroMediaAlt: "",
-        heroMediaPosterUrl: "",
+	title: "",
+	slug: "",
+	description: "",
+	location: "",
+	url: "",
+	startAt: "",
+	endAt: "",
+	isAllDay: false,
+	isPublished: false,
+	externalId: "",
+	priority: 3,
+	providerId: "",
+	flagId: "",
+	heroMediaType: "none",
+	heroMediaUrl: "",
+	heroMediaAlt: "",
+	heroMediaPosterUrl: "",
 	landingHeadline: "",
 	landingSubheadline: "",
 	landingBody: "",
@@ -118,14 +118,14 @@ const defaultValues: EventEditFormValues = {
 };
 
 export function EventEditDialog({
-        open,
-        mode,
-        event,
-        providers,
-        flags,
-        onSubmit,
-        onClose,
-        isSaving,
+	open,
+	mode,
+	event,
+	providers,
+	flags,
+	onSubmit,
+	onClose,
+	isSaving,
 }: EventEditDialogProps) {
 	const [values, setValues] = useState<EventEditFormValues>({
 		...defaultValues,
@@ -157,21 +157,21 @@ export function EventEditDialog({
 			event.metadata as Record<string, unknown> | null | undefined,
 		);
 
-                setValues({
-                        title: event.title,
-                        slug: event.slug,
-                        description: event.description ?? "",
+		setValues({
+			title: event.title,
+			slug: event.slug,
+			description: event.description ?? "",
 			location: event.location ?? "",
 			url: event.url ?? "",
 			startAt: formatDateTimeLocal(event.startAt),
 			endAt: formatDateTimeLocal(event.endAt),
 			isAllDay: event.isAllDay,
 			isPublished: event.isPublished,
-                        externalId: event.externalId ?? "",
-                        priority: event.priority,
-                        providerId: event.provider?.id ?? "",
-                        flagId: event.flagId ?? event.flag?.id ?? "",
-                        heroMediaType: event.heroMedia?.type ?? "none",
+			externalId: event.externalId ?? "",
+			priority: event.priority,
+			providerId: event.provider?.id ?? "",
+			flagId: event.flagId ?? event.flag?.id ?? "",
+			heroMediaType: event.heroMedia?.type ?? "none",
 			heroMediaUrl: event.heroMedia?.url ?? "",
 			heroMediaAlt: event.heroMedia?.alt ?? "",
 			heroMediaPosterUrl: event.heroMedia?.posterUrl ?? "",
@@ -372,11 +372,11 @@ export function EventEditDialog({
 							/>
 						</div>
 					</div>
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                                <div className="space-y-2">
-                                                        <Label htmlFor="event-priority">Priority</Label>
-                                                        <Select
-                                                                value={String(values.priority)}
+					<div className="grid gap-4 sm:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="event-priority">Priority</Label>
+							<Select
+								value={String(values.priority)}
 								onValueChange={(value) =>
 									setValues((prev) => ({
 										...prev,
@@ -395,56 +395,56 @@ export function EventEditDialog({
 									))}
 								</SelectContent>
 							</Select>
-                                                </div>
-                                                <div className="space-y-2">
-                                                        <Label htmlFor="event-provider">Provider</Label>
-                                                        <Select
-                                                                value={values.providerId}
-                                                                onValueChange={(value) =>
-                                                                        setValues((prev) => ({
-                                                                                ...prev,
-                                                                                providerId: value,
-                                                                        }))
-                                                                }
-                                                        >
-                                                                <SelectTrigger id="event-provider">
-                                                                        <SelectValue placeholder="Select provider" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                        {/* <SelectItem value="all">Unassigned</SelectItem> */}
-                                                                        {providers.map((provider) => (
-                                                                                <SelectItem key={provider.id} value={provider.id}>
-                                                                                        {provider.name}
-                                                                                </SelectItem>
-                                                                        ))}
-                                                                </SelectContent>
-                                                        </Select>
-                                                </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                                <Label htmlFor="event-flag">Flag</Label>
-                                                <Select
-                                                        value={values.flagId}
-                                                        onValueChange={(value) =>
-                                                                setValues((prev) => ({
-                                                                        ...prev,
-                                                                        flagId: value,
-                                                                }))
-                                                        }
-                                                >
-                                                        <SelectTrigger id="event-flag">
-                                                                <SelectValue placeholder="Select flag" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                                <SelectItem value="">Unassigned</SelectItem>
-                                                                {flags.map((flag) => (
-                                                                        <SelectItem key={flag.id} value={flag.id}>
-                                                                                {flag.label} (P{flag.priority})
-                                                                        </SelectItem>
-                                                                ))}
-                                                        </SelectContent>
-                                                </Select>
-                                        </div>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="event-provider">Provider</Label>
+							<Select
+								value={values.providerId}
+								onValueChange={(value) =>
+									setValues((prev) => ({
+										...prev,
+										providerId: value,
+									}))
+								}
+							>
+								<SelectTrigger id="event-provider">
+									<SelectValue placeholder="Select provider" />
+								</SelectTrigger>
+								<SelectContent>
+									{/* <SelectItem value="all">Unassigned</SelectItem> */}
+									{providers.map((provider) => (
+										<SelectItem key={provider.id} value={provider.id}>
+											{provider.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+					<div className="space-y-2">
+						<Label htmlFor="event-flag">Flag</Label>
+						<Select
+							value={values.flagId}
+							onValueChange={(value) =>
+								setValues((prev) => ({
+									...prev,
+									flagId: value,
+								}))
+							}
+						>
+							<SelectTrigger id="event-flag">
+								<SelectValue placeholder="Select flag" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="">Unassigned</SelectItem>
+								{flags.map((flag) => (
+									<SelectItem key={flag.id} value={flag.id}>
+										{flag.label} (P{flag.priority})
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
 					<div className="rounded-md border bg-muted/30 p-3">
 						<div className="space-y-1">
 							<p className="font-semibold text-sm">Hero media</p>

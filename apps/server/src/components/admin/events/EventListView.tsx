@@ -22,17 +22,17 @@ import { type StatusAction, statusActions } from "./status-actions";
 import type { EventListItem } from "./types";
 
 export type EventListViewProps = {
-        events: EventListItem[];
-        view: "table" | "card";
-        selectedIds: string[];
-        onSelect: (id: string, checked: boolean) => void;
-        onSelectAll: (checked: boolean) => void;
-        onEdit: (event: EventListItem) => void;
-        onViewDetail: (id: string) => void;
-        onStatusAction: (id: string, action: StatusAction) => void;
-        onDelete: (event: EventListItem) => void;
-        isDeleting: boolean;
-        highlightedId?: string | null;
+	events: EventListItem[];
+	view: "table" | "card";
+	selectedIds: string[];
+	onSelect: (id: string, checked: boolean) => void;
+	onSelectAll: (checked: boolean) => void;
+	onEdit: (event: EventListItem) => void;
+	onViewDetail: (id: string) => void;
+	onStatusAction: (id: string, action: StatusAction) => void;
+	onDelete: (event: EventListItem) => void;
+	isDeleting: boolean;
+	highlightedId?: string | null;
 };
 
 type VisibilityBadge = {
@@ -57,23 +57,23 @@ function getVisibilityBadge(event: EventListItem): VisibilityBadge {
 }
 
 export function EventListView({
-        events,
-        view,
-        selectedIds,
-        onSelect,
-        onSelectAll,
-        onEdit,
-        onViewDetail,
-        onStatusAction,
-        onDelete,
-        isDeleting,
-        highlightedId,
+	events,
+	view,
+	selectedIds,
+	onSelect,
+	onSelectAll,
+	onEdit,
+	onViewDetail,
+	onStatusAction,
+	onDelete,
+	isDeleting,
+	highlightedId,
 }: EventListViewProps) {
-        const selectedIdSet = new Set(selectedIds);
-        const allSelectedOnPage =
-                events.length > 0 && events.every((event) => selectedIdSet.has(event.id));
-        const headerCheckboxState = selectedIds.length
-                ? allSelectedOnPage
+	const selectedIdSet = new Set(selectedIds);
+	const allSelectedOnPage =
+		events.length > 0 && events.every((event) => selectedIdSet.has(event.id));
+	const headerCheckboxState = selectedIds.length
+		? allSelectedOnPage
 			? true
 			: "indeterminate"
 		: false;
@@ -83,21 +83,20 @@ export function EventListView({
 			<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
 				{events.map((event) => {
 					const isSelected = selectedIdSet.has(event.id);
-                                        const visibility = getVisibilityBadge(event);
-                                        const isHighlighted = highlightedId === event.id;
-                                        const statusKey = event.status as keyof typeof statusOptionMap;
-                                        const statusConfig = statusOptionMap[statusKey];
-                                        return (
-                                                <Card
-                                                        key={event.id}
+					const visibility = getVisibilityBadge(event);
+					const isHighlighted = highlightedId === event.id;
+					const statusKey = event.status as keyof typeof statusOptionMap;
+					const statusConfig = statusOptionMap[statusKey];
+					return (
+						<Card
+							key={event.id}
 							className={cn(
 								"relative flex h-full flex-col border",
-                                                                isSelected &&
-                                                                        "border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]",
-                                                                isHighlighted &&
-                                                                        "border-primary/60 ring-2 ring-primary/40",
-                                                        )}
-                                                >
+								isSelected &&
+									"border-primary/60 shadow-[0_0_0_1px_rgba(59,130,246,0.4)]",
+								isHighlighted && "border-primary/60 ring-2 ring-primary/40",
+							)}
+						>
 							<CardHeader className="space-y-3">
 								<div className="flex items-start justify-between gap-3">
 									<EventPreview
@@ -196,19 +195,18 @@ export function EventListView({
 				<TableBody>
 					{events.map((event) => {
 						const isSelected = selectedIdSet.has(event.id);
-                                                const visibility = getVisibilityBadge(event);
-                                                const isHighlighted = highlightedId === event.id;
-                                                const statusKey = event.status as keyof typeof statusOptionMap;
-                                                const statusConfig = statusOptionMap[statusKey];
-                                                return (
-                                                        <TableRow
-                                                                key={event.id}
-                                                                className={cn(
-                                                                        "align-top",
-                                                                        isHighlighted &&
-                                                                                "bg-primary/5 [&>td]:border-primary/50",
-                                                                )}
-                                                        >
+						const visibility = getVisibilityBadge(event);
+						const isHighlighted = highlightedId === event.id;
+						const statusKey = event.status as keyof typeof statusOptionMap;
+						const statusConfig = statusOptionMap[statusKey];
+						return (
+							<TableRow
+								key={event.id}
+								className={cn(
+									"align-top",
+									isHighlighted && "bg-primary/5 [&>td]:border-primary/50",
+								)}
+							>
 								<TableCell>
 									<Checkbox
 										checked={isSelected}

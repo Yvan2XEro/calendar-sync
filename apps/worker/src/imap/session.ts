@@ -4,7 +4,7 @@ import type { ParsedMail } from "mailparser";
 import { simpleParser } from "mailparser";
 import type { WorkerConfig } from "../config/env";
 import { insertEvent } from "../db/events";
-import { getFlags, type FlagRecord } from "../db/flags";
+import { type FlagRecord, getFlags } from "../db/flags";
 import { getProviderCursor, setProviderCursor } from "../db/providers";
 import { runIngestPipeline } from "../ingest";
 import { createBackoff } from "../services/backoff";
@@ -352,15 +352,15 @@ export async function runProviderSession(
 						if (stopRequested) break;
 						if (!message.uid) continue;
 
-							try {
-								const inserted = await handleMessage(
-									provider,
-									mailbox,
-									message,
-									sessionLogger,
-									sessionFlags,
-									extractEvent,
-								);
+						try {
+							const inserted = await handleMessage(
+								provider,
+								mailbox,
+								message,
+								sessionLogger,
+								sessionFlags,
+								extractEvent,
+							);
 							if (inserted) processed += 1;
 						} catch (error) {
 							fetchRequested = true;

@@ -16,8 +16,8 @@ import {
 } from "./event-filters";
 
 type UseEventFiltersOptions = {
-        defaultLimit?: number;
-        preserveParams?: readonly string[];
+	defaultLimit?: number;
+	preserveParams?: readonly string[];
 };
 
 type UseEventFiltersResult = {
@@ -29,12 +29,12 @@ type UseEventFiltersResult = {
 	limit: number;
 	setLimit: Dispatch<SetStateAction<number>>;
 	handleSearchChange: (event: ChangeEvent<HTMLInputElement>) => void;
-        handleStatusChange: (value: string) => void;
-        handleProviderChange: (value: string) => void;
-        handleFlagChange: (value: string) => void;
-        handleDateChange: (
-                key: "startFrom" | "startTo",
-        ) => (event: ChangeEvent<HTMLInputElement>) => void;
+	handleStatusChange: (value: string) => void;
+	handleProviderChange: (value: string) => void;
+	handleFlagChange: (value: string) => void;
+	handleDateChange: (
+		key: "startFrom" | "startTo",
+	) => (event: ChangeEvent<HTMLInputElement>) => void;
 	handleToggleChange: (
 		key: "publishedOnly" | "allDayOnly",
 	) => (checked: boolean) => void;
@@ -46,16 +46,16 @@ type UseEventFiltersResult = {
 };
 
 export function useEventFilters(
-        options: UseEventFiltersOptions = {},
+	options: UseEventFiltersOptions = {},
 ): UseEventFiltersResult {
-        const router = useRouter();
-        const pathname = usePathname();
-        const searchParams = useSearchParams();
-        const searchParamsString = searchParams.toString();
-        const hasInitialQuery = searchParamsString.length > 0;
+	const router = useRouter();
+	const pathname = usePathname();
+	const searchParams = useSearchParams();
+	const searchParamsString = searchParams.toString();
+	const hasInitialQuery = searchParamsString.length > 0;
 
-        const preserveParamsList = options.preserveParams ?? [];
-        const preserveParamsKey = preserveParamsList.join("\0");
+	const preserveParamsList = options.preserveParams ?? [];
+	const preserveParamsKey = preserveParamsList.join("\0");
 
 	const skipSearchSyncRef = useRef(false);
 
@@ -83,7 +83,7 @@ export function useEventFilters(
 
 	const listFilters = useMemo(() => buildListInput(filters), [filters]);
 
-        const defaultLimit = options.defaultLimit ?? 25;
+	const defaultLimit = options.defaultLimit ?? 25;
 	const [page, setPage] = useState(1);
 	const [limit, setLimit] = useState(defaultLimit);
 
@@ -101,27 +101,27 @@ export function useEventFilters(
 			skipSearchSyncRef.current = false;
 			return;
 		}
-                const nextParams = filtersToSearchParams(filters);
-                if (preserveParamsList.length > 0) {
-                        for (const key of preserveParamsList) {
-                                const value = searchParams.get(key);
-                                if (value !== null) {
-                                        nextParams.set(key, value);
-                                }
-                        }
-                }
-                const nextString = nextParams.toString();
-                if (nextString === searchParamsString) {
-                        return;
-                }
-                skipSearchSyncRef.current = true;
+		const nextParams = filtersToSearchParams(filters);
+		if (preserveParamsList.length > 0) {
+			for (const key of preserveParamsList) {
+				const value = searchParams.get(key);
+				if (value !== null) {
+					nextParams.set(key, value);
+				}
+			}
+		}
+		const nextString = nextParams.toString();
+		if (nextString === searchParamsString) {
+			return;
+		}
+		skipSearchSyncRef.current = true;
 		const queryEntries = Array.from(nextParams.entries()).map<[string, string]>(
 			([key, value]) => [key, value],
 		);
 		const nextUrl =
 			queryEntries.length > 0 ? `${pathname}?${nextString}` : pathname;
 		router.replace(nextUrl as any, { scroll: false });
-        }, [filters, pathname, router, searchParamsString, preserveParamsKey]);
+	}, [filters, pathname, router, searchParamsString, preserveParamsKey]);
 
 	useEffect(() => {
 		if (skipSearchSyncRef.current) {
@@ -155,30 +155,25 @@ export function useEventFilters(
 		}));
 	}, []);
 
-        const handleProviderChange = useCallback((value: string) => {
-                setFilters((prev) => ({
-                        ...prev,
-                        providerId: value === "all" ? "" : value,
-                }));
-        }, []);
+	const handleProviderChange = useCallback((value: string) => {
+		setFilters((prev) => ({
+			...prev,
+			providerId: value === "all" ? "" : value,
+		}));
+	}, []);
 
-        const handleFlagChange = useCallback((value: string) => {
-                setFilters((prev) => ({
-                        ...prev,
-                        flagId:
-                                value === "all"
-                                        ? ""
-                                        : value === "none"
-                                                ? null
-                                                : value,
-                }));
-        }, []);
+	const handleFlagChange = useCallback((value: string) => {
+		setFilters((prev) => ({
+			...prev,
+			flagId: value === "all" ? "" : value === "none" ? null : value,
+		}));
+	}, []);
 
-        const handleDateChange = useCallback(
-                (key: "startFrom" | "startTo") =>
-                        (event: ChangeEvent<HTMLInputElement>) => {
-                                const value = event.target.value;
-                                setFilters((prev) => ({ ...prev, [key]: value }));
+	const handleDateChange = useCallback(
+		(key: "startFrom" | "startTo") =>
+			(event: ChangeEvent<HTMLInputElement>) => {
+				const value = event.target.value;
+				setFilters((prev) => ({ ...prev, [key]: value }));
 			},
 		[],
 	);
@@ -224,13 +219,13 @@ export function useEventFilters(
 		setPage,
 		limit,
 		setLimit,
-                handleSearchChange,
-                handleStatusChange,
-                handleProviderChange,
-                handleFlagChange,
-                handleDateChange,
-                handleToggleChange,
-                handlePriorityChange,
-                handleViewChange,
-        };
+		handleSearchChange,
+		handleStatusChange,
+		handleProviderChange,
+		handleFlagChange,
+		handleDateChange,
+		handleToggleChange,
+		handlePriorityChange,
+		handleViewChange,
+	};
 }
