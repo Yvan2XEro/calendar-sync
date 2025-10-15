@@ -16,6 +16,7 @@ import {
 	Table as TableIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { EventDetailSheet } from "@/components/admin/events/EventDetailSheet";
 import {
@@ -77,6 +78,7 @@ type RouterInputs = inferRouterInputs<AppRouter>;
 type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 const DEFAULT_PAGE_SIZE = 25;
+const PRESERVED_EVENT_SEARCH_PARAMS = ["highlight"] as const;
 
 type UpdateStatusInput = RouterInputs["events"]["updateStatus"];
 type BulkUpdateStatusInput = RouterInputs["events"]["bulkUpdateStatus"];
@@ -198,22 +200,28 @@ function replaceEventInCache(
 
 export default function AdminEventsPage() {
 	const queryClient = useQueryClient();
-	const {
-		filters,
-		listFilters,
-		listParams,
-		page,
-		setPage,
-		limit,
-		setLimit,
-		handleSearchChange,
-		handleStatusChange,
-		handleProviderChange,
-		handleDateChange,
-		handleToggleChange,
-		handlePriorityChange,
-		handleViewChange,
-	} = useEventFilters({ defaultLimit: DEFAULT_PAGE_SIZE });
+        const searchParams = useSearchParams();
+        const highlightId = searchParams.get("highlight");
+
+        const {
+                filters,
+                listFilters,
+                listParams,
+                page,
+                setPage,
+                limit,
+                setLimit,
+                handleSearchChange,
+                handleStatusChange,
+                handleProviderChange,
+                handleDateChange,
+                handleToggleChange,
+                handlePriorityChange,
+                handleViewChange,
+        } = useEventFilters({
+                defaultLimit: DEFAULT_PAGE_SIZE,
+                preserveParams: PRESERVED_EVENT_SEARCH_PARAMS,
+        });
 
 	const providersQuery = useQuery<ProvidersCatalogListOutput>({
 		queryKey: providerKeys.catalog.list(),
@@ -1078,18 +1086,19 @@ export default function AdminEventsPage() {
 						</CardContent>
 					</Card>
 				) : (
-					<EventListView
-						events={events}
-						view={filters.view}
-						selectedIds={selectedIds}
-						onSelect={handleSelect}
-						onSelectAll={handleSelectAll}
-						onEdit={handleEditOpen}
-						onViewDetail={handleOpenDetail}
-						onStatusAction={handleStatusAction}
-						onDelete={handleDelete}
-						isDeleting={deleteEventMutation.isPending}
-					/>
+                                        <EventListView
+                                                events={events}
+                                                view={filters.view}
+                                                selectedIds={selectedIds}
+                                                onSelect={handleSelect}
+                                                onSelectAll={handleSelectAll}
+                                                onEdit={handleEditOpen}
+                                                onViewDetail={handleOpenDetail}
+                                                onStatusAction={handleStatusAction}
+                                                onDelete={handleDelete}
+                                                isDeleting={deleteEventMutation.isPending}
+                                                highlightedId={highlightId}
+                                        />
 				)}
 
 				{eventsQuery.data && total > 0 ? (
