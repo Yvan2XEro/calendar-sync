@@ -1,20 +1,24 @@
 import { and, eq } from "drizzle-orm";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { EventLandingDetails } from "@/components/events/EventLandingDetails";
 import { EventLandingHero } from "@/components/events/EventLandingHero";
+import { EventPageNavigation } from "@/components/events/EventPageNavigation";
 import { EventParticipationPanel } from "@/components/events/EventParticipationPanel";
 import { EventRegistrationSection } from "@/components/events/EventRegistrationSection";
 import { db } from "@/db";
 import { event } from "@/db/schema/app";
+import { auth, enforceTukiSessionRoles } from "@/lib/auth";
 import {
 	hasLandingContent,
 	parseHeroMedia,
 	parseLandingPage,
 } from "@/lib/event-content";
 import { getEventTicketInventory } from "@/lib/events/registration";
+import { getUserRoles } from "@/lib/session";
 import { buildAbsoluteUrl, getSiteBaseUrl } from "@/lib/site-metadata";
 
 const fetchPublishedEvent = cache(async (slug: string) => {
@@ -153,6 +157,21 @@ export default async function EventLandingPage(props: { params: any }) {
 	const record = await fetchPublishedEvent(params.slug);
 	if (!record) notFound();
 
+	const headerList = await headers();
+	let isAdmin = false;
+	try {
+		const sessionResponse = await auth.api.getSession({
+			headers: headerList,
+		});
+		const normalized = await enforceTukiSessionRoles(sessionResponse);
+		if (normalized.session) {
+			const roles = getUserRoles(normalized.session);
+			isAdmin = roles.includes("admin");
+		}
+	} catch (error) {
+		console.warn("Unable to resolve session for event navigation", error);
+	}
+
 	const ticketsData = await getEventTicketInventory(record.id);
 	const tickets = ticketsData.map(
 		({ ticket, remaining, used, saleOpen, soldOut }) => ({
@@ -215,6 +234,7 @@ export default async function EventLandingPage(props: { params: any }) {
 
 	return (
 		<main className="flex min-h-screen flex-col bg-background">
+			<EventPageNavigation eventId={record.id} isAdmin={isAdmin} />
 			<EventLandingHero
 				title={record.title}
 				startAt={record.startAt}
