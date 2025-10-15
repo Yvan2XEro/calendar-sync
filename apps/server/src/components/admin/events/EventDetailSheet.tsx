@@ -69,9 +69,7 @@ export function EventDetailSheet({
 	const autoApprovalTimestamp = autoApproval?.at
 		? new Date(autoApproval.at)
 		: null;
-	const publicHref: UrlObject | null = event
-		? { pathname: "/events/[slug]", query: { slug: event.slug } }
-		: null;
+	const publicHref = `/events/${event?.slug}`;
 	const heroMedia = event?.heroMedia ?? null;
 	const hasHero = Boolean(heroMedia?.type && heroMedia?.url);
 	const landing = event?.landingPage ?? null;
@@ -105,12 +103,7 @@ export function EventDetailSheet({
 					<div className="mt-6 space-y-6">
 						<div className="flex flex-wrap items-center gap-2">
 							<Button asChild size="sm" variant="outline">
-								<Link
-									href={{
-										pathname: "/admin/events/[id]/attendees",
-										query: { id: event.id },
-									}}
-								>
+								<Link href={`/admin/events/${event.id}/attendees`}>
 									Open attendee roster
 								</Link>
 							</Button>

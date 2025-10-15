@@ -212,8 +212,16 @@ export const orgsRouter = router({
 					url: row.url,
 					heroMedia: parseHeroMedia(row.heroMedia),
 					landingPage: parseLandingPage(row.landingPage),
-					startAt: row.startAt,
-					endAt: row.endAt,
+					startAt:
+						row.startAt instanceof Date
+							? row.startAt.toISOString()
+							: new Date(row.startAt).toISOString(),
+					endAt:
+						row.endAt instanceof Date
+							? row.endAt.toISOString()
+							: row.endAt
+								? new Date(row.endAt).toISOString()
+								: null,
 					organization: {
 						id: organizationRow.id,
 						name: organizationRow.name,
@@ -224,6 +232,8 @@ export const orgsRouter = router({
 						typeof metadata?.imageUrl === "string"
 							? (metadata.imageUrl as string)
 							: null,
+					participantCount: null,
+					isParticipant: false,
 				} as const;
 			});
 
