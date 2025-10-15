@@ -8,7 +8,8 @@ import { MoreHorizontal } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-
+import { statusOptionMap } from "@/app/(site)/admin/events/event-filters";
+import { EventAnalyticsSummary } from "@/components/admin/events/EventAnalyticsSummary";
 import AppShell from "@/components/layout/AppShell";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -53,6 +54,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
 	TableBody,
@@ -61,6 +63,7 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table";
+import { formatDisplayDate } from "@/lib/datetime";
 import { eventKeys } from "@/lib/query-keys/events";
 import { trpcClient } from "@/lib/trpc-client";
 import type { AppRouter } from "@/routers";
@@ -344,6 +347,7 @@ export default function EventAttendeesPage() {
 	const limit = attendeesQuery.data?.limit ?? pageSize;
 	const totalPages = Math.max(1, Math.ceil(total / limit));
 	const eventTitle = eventQuery.data?.title ?? "Event";
+	const eventDetail = eventQuery.data ?? null;
 
 	const handleCheckIn = (attendee: AttendeeListItem) => {
 		const payload: UpdateAttendeeStatusInput = {
@@ -441,6 +445,114 @@ export default function EventAttendeesPage() {
 						</Button>
 					</div>
 				</div>
+
+				<Card>
+					<CardHeader>
+						<CardTitle>Event overview</CardTitle>
+						<CardDescription>
+							Snapshot of the latest schedule, status, and performance metrics.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						{eventQuery.isLoading ? (
+							<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+								{[0, 1, 2, 3].map((index) => (
+									<div key={index} className="space-y-2">
+										<Skeleton className="h-3 w-24" />
+										<Skeleton className="h-5 w-44" />
+										<Skeleton className="h-4 w-32" />
+									</div>
+								))}
+							</div>
+						) : eventQuery.isError ? (
+							<Alert variant="destructive">
+								<AlertTitle>Unable to load event details</AlertTitle>
+								<AlertDescription>
+									We couldn’t fetch the event metadata. You can still review
+									attendee activity below.
+								</AlertDescription>
+							</Alert>
+						) : eventDetail ? (
+							<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+								<div className="space-y-1">
+									<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+										Schedule
+									</p>
+									<p className="text-foreground text-sm">
+										Starts: {formatDisplayDate(eventDetail.startAt) || "TBD"}
+									</p>
+									{eventDetail.endAt ? (
+										<p className="text-muted-foreground text-sm">
+											Ends: {formatDisplayDate(eventDetail.endAt)}
+										</p>
+									) : null}
+									{eventDetail.isAllDay ? (
+										<p className="text-muted-foreground text-sm">
+											All-day event
+										</p>
+									) : null}
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+										Location
+									</p>
+									<p className="text-foreground text-sm">
+										{eventDetail.location ?? "No location provided"}
+									</p>
+									{eventDetail.url ? (
+										<p className="break-all text-muted-foreground text-xs">
+											{eventDetail.url}
+										</p>
+									) : null}
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+										Provider
+									</p>
+									<p className="text-foreground text-sm">
+										{eventDetail.provider?.name ?? "Unassigned"}
+									</p>
+									{eventDetail.provider?.category ? (
+										<p className="text-muted-foreground text-sm">
+											{eventDetail.provider.category}
+										</p>
+									) : null}
+								</div>
+								<div className="space-y-1">
+									<p className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
+										Status
+									</p>
+									<div className="flex flex-wrap items-center gap-2">
+										{eventDetail.status ? (
+											<Badge
+												variant={
+													statusOptionMap[
+														eventDetail.status as keyof typeof statusOptionMap
+													].badgeVariant
+												}
+											>
+												{
+													statusOptionMap[
+														eventDetail.status as keyof typeof statusOptionMap
+													].label
+												}
+											</Badge>
+										) : null}
+										<Badge
+											variant={eventDetail.isPublished ? "default" : "outline"}
+										>
+											{eventDetail.isPublished ? "Published" : "Draft"}
+										</Badge>
+										{eventDetail.flag ? (
+											<Badge variant="destructive">Flagged</Badge>
+										) : null}
+									</div>
+								</div>
+							</div>
+						) : null}
+						<EventAnalyticsSummary eventId={eventId} />
+					</CardContent>
+				</Card>
 
 				<Card>
 					<CardHeader>
