@@ -100,7 +100,7 @@ export default async function AuthPage({
 			<AuthView
 				path={path}
 				callbackURL="/dashboard"
-				className="[&_form]:hidden [&_[data-slot='card-footer']]:hidden"
+				className="[&_[data-slot='card-footer']]:hidden [&_form]:hidden"
 				cardHeader={
 					<>
 						<Link className="font-bold text-2xl" href="/">
