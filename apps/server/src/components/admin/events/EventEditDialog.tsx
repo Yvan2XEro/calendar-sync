@@ -437,7 +437,7 @@ export function EventEditDialog({
 								<SelectValue placeholder="Select flag" />
 							</SelectTrigger>
 							<SelectContent>
-								<SelectItem value="">Unassigned</SelectItem>
+								{/* <SelectItem value="">Unassigned</SelectItem> */}
 								{flags.map((flag) => (
 									<SelectItem key={flag.id} value={flag.id}>
 										{flag.label} (P{flag.priority})
@@ -480,37 +480,37 @@ export function EventEditDialog({
 									</SelectContent>
 								</Select>
 							</div>
-                                                        <div className="space-y-2">
-                                                                <Label htmlFor="event-hero-url">Media source</Label>
-                                                                <MediaUploadInput
-                                                                        inputId="event-hero-url"
-                                                                        value={values.heroMediaUrl}
-                                                                        onChange={(heroMediaUrl) =>
-                                                                                setValues((prev) => ({
-                                                                                        ...prev,
-                                                                                        heroMediaUrl,
-                                                                                }))
-                                                                        }
-                                                                        placeholder={
-                                                                                values.heroMediaType === "video"
-                                                                                        ? "https://example.com/video.mp4"
-                                                                                        : "https://example.com/hero.jpg"
-                                                                        }
-                                                                        disabled={values.heroMediaType === "none"}
-                                                                        allowUpload={values.heroMediaType === "image"}
-                                                                        uploadLabel="Upload hero image"
-                                                                        description={
-                                                                                values.heroMediaType === "image"
-                                                                                        ? "Drag an image here or pick a file to host it with Vercel Blob."
-                                                                                        : "Paste the URL for a hosted video."
-                                                                        }
-                                                                        linkLabel={
-                                                                                values.heroMediaType === "image"
-                                                                                        ? "Or paste an image link"
-                                                                                        : "Paste a video link"
-                                                                        }
-                                                                />
-                                                        </div>
+							<div className="space-y-2">
+								<Label htmlFor="event-hero-url">Media source</Label>
+								<MediaUploadInput
+									inputId="event-hero-url"
+									value={values.heroMediaUrl}
+									onChange={(heroMediaUrl) =>
+										setValues((prev) => ({
+											...prev,
+											heroMediaUrl,
+										}))
+									}
+									placeholder={
+										values.heroMediaType === "video"
+											? "https://example.com/video.mp4"
+											: "https://example.com/hero.jpg"
+									}
+									disabled={values.heroMediaType === "none"}
+									allowUpload={values.heroMediaType === "image"}
+									uploadLabel="Upload hero image"
+									description={
+										values.heroMediaType === "image"
+											? "Drag an image here or pick a file"
+											: "Paste the URL for a hosted video."
+									}
+									linkLabel={
+										values.heroMediaType === "image"
+											? "Or paste an image link"
+											: "Paste a video link"
+									}
+								/>
+							</div>
 						</div>
 						{values.heroMediaType !== "none" ? (
 							<div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -529,22 +529,22 @@ export function EventEditDialog({
 									/>
 								</div>
 								{values.heroMediaType === "video" ? (
-                                                                        <div className="space-y-2">
-                                                                                <Label htmlFor="event-hero-poster">Poster image</Label>
-                                                                                <MediaUploadInput
-                                                                                        inputId="event-hero-poster"
-                                                                                        value={values.heroMediaPosterUrl}
-                                                                                        onChange={(heroMediaPosterUrl) =>
-                                                                                                setValues((prev) => ({
-                                                                                                        ...prev,
-                                                                                                        heroMediaPosterUrl,
-                                                                                                }))
-                                                                                        }
-                                                                                        placeholder="https://example.com/poster.jpg"
-                                                                                        uploadLabel="Upload poster image"
-                                                                                        description="Use a JPG or PNG image for the video poster."
-                                                                                />
-                                                                        </div>
+									<div className="space-y-2">
+										<Label htmlFor="event-hero-poster">Poster image</Label>
+										<MediaUploadInput
+											inputId="event-hero-poster"
+											value={values.heroMediaPosterUrl}
+											onChange={(heroMediaPosterUrl) =>
+												setValues((prev) => ({
+													...prev,
+													heroMediaPosterUrl,
+												}))
+											}
+											placeholder="https://example.com/poster.jpg"
+											uploadLabel="Upload poster image"
+											description="Use a JPG or PNG image for the video poster."
+										/>
+									</div>
 								) : null}
 							</div>
 						) : null}
